@@ -1,0 +1,8 @@
+tab_spaces=2
+trailing_semicolon=false
+use_field_init_shorthand=true
+binop_separator="Back"
+combine_control_expr=false
+edition="2021"
+newline_style="Unix"
+group_imports="StdExternalCrate"
