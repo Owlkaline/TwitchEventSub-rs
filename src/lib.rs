@@ -34,6 +34,12 @@ mod modules;
 
 use crate::modules::generic_message::*;
 
+#[derive(Debug)]
+pub enum EventSubError {
+  TokenMissingScope,
+  NoSubscriptionsRequested,
+}
+
 #[derive(PartialEq)]
 pub enum RequestType {
   Post(String),
@@ -111,16 +117,25 @@ impl TwitchHttp {
   }
 
   #[must_use]
-  pub fn auth<S: Into<String>, T: Into<String>>(
-    mut self,
+  pub fn full_auth<S: Into<String>, T: Into<String>>(
+    self,
     scoped_oauth: S,
     client_id: T,
   ) -> TwitchHttp {
+    self.oauth(scoped_oauth).client_id(client_id)
+  }
+
+  #[must_use]
+  pub fn oauth<S: Into<String>>(mut self, oauth: S) -> TwitchHttp {
     self
       .header
-      .push(format!("Authorization: Bearer {}", scoped_oauth.into()));
-    self.header.push(format!("Client-Id: {}", client_id.into()));
+      .push(format!("Authorization: Bearer {}", oauth.into()));
+    self
+  }
 
+  #[must_use]
+  pub fn client_id<S: Into<String>>(mut self, client_id: S) -> TwitchHttp {
+    self.header.push(format!("Client-Id: {}", client_id.into()));
     self
   }
 
@@ -137,44 +152,48 @@ impl TwitchHttp {
     self
   }
 
-  pub fn run(&self) {
+  pub fn run(&self) -> Result<String, curl::Error> {
+    let mut data = Vec::new();
+
     let mut handle = Easy::new();
+    {
+      handle.url(&self.url).unwrap();
+      if let Some(request) = &self.request_type {
+        request.apply(&mut handle);
+      }
 
-    handle.url(&self.url).unwrap();
-    if let Some(request) = &self.request_type {
-      request.apply(&mut handle);
+      let mut headers = List::new();
+      for header in &self.header {
+        headers.append(header).unwrap();
+      }
+
+      handle.http_headers(headers).unwrap();
+
+      let mut handle = handle.transfer();
+      // getting data back
+      // idk why its called write function
+      // that silly
+      // we are reading whats coming back
+      let _ = handle.write_function(|new_data| {
+        data.extend_from_slice(new_data);
+        Ok(new_data.len())
+      });
+
+      if let Some(e) = handle.perform().err() {
+        return Err(e);
+      }
     }
 
-    let mut headers = List::new();
-    for header in &self.header {
-      headers.append(header).unwrap();
-    }
-
-    handle.http_headers(headers).unwrap();
-
-    // getting data back
-    // idk why its called write function
-    // that silly
-    // we are reading whats coming back
-    let _ = handle.write_function(|new_data| {
-      println!(
-        "HTTP REQUEST RESPONSE: {}",
-        String::from_utf8_lossy(&new_data)
-      );
-      Ok(new_data.len())
-    });
-
-    if let Err(e) = handle.perform() {
-      println!("Error: {:?}", e);
-    }
+    Ok(String::from_utf8_lossy(&data).to_string())
   }
 }
 
 #[must_use]
 pub struct TwitchEventSubApiBuilder {
   twitch_keys: TwitchKeys,
-  subscriptions: Vec<Subscription>,
-  local_server_ip: Option<String>,
+  subscriptions: Vec<SubscriptionPermission>,
+  oauth_redirect_url: Option<String>,
+  custom_subscription: Option<String>,
 }
 
 impl TwitchEventSubApiBuilder {
@@ -182,7 +201,8 @@ impl TwitchEventSubApiBuilder {
     TwitchEventSubApiBuilder {
       twitch_keys: tk,
       subscriptions: Vec::new(),
-      local_server_ip: None,
+      oauth_redirect_url: None,
+      custom_subscription: None,
     }
   }
 
@@ -190,24 +210,43 @@ impl TwitchEventSubApiBuilder {
     mut self,
     ip: S,
   ) -> TwitchEventSubApiBuilder {
-    self.local_server_ip = Some(ip.into());
+    self.oauth_redirect_url = Some(ip.into());
     self
   }
 
-  pub fn add_subscription(mut self, sub: Subscription) -> TwitchEventSubApiBuilder {
-    self.subscriptions.push(sub.into());
+  pub fn add_subscription(mut self, sub: SubscriptionPermission) -> TwitchEventSubApiBuilder {
+    self.subscriptions.push(sub);
     self
   }
 
-  pub fn build(self) -> Option<TwitchEventSubApi> {
-    if self.subscriptions.len() == 0 {
-      None
-    } else {
-      Some(TwitchEventSubApi::new(
+  pub fn build(self) -> Result<TwitchEventSubApi, EventSubError> {
+    if self.subscriptions.is_empty() {
+      return Err(EventSubError::NoSubscriptionsRequested);
+    }
+
+    if self.twitch_keys.scoped_oauth.is_empty() {
+      TwitchEventSubApi::web_browser_authorisation(
+        &self.twitch_keys,
+        self
+          .oauth_redirect_url
+          .clone()
+          .expect("No oauth redirect url specified."),
+        &self.subscriptions,
+      );
+    }
+
+    if TwitchEventSubApi::check_token_meets_requirements(
+      self.twitch_keys.scoped_oauth.to_string(),
+      &self.subscriptions,
+    ) {
+      Ok(TwitchEventSubApi::new(
         self.twitch_keys,
         self.subscriptions,
-        self.local_server_ip,
+        self.oauth_redirect_url,
+        Vec::new(),
       ))
+    } else {
+      Err(EventSubError::TokenMissingScope)
     }
   }
 }
@@ -227,15 +266,9 @@ impl TwitchEventSubApi {
 
   pub fn new(
     twitch_keys: TwitchKeys,
-    subscriptions: Vec<String>,
-    local_server_ip: Option<String>,
-    // oauth: string,
-    // scoped_oauth: string,
-    // client_id: string,
-    // client_secret: string,
-    // app_token: string,
-    // broadcaster_account_id: string,
-    // sender_account_id: Option<String>,
+    subscriptions: Vec<SubscriptionPermission>,
+    oauth_redirect_url: Option<String>,
+    custom_subscription_data: Vec<String>,
   ) -> TwitchEventSubApi {
     let client = ClientBuilder::new(CONNECTION_EVENTS)
       .unwrap()
@@ -249,7 +282,13 @@ impl TwitchEventSubApi {
 
     let keys_clone = twitch_keys.clone();
     let receive_thread = thread::spawn(move || {
-      TwitchEventSubApi::event_sub_events(receiver, transmit_messages, keys_clone)
+      TwitchEventSubApi::event_sub_events(
+        receiver,
+        transmit_messages,
+        subscriptions,
+        custom_subscription_data,
+        keys_clone,
+      )
     });
 
     TwitchEventSubApi {
@@ -261,13 +300,53 @@ impl TwitchEventSubApi {
     }
   }
 
+  pub fn check_token_meets_requirements<S: Into<String>>(
+    token: S,
+    subs: &Vec<SubscriptionPermission>,
+  ) -> bool {
+    if let Ok(data) = TwitchHttp::new(VALIDATION_TOKEN_URL)
+      .oauth(token.into())
+      .run()
+    {
+      let validation: Validation = serde_json::from_str(&data).unwrap();
+      subs
+        .iter()
+        .map(|s| s.required_scope())
+        .filter_map(|r| {
+          if validation.scopes.contains(&r) {
+            Some(1)
+          } else {
+            None
+          }
+        })
+        .sum::<usize>()
+        == subs.len()
+    } else {
+      false
+    }
+  }
+
   pub fn web_browser_authorisation<S: Into<String>>(
-    twitch_keys: TwitchKeys,
+    twitch_keys: &TwitchKeys,
     oauth_redirect_url: S,
+    subscriptions: &Vec<SubscriptionPermission>,
   ) {
     let oauth_redirect_url = oauth_redirect_url.into();
 
-    let twitch_broswer_url = format!("{}authorize?response_type=token&client_id={}&client_secret={}&redirect_uri={}&scope=user:read:chat+user:write:chat", TWITCH_AUTHORISE_URL, twitch_keys.client_id, twitch_keys.client_secret, oauth_redirect_url);
+    let scope = &subscriptions
+      .iter()
+      .map(|s| s.required_scope())
+      .collect::<Vec<String>>()
+      .join("+");
+
+    let twitch_broswer_url = format!(
+      "{}authorize?response_type=token&client_id={}&client_secret={}&redirect_uri={}&scope={}",
+      TWITCH_AUTHORISE_URL,
+      twitch_keys.client_id,
+      twitch_keys.client_secret,
+      oauth_redirect_url,
+      scope
+    );
     open::that(twitch_broswer_url).unwrap();
 
     let listener = TcpListener::bind(&oauth_redirect_url).unwrap();
@@ -296,9 +375,9 @@ impl TwitchEventSubApi {
 
   pub fn send_chat_message(&self, message: MessageType) {
     if let MessageType::ChannelMessage(ref msg) = message {
-      TwitchHttp::new(SEND_MESSAGE_URL)
+      let _ = TwitchHttp::new(SEND_MESSAGE_URL)
         .json_content()
-        .auth(
+        .full_auth(
           self.twitch_keys.scoped_oauth.to_string(),
           self.twitch_keys.client_id.to_string(),
         )
@@ -326,6 +405,8 @@ impl TwitchEventSubApi {
   fn event_sub_events(
     client: Arc<Mutex<Client<TlsStream<TcpStream>>>>,
     message_sender: SyncSender<MessageType>,
+    subscriptions: Vec<SubscriptionPermission>,
+    mut custom_subscriptions: Vec<String>,
     twitch_keys: TwitchKeys,
   ) {
     loop {
@@ -350,21 +431,32 @@ impl TwitchEventSubApi {
             let session_id = message.clone().payload.unwrap().session.unwrap().id;
             println!("Session id is: {}", session_id);
 
-            let event_subscription = serde_json::to_string(&EventSubscription::chat_message(
-              twitch_keys.broadcaster_account_id.to_string(),
-              session_id.to_string(),
-            ))
-            .unwrap();
-            println!("event_subscription: {}", event_subscription);
+            let mut sub_data = subscriptions
+              .iter()
+              .filter_map(|s| {
+                serde_json::to_string(&s.construct_data(&session_id, &twitch_keys)).ok()
+              })
+              .collect::<Vec<_>>();
+            sub_data.append(&mut custom_subscriptions);
 
-            TwitchHttp::new(SUBSCRIBE_URL)
-              .auth(
-                twitch_keys.scoped_oauth.clone(),
-                twitch_keys.client_id.to_string(),
-              )
-              .json_content()
-              .is_post(event_subscription)
-              .run();
+            sub_data
+              .iter()
+              .map(|sub_data| {
+                TwitchHttp::new(SUBSCRIBE_URL)
+                  .full_auth(
+                    twitch_keys.scoped_oauth.clone(),
+                    twitch_keys.client_id.to_string(),
+                  )
+                  .json_content()
+                  .is_post(sub_data)
+                  .run()
+              })
+              .filter_map(Result::err)
+              .for_each(|error| {
+                message_sender
+                  .send(MessageType::HttpError(error))
+                  .expect("Failed to send error Message back to main thread.");
+              });
           }
           EventMessageType::KeepAlive => {
             println!("Keep alive recieve message sent, !implemented");
@@ -379,6 +471,13 @@ impl TwitchEventSubApi {
             }
             _ => {}
           },
+          EventMessageType::Unknown => {
+            if !custom_subscriptions.is_empty() {
+              message_sender
+                .send(MessageType::CustomSubscriptionResponse(msg))
+                .unwrap();
+            }
+          }
           _ => {}
         }
         //      }
@@ -419,6 +518,8 @@ pub enum MessageType {
   JoinMessage(String),
   Message((String, String)),
   ChannelMessage(String),
+  CustomSubscriptionResponse(String),
+  HttpError(curl::Error),
   Ping,
   Pong,
   Close,
@@ -452,23 +553,29 @@ mod tests {
 
   #[test]
   fn token_has_subscription() {
-    if let Some(mut api) = TwitchEventSubApiBuilder::new(TwitchKeys::from_secrets_env())
+    match TwitchEventSubApiBuilder::new(TwitchKeys::from_secrets_env())
       .set_local_authentication_server("localhost:3000")
-      .add_subscription("chat_message")
+      .add_subscription(SubscriptionPermission::ChatMessage)
+      .add_subscription(SubscriptionPermission::ChannelFollow)
+      .add_subscription(SubscriptionPermission::CustomRedeem)
       .build()
     {
-      // users program main loop simulation
-      'test_loop: loop {
-        // non block for loop of messages
-        for msg in api.receive_messages() {
-          break 'test_loop;
-          // assert_ne!(MessageType::Close, msg);
-          // force_break = true;
-          // break;
+      Ok(mut api) => {
+        // users program main loop simulation
+        loop {
+          // non block for loop of messages
+          for msg in api.receive_messages() {
+            println!("{:?}", msg);
+            // assert_ne!(MessageType::Close, msg);
+            // force_break = true;
+            // break;
+          }
         }
       }
-    } else {
-      assert!(false, "Failed to create TwitchApi from builder");
+
+      Err(e) => {
+        assert_eq!("er", format!("{:?}", e));
+      }
     }
   }
 }

@@ -1,6 +1,17 @@
 use serde_derive::{Deserialize, Serialize};
 use serde_json::Result;
 
+use crate::TwitchKeys;
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct Validation {
+  client_id: String,
+  login: String,
+  pub scopes: Vec<String>,
+  user_id: String,
+  expires_in: u32,
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct SendMessage {
   pub broadcaster_id: String,
@@ -12,6 +23,15 @@ pub struct SendMessage {
 pub struct Transport {
   pub method: String,
   pub session_id: String,
+}
+
+impl Transport {
+  pub fn new<S: Into<String>>(session_id: S) -> Transport {
+    Transport {
+      method: "websocket".to_string(),
+      session_id: session_id.into(),
+    }
+  }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -28,7 +48,8 @@ pub struct Session {
 pub struct Subscription {
   pub id: String,
   pub status: Option<String>,
-  pub r#type: String,
+  #[serde(rename = "type")]
+  pub kind: String,
   pub version: String,
   pub cost: i32,
   pub condition: Option<Condition>,
@@ -54,7 +75,8 @@ pub struct Emote {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Fragments {
-  r#type: String,
+  #[serde(rename = "type")]
+  kind: String,
   text: String,
   cheer_mode: Option<String>,
   emote: Option<Emote>,
@@ -63,11 +85,11 @@ pub struct Fragments {
 
 impl Fragments {
   pub fn is_text(&self) -> bool {
-    self.r#type == "text"
+    self.kind == "text"
   }
 
   pub fn is_mention(&self) -> bool {
-    self.r#type == "mention"
+    self.kind == "mention"
   }
 
   pub fn text(&self) -> String {
@@ -221,70 +243,90 @@ impl GenericMessage {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Condition {
-  user_id: String,
+  user_id: Option<String>,
   moderator_user_id: Option<String>,
   broadcaster_user_id: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct EventSubscription {
-  r#type: String,
+  #[serde(rename = "type")]
+  kind: String,
   version: String,
   condition: Condition,
   transport: Transport,
 }
 
-pub enum Subscription {
+pub enum SubscriptionPermission {
   UserUpdate,
   ChannelFollow,
   ChatMessage,
+  CustomRedeem,
 }
 
-impl EventSubscription {
-  pub fn user_update(user_id: String, session_id: String) -> EventSubscription {
-    EventSubscription {
-      r#type: "user.update".to_string(),
-      version: "1".to_string(),
-      condition: Condition {
-        user_id,
-        moderator_user_id: None,
-        broadcaster_user_id: None,
-      },
-      transport: Transport {
-        method: "websocket".to_string(),
-        session_id,
-      },
+impl SubscriptionPermission {
+  pub fn tag(&self) -> String {
+    match self {
+      SubscriptionPermission::UserUpdate => "user.update",
+      SubscriptionPermission::ChannelFollow => "channel.follow",
+      SubscriptionPermission::ChatMessage => "channel.chat.message",
+      SubscriptionPermission::CustomRedeem => "channel.channel_points_custom_reward_redemption.add",
     }
+    .to_string()
   }
 
-  pub fn channel_follow(broadcaster_user_id: String, session_id: String) -> EventSubscription {
-    EventSubscription {
-      r#type: "channel.follow".to_string(),
-      version: "2".to_string(),
-      condition: Condition {
-        broadcaster_user_id: Some(broadcaster_user_id.to_string()),
-        moderator_user_id: Some(broadcaster_user_id.to_string()),
-        user_id: broadcaster_user_id,
-      },
-      transport: Transport {
-        method: "websocket".to_string(),
-        session_id,
-      },
+  pub fn required_scope(&self) -> String {
+    match self {
+      SubscriptionPermission::UserUpdate => "",
+      SubscriptionPermission::ChannelFollow => "moderator:read:followers",
+      SubscriptionPermission::ChatMessage => "user:read:chat+user:write:chat",
+      SubscriptionPermission::CustomRedeem => "channel:read:redemptions",
     }
+    .to_string()
   }
 
-  pub fn chat_message(broadcaster_user_id: String, session_id: String) -> EventSubscription {
-    EventSubscription {
-      r#type: "channel.chat.message".to_string(),
-      version: "1".to_string(),
-      condition: Condition {
-        broadcaster_user_id: Some(broadcaster_user_id.to_string()),
-        moderator_user_id: None,
-        user_id: broadcaster_user_id,
+  pub fn construct_data(&self, session_id: &str, twitch_keys: &TwitchKeys) -> EventSubscription {
+    let transport = Transport::new(session_id);
+    match self {
+      SubscriptionPermission::UserUpdate => EventSubscription {
+        kind: self.tag(),
+        version: "1".to_string(),
+        condition: Condition {
+          user_id: Some(twitch_keys.broadcaster_account_id.to_owned()),
+          moderator_user_id: None,
+          broadcaster_user_id: None,
+        },
+        transport,
       },
-      transport: Transport {
-        method: "websocket".to_string(),
-        session_id,
+      SubscriptionPermission::ChannelFollow => EventSubscription {
+        kind: self.tag(),
+        version: "2".to_string(),
+        condition: Condition {
+          broadcaster_user_id: Some(twitch_keys.broadcaster_account_id.to_owned()),
+          moderator_user_id: Some(twitch_keys.broadcaster_account_id.to_owned()),
+          user_id: Some(twitch_keys.broadcaster_account_id.to_owned()),
+        },
+        transport,
+      },
+      SubscriptionPermission::ChatMessage => EventSubscription {
+        kind: self.tag(),
+        version: "1".to_string(),
+        condition: Condition {
+          broadcaster_user_id: Some(twitch_keys.broadcaster_account_id.to_owned()),
+          moderator_user_id: None,
+          user_id: Some(twitch_keys.broadcaster_account_id.to_owned()),
+        },
+        transport,
+      },
+      SubscriptionPermission::CustomRedeem => EventSubscription {
+        kind: self.tag(),
+        version: "1".to_string(),
+        condition: Condition {
+          user_id: None,
+          moderator_user_id: None,
+          broadcaster_user_id: Some(twitch_keys.broadcaster_account_id.to_owned()),
+        },
+        transport,
       },
     }
   }
