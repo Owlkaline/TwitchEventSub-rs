@@ -24,7 +24,7 @@ Example Usage
 ```rust
 fn main() {
   let event_sub_api = TwitchEventSubApiBuilder::new(TwitchKeys::from_secrets_env())
-    .set_local_authentication_server("localhost:3000")
+    .set_local_authentication_server("http://localhost:3000")
     .add_subscription(SubscriptionPermission::ChatMessage)
     .add_subscription(SubscriptionPermission::ChannelFollow)
     .add_subscription(SubscriptionPermission::CustomRedeem);
@@ -64,6 +64,10 @@ fn main() {
 ```
 cargo run --release
 ```
+## FAQ
+
+* Getting a Parameter+redirect_uri+does+not+match+registered+URI error
+  If you are getting this error, you've most likely forgotten http:// part of th oauth_redirect_url, as it has to match EXACTLY with what you have put as the OAuth Redirect URLs in the Twitch Console of your App.
 
 ## License
 
