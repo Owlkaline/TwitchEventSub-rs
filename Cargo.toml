@@ -1,5 +1,5 @@
 [package]
-name = "twitchapi-rs"
+name = "twitch_eventsub"
 version = "0.1.0"
 edition = "2021"
 

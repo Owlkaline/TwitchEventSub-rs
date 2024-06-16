@@ -3,13 +3,42 @@ use serde_json::Result;
 
 use crate::TwitchKeys;
 
+#[derive(Deserialize, Debug, Clone)]
+pub struct NewAccessTokenResponse {
+  pub access_token: String,
+  expires_in: u32,
+  token_type: String,
+  refresh_token: Option<String>,
+  scope: Option<Vec<String>>,
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Validation {
-  client_id: String,
-  login: String,
-  pub scopes: Vec<String>,
-  user_id: String,
-  expires_in: u32,
+  client_id: Option<String>,
+  login: Option<String>,
+  pub scopes: Option<Vec<String>>,
+  user_id: Option<String>,
+  expires_in: Option<u32>,
+  status: Option<u32>,
+  message: Option<String>,
+}
+
+impl Validation {
+  pub fn is_error(&self) -> bool {
+    self.status.is_some()
+  }
+
+  pub fn error_msg(&self) -> String {
+    if self.is_error() {
+      format!(
+        "status: {}, message: {}",
+        self.status.unwrap(),
+        self.message.clone().unwrap()
+      )
+    } else {
+      panic!("Validation Error message requested, when it isnt a error!");
+    }
+  }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -99,9 +128,14 @@ impl Fragments {
 
 impl Message {
   pub fn get_written_message(&self) -> Option<String> {
+    let mut text = None;
     for fragment in &self.fragments {
       if fragment.is_text() {
-        return Some(fragment.text());
+        if let Some(ref mut text) = text {
+          *text = format!("{} {}", text, fragment.text());
+        } else {
+          text = Some(fragment.text());
+        }
       }
     }
     None
@@ -257,6 +291,7 @@ pub struct EventSubscription {
   transport: Transport,
 }
 
+#[derive(Clone)]
 pub enum SubscriptionPermission {
   UserUpdate,
   ChannelFollow,
