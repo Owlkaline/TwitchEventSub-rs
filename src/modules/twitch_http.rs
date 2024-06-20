@@ -1,9 +1,210 @@
-use crate::{EventSubError, Validation};
+use crate::{
+  EventSubError, SendMessage, SubscriptionPermission, Token, TwitchEventSubApi, Validation,
+};
 use curl::easy::{Easy, List};
+
+use crate::modules::{
+  consts::*,
+  generic_message::{SendTimeoutRequest, TimeoutRequestData},
+};
+
+pub struct TwitchApi;
+
+impl TwitchApi {
+  pub fn send_chat_message<S: Into<String>, T: Into<String>, V: Into<String>, X: Into<String>>(
+    message: S,
+    access_token: T,
+    client_id: V,
+    broadcaster_account_id: X,
+    sender_account_id: Option<V>,
+  ) {
+    let broadcaster_account_id = broadcaster_account_id.into();
+    let _ = TwitchHttpRequest::new(SEND_MESSAGE_URL)
+      .json_content()
+      .full_auth(access_token, client_id)
+      .is_post(
+        serde_json::to_string(&SendMessage {
+          broadcaster_id: broadcaster_account_id.to_owned(),
+          sender_id: sender_account_id
+            .ok_or(broadcaster_account_id)
+            .map(|s| s.into())
+            .unwrap(),
+          message: message.into(),
+        })
+        .unwrap(),
+      )
+      .run();
+  }
+
+  pub fn generate_token_from_refresh_token<S: Into<String>, T: Into<String>, V: Into<String>>(
+    client_id: S,
+    client_secret: T,
+    refresh_token: V,
+  ) -> Result<Token, EventSubError> {
+    let post_data = format!(
+      "grant_type=refresh_token&refresh_token={}&client_id={}&client_secret={}",
+      refresh_token.into(),
+      client_id.into(),
+      client_secret.into()
+    );
+
+    TwitchEventSubApi::process_token_query(post_data)
+  }
+
+  pub fn get_user_token_from_authorisation_code<
+    S: Into<String>,
+    T: Into<String>,
+    V: Into<String>,
+    W: Into<String>,
+  >(
+    client_id: S,
+    client_secret: T,
+    authorisation_code: V,
+    redirect_url: W,
+  ) -> Result<Token, EventSubError> {
+    let post_data = format!(
+      "client_id={}&client_secret={}&code={}&grant_type=authorization_code&redirect_uri={}",
+      client_id.into(),
+      client_secret.into(),
+      authorisation_code.into(),
+      redirect_url.into()
+    );
+
+    TwitchEventSubApi::process_token_query(post_data)
+  }
+
+  pub fn get_authorisation_code<S: Into<String>, T: Into<String>>(
+    client_id: S,
+    redirect_url: T,
+    scopes: &Vec<SubscriptionPermission>,
+  ) -> Result<String, EventSubError> {
+    let redirect_url = redirect_url.into();
+
+    let scope = &scopes
+      .iter()
+      .map(|s| s.required_scope())
+      .collect::<Vec<String>>()
+      .join("+");
+
+    let get_authorisation_code_request = format!(
+      "{}authorize?response_type=code&client_id={}&redirect_uri={}&scope={}",
+      TWITCH_AUTHORISE_URL,
+      client_id.into(),
+      redirect_url.to_owned(),
+      scope
+    );
+
+    match TwitchEventSubApi::open_browser(get_authorisation_code_request, redirect_url) {
+      Ok(http_response) => {
+        if http_response.contains("error") {
+          Err(EventSubError::UnhandledError(format!("{}", http_response)))
+        } else {
+          let auth_code = http_response.split('&').collect::<Vec<_>>()[0]
+            .split('=')
+            .collect::<Vec<_>>()[1];
+          Ok(auth_code.to_string())
+        }
+      }
+      e => e,
+    }
+  }
+
+  pub fn generate_user_token<S: Into<String>, T: Into<String>, V: Into<String>>(
+    client_id: S,
+    client_secret: T,
+    redirect_url: V,
+    subscriptions: &Vec<SubscriptionPermission>,
+  ) -> Result<Token, EventSubError> {
+    let client_id = client_id.into();
+    let client_secret = client_secret.into();
+    let redirect_url = redirect_url.into();
+
+    TwitchApi::get_authorisation_code(
+      client_id.to_owned(),
+      redirect_url.to_owned(),
+      &subscriptions,
+    )
+    .and_then(|authorisation_code| {
+      TwitchApi::get_user_token_from_authorisation_code(
+        client_id.to_owned(),
+        client_secret.to_owned(),
+        authorisation_code.to_owned(),
+        redirect_url.to_owned(),
+      )
+    })
+  }
+
+  pub fn delete_message<
+    U: Into<String>,
+    S: Into<String>,
+    X: Into<String>,
+    Z: Into<String>,
+    F: Into<String>,
+  >(
+    broadcaster_id: X,
+    moderator_id: Z,
+    message_id: S,
+    access_token: U,
+    client_id: F,
+  ) {
+    let url = RequestBuilder::new()
+      .add_key_value("broadcaster_id", broadcaster_id.into())
+      .add_key_value("moderator_id", moderator_id.into())
+      .add_key_value("message_id", message_id.into())
+      .build(TWITCH_DELETE_MESSAGE_URL);
+
+    let _ = TwitchHttpRequest::new(url)
+      .header_authorisation(access_token.into(), AuthType::Bearer)
+      .header_client_id(client_id.into())
+      .is_delete()
+      .run();
+  }
+
+  pub fn timeout_user<
+    T: Into<String>,
+    S: Into<String>,
+    V: Into<String>,
+    X: Into<String>,
+    Z: Into<String>,
+    O: Into<String>,
+  >(
+    access_token: T,
+    client_id: S,
+    broadcaster_id: X,
+    moderator_id: Z,
+    user_id: V,
+    duration_secs: u32,
+    reason: O,
+  ) {
+    let broadcaster_id = broadcaster_id.into();
+    let url = RequestBuilder::new()
+      .add_key_value("broadcaster_id", broadcaster_id.to_owned())
+      .add_key_value("moderator_id", moderator_id.into())
+      .build(TWITCH_BAN_URL);
+
+    let post_data = SendTimeoutRequest {
+      data: TimeoutRequestData {
+        user_id: user_id.into(),
+        duration: duration_secs,
+        reason: reason.into(),
+      },
+    };
+
+    let post_data = serde_json::to_string(&post_data).unwrap();
+
+    TwitchHttpRequest::new(url)
+      .header_authorisation(access_token.into(), AuthType::Bearer)
+      .header_client_id(client_id.into())
+      .json_content()
+      .is_post(post_data)
+      .run();
+  }
+}
 
 #[derive(PartialEq)]
 pub enum RequestType {
   Post(String),
+  Delete,
 }
 
 pub enum AuthType {
@@ -28,19 +229,51 @@ impl RequestType {
         handle.post(true).unwrap();
         handle.post_fields_copy(data.as_bytes()).unwrap();
       }
+      RequestType::Delete => {
+        handle.custom_request("DELETE");
+      }
     }
   }
 }
 
-pub struct TwitchHttp {
+pub struct RequestBuilder {
+  data: Vec<(String, String)>,
+}
+
+impl RequestBuilder {
+  fn new() -> RequestBuilder {
+    RequestBuilder { data: Vec::new() }
+  }
+
+  fn add_key_value<S: Into<String>, T: Into<String>>(mut self, key: S, value: T) -> RequestBuilder {
+    self.data.push((key.into(), value.into()));
+    self
+  }
+
+  fn build<S: Into<String>>(self, url: S) -> String {
+    let mut request = url.into();
+
+    if !self.data.is_empty() {
+      request = format!("{}?", request);
+    }
+
+    for (key, value) in self.data {
+      request = format!("{}&{}={}", request, key, value);
+    }
+
+    request
+  }
+}
+
+pub struct TwitchHttpRequest {
   url: String,
   header: Vec<String>,
   request_type: Option<RequestType>,
 }
 
-impl TwitchHttp {
-  pub fn new<S: Into<String>>(url: S) -> TwitchHttp {
-    TwitchHttp {
+impl TwitchHttpRequest {
+  pub fn new<S: Into<String>>(url: S) -> TwitchHttpRequest {
+    TwitchHttpRequest {
       url: url.into(),
       header: Vec::new(),
       request_type: None,
@@ -52,7 +285,7 @@ impl TwitchHttp {
     self,
     access_token: S,
     client_id: T,
-  ) -> TwitchHttp {
+  ) -> TwitchHttpRequest {
     self
       .header_authorisation(access_token, AuthType::Bearer)
       .header_client_id(client_id)
@@ -63,7 +296,7 @@ impl TwitchHttp {
     mut self,
     oauth: S,
     auth_type: AuthType,
-  ) -> TwitchHttp {
+  ) -> TwitchHttpRequest {
     self.header.push(format!(
       "Authorization: {} {}",
       auth_type.to_string(),
@@ -73,20 +306,20 @@ impl TwitchHttp {
   }
 
   #[must_use]
-  pub fn header_client_id<S: Into<String>>(mut self, client_id: S) -> TwitchHttp {
+  pub fn header_client_id<S: Into<String>>(mut self, client_id: S) -> TwitchHttpRequest {
     self.header.push(format!("Client-Id: {}", client_id.into()));
     self
   }
 
   #[must_use]
-  pub fn json_content(mut self) -> TwitchHttp {
+  pub fn json_content(mut self) -> TwitchHttpRequest {
     self.header.push(format!("Content-Type: application/json"));
 
     self
   }
 
   #[must_use]
-  pub fn url_encoded_content(mut self) -> TwitchHttp {
+  pub fn url_encoded_content(mut self) -> TwitchHttpRequest {
     self
       .header
       .push(format!("Content-Type: application/x-www-form-urlencoded"));
@@ -94,7 +327,13 @@ impl TwitchHttp {
   }
 
   #[must_use]
-  pub fn is_post<S: Into<String>>(mut self, data: S) -> TwitchHttp {
+  pub fn is_delete(mut self) -> TwitchHttpRequest {
+    self.request_type = Some(RequestType::Delete);
+    self
+  }
+
+  #[must_use]
+  pub fn is_post<S: Into<String>>(mut self, data: S) -> TwitchHttpRequest {
     self.request_type = Some(RequestType::Post(data.into()));
     self
   }

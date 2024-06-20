@@ -1,15 +1,29 @@
 use serde_derive::{Deserialize, Serialize};
-use serde_json::Result;
+//use serde_json::Result;
 
-use crate::TwitchKeys;
+use crate::{
+  modules::messages::MessageData, EventSubError, SubscriptionPermission, Token, TokenAccess,
+  TwitchKeys,
+};
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct NewAccessTokenResponse {
   pub access_token: String,
   expires_in: u32,
   token_type: String,
-  refresh_token: Option<String>,
+  pub refresh_token: Option<String>,
   scope: Option<Vec<String>>,
+}
+
+impl NewAccessTokenResponse {
+  pub fn get_token_from_data(raw_data: &str) -> Result<Token, EventSubError> {
+    serde_json::from_str::<NewAccessTokenResponse>(raw_data)
+      .map(|validation| Token {
+        access: TokenAccess::User(validation.access_token),
+        refresh: validation.refresh_token.unwrap(),
+      })
+      .map_err(|e| EventSubError::AuthorisationError(e.to_string()))
+  }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -39,6 +53,18 @@ impl Validation {
       panic!("Validation Error message requested, when it isnt a error!");
     }
   }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct TimeoutRequestData {
+  pub user_id: String,
+  pub duration: u32,
+  pub reason: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct SendTimeoutRequest {
+  pub data: TimeoutRequestData,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -168,23 +194,45 @@ pub struct Reply {
   thread_user_login: String,
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub struct Reward {
+  pub id: String,
+  pub title: String,
+  pub prompt: String,
+  pub cost: u32,
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Event {
   broadcaster_user_id: String,
   broadcaster_user_login: String,
   broadcaster_user_name: String,
-  chatter_user_id: String,
-  chatter_user_login: String,
-  chatter_user_name: String,
-  message_id: String,
-  message: Message,
-  color: String,
-  badges: Vec<Badge>,
-  message_type: String,
+  chatter_user_id: Option<String>,
+  chatter_user_login: Option<String>,
+  chatter_user_name: Option<String>,
+  id: Option<String>,
+  user_id: Option<String>,
+  user_login: Option<String>,
+  user_name: Option<String>,
+  requester_id: Option<String>,
+  requester_login: Option<String>,
+  requester_name: Option<String>,
+  user_input: Option<String>,
+  status: Option<String>,
+  redeemed_at: Option<String>,
+  message_id: Option<String>,
+  message: Option<Message>,
+  color: Option<String>,
+  badges: Option<Vec<Badge>>,
+  message_type: Option<String>,
   cheer: Option<String>,
   reply: Option<Reply>,
+  reward: Option<Reward>,
   channel_points_custom_reward_id: Option<String>,
   channel_points_animation_id: Option<String>,
+  is_automatic: Option<String>,
+  started_at: Option<String>,
+  duration: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -213,6 +261,8 @@ pub struct GenericMessage {
 
 pub enum SubscriptionType {
   ChannelChatMessage,
+  CustomRedeem,
+  AdBreakBegin,
   Unknown,
 }
 
@@ -226,8 +276,14 @@ pub enum EventMessageType {
 
 impl SubscriptionType {
   pub fn from_string(t: &str) -> SubscriptionType {
+    let chat_message = &SubscriptionPermission::ChatMessage.tag();
+    let custom_redeem = &SubscriptionPermission::CustomRedeem.tag();
+    let ad_break_bagin = &SubscriptionPermission::AdBreakBegin.tag();
+
     match t {
-      "channel.chat.message" => SubscriptionType::ChannelChatMessage,
+      t if t == chat_message => SubscriptionType::ChannelChatMessage,
+      t if t == custom_redeem => SubscriptionType::CustomRedeem,
+      t if t == ad_break_bagin => SubscriptionType::AdBreakBegin,
       _ => SubscriptionType::Unknown,
     }
   }
@@ -253,7 +309,29 @@ impl GenericMessage {
     SubscriptionType::from_string(&self.metadata.subscription_type.clone().unwrap())
   }
 
-  pub fn chat_message(&self) -> (String, String) {
+  pub fn chat_message(&self) -> MessageData {
+    let payload = self.payload.clone().unwrap();
+    let event = payload.clone().event.unwrap();
+
+    MessageData {
+      message_id: event.message_id.unwrap().to_owned(),
+      user_id: event.chatter_user_id.unwrap(),
+      message: event.message.unwrap().get_written_message().unwrap_or(
+        self
+          .payload
+          .clone()
+          .unwrap()
+          .event
+          .unwrap()
+          .message
+          .unwrap()
+          .text,
+      ),
+      username: event.chatter_user_name.unwrap(),
+    }
+  }
+
+  pub fn custom_redeem(&self) -> (String, String, Reward) {
     (
       self
         .payload
@@ -261,108 +339,47 @@ impl GenericMessage {
         .unwrap()
         .event
         .unwrap()
-        .chatter_user_name,
+        .user_name
+        .unwrap(),
       self
         .payload
         .clone()
         .unwrap()
         .event
         .unwrap()
-        .message
-        .get_written_message()
-        .unwrap_or(self.payload.clone().unwrap().event.unwrap().message.text),
+        .user_input
+        .unwrap(),
+      self.payload.clone().unwrap().event.unwrap().reward.unwrap(),
     )
+  }
+
+  pub fn get_ad_duration(&self) -> u32 {
+    self
+      .payload
+      .clone()
+      .unwrap()
+      .event
+      .unwrap()
+      .duration
+      .unwrap()
+      .parse::<u32>()
+      .unwrap()
   }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Condition {
-  user_id: Option<String>,
-  moderator_user_id: Option<String>,
-  broadcaster_user_id: Option<String>,
+  pub user_id: Option<String>,
+  pub moderator_user_id: Option<String>,
+  pub broadcaster_user_id: Option<String>,
+  pub reward_id: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct EventSubscription {
   #[serde(rename = "type")]
-  kind: String,
-  version: String,
-  condition: Condition,
-  transport: Transport,
-}
-
-#[derive(Clone)]
-pub enum SubscriptionPermission {
-  UserUpdate,
-  ChannelFollow,
-  ChatMessage,
-  CustomRedeem,
-}
-
-impl SubscriptionPermission {
-  pub fn tag(&self) -> String {
-    match self {
-      SubscriptionPermission::UserUpdate => "user.update",
-      SubscriptionPermission::ChannelFollow => "channel.follow",
-      SubscriptionPermission::ChatMessage => "channel.chat.message",
-      SubscriptionPermission::CustomRedeem => "channel.channel_points_custom_reward_redemption.add",
-    }
-    .to_string()
-  }
-
-  pub fn required_scope(&self) -> String {
-    match self {
-      SubscriptionPermission::UserUpdate => "",
-      SubscriptionPermission::ChannelFollow => "moderator:read:followers",
-      SubscriptionPermission::ChatMessage => "user:read:chat+user:write:chat",
-      SubscriptionPermission::CustomRedeem => "channel:read:redemptions",
-    }
-    .to_string()
-  }
-
-  pub fn construct_data(&self, session_id: &str, twitch_keys: &TwitchKeys) -> EventSubscription {
-    let transport = Transport::new(session_id);
-    match self {
-      SubscriptionPermission::UserUpdate => EventSubscription {
-        kind: self.tag(),
-        version: "1".to_string(),
-        condition: Condition {
-          user_id: Some(twitch_keys.broadcaster_account_id.to_owned()),
-          moderator_user_id: None,
-          broadcaster_user_id: None,
-        },
-        transport,
-      },
-      SubscriptionPermission::ChannelFollow => EventSubscription {
-        kind: self.tag(),
-        version: "2".to_string(),
-        condition: Condition {
-          broadcaster_user_id: Some(twitch_keys.broadcaster_account_id.to_owned()),
-          moderator_user_id: Some(twitch_keys.broadcaster_account_id.to_owned()),
-          user_id: Some(twitch_keys.broadcaster_account_id.to_owned()),
-        },
-        transport,
-      },
-      SubscriptionPermission::ChatMessage => EventSubscription {
-        kind: self.tag(),
-        version: "1".to_string(),
-        condition: Condition {
-          broadcaster_user_id: Some(twitch_keys.broadcaster_account_id.to_owned()),
-          moderator_user_id: None,
-          user_id: Some(twitch_keys.broadcaster_account_id.to_owned()),
-        },
-        transport,
-      },
-      SubscriptionPermission::CustomRedeem => EventSubscription {
-        kind: self.tag(),
-        version: "1".to_string(),
-        condition: Condition {
-          user_id: None,
-          moderator_user_id: None,
-          broadcaster_user_id: Some(twitch_keys.broadcaster_account_id.to_owned()),
-        },
-        transport,
-      },
-    }
-  }
+  pub kind: String,
+  pub version: String,
+  pub condition: Condition,
+  pub transport: Transport,
 }
