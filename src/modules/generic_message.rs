@@ -110,7 +110,7 @@ pub struct Subscription {
   pub condition: Option<Condition>,
   pub transport: Transport,
   pub created_at: String,
-  pub event: Option<String>,
+  pub event: Option<Event>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -214,9 +214,9 @@ pub struct Event {
   user_id: Option<String>,
   user_login: Option<String>,
   user_name: Option<String>,
-  requester_id: Option<String>,
-  requester_login: Option<String>,
-  requester_name: Option<String>,
+  requester_user_id: Option<String>,
+  requester_user_login: Option<String>,
+  requester_user_name: Option<String>,
   user_input: Option<String>,
   status: Option<String>,
   redeemed_at: Option<String>,
@@ -230,9 +230,9 @@ pub struct Event {
   reward: Option<Reward>,
   channel_points_custom_reward_id: Option<String>,
   channel_points_animation_id: Option<String>,
-  is_automatic: Option<String>,
+  is_automatic: Option<bool>,
   started_at: Option<String>,
-  duration: Option<String>,
+  duration_seconds: Option<u32>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -360,9 +360,7 @@ impl GenericMessage {
       .unwrap()
       .event
       .unwrap()
-      .duration
-      .unwrap()
-      .parse::<u32>()
+      .duration_seconds
       .unwrap()
   }
 }

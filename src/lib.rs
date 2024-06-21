@@ -631,8 +631,8 @@ impl TwitchEventSubApi {
       if let OwnedMessage::Text(msg) = message.clone() {
         let message = serde_json::from_str(&msg);
 
-        if message.is_err() {
-          panic!("Unimplement Twitch Response {}", msg);
+        if let Err(e) = message {
+          panic!("Unimplement Twitch Response {}\n{}", msg, e);
         }
 
         let message: GenericMessage = message.unwrap();
