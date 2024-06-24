@@ -9,7 +9,7 @@ use crate::{
 #[derive(Deserialize, Debug, Clone)]
 pub struct NewAccessTokenResponse {
   pub access_token: String,
-  expires_in: u32,
+  pub expires_in: u32,
   token_type: String,
   pub refresh_token: Option<String>,
   scope: Option<Vec<String>>,
@@ -18,9 +18,12 @@ pub struct NewAccessTokenResponse {
 impl NewAccessTokenResponse {
   pub fn get_token_from_data(raw_data: &str) -> Result<Token, EventSubError> {
     serde_json::from_str::<NewAccessTokenResponse>(raw_data)
-      .map(|validation| Token {
-        access: TokenAccess::User(validation.access_token),
-        refresh: validation.refresh_token.unwrap(),
+      .map(|validation| {
+        Token::new_user_token(
+          validation.access_token,
+          validation.refresh_token.unwrap(),
+          validation.expires_in as f32,
+        )
       })
       .map_err(|e| EventSubError::AuthorisationError(e.to_string()))
   }

@@ -4,7 +4,7 @@ use std::fs;
 use std::net::TcpStream;
 use std::sync::mpsc::{channel, Receiver as SyncReceiver, Sender as SyncSender};
 use std::thread::{self, JoinHandle};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use std::sync::{Arc, Mutex};
 
@@ -49,11 +49,18 @@ pub enum EventSubError {
 pub struct Token {
   pub access: TokenAccess,
   pub refresh: String,
+  expires_in: f32,
+  generation_time: Instant,
 }
 
 impl Token {
-  pub fn new(access: TokenAccess, refresh: String) -> Token {
-    Token { access, refresh }
+  pub fn new(access: TokenAccess, refresh: String, expires_in: f32) -> Token {
+    Token {
+      access,
+      refresh,
+      expires_in,
+      generation_time: Instant::now(),
+    }
   }
 
   pub fn save_to_file<S: Into<String>, T: Into<String>>(
@@ -93,12 +100,12 @@ impl Token {
     Ok(())
   }
 
-  pub fn new_user_token(access_token: String, refresh: String) -> Token {
-    Token::new(TokenAccess::User(access_token), refresh)
+  pub fn new_user_token(access_token: String, refresh: String, expires_in: f32) -> Token {
+    Token::new(TokenAccess::User(access_token), refresh, expires_in)
   }
 
-  pub fn new_app_token(access_token: String, refresh: String) -> Token {
-    Token::new(TokenAccess::App(access_token), refresh)
+  pub fn new_app_token(access_token: String, refresh: String, expires_in: f32) -> Token {
+    Token::new(TokenAccess::App(access_token), refresh, expires_in)
   }
 }
 
@@ -170,6 +177,7 @@ pub struct TwitchEventSubApiBuilder {
   custom_subscription: Option<String>,
   generate_token_if_none: bool,
   generate_token_on_scope_error: bool,
+  generate_access_token_on_expire: bool,
   auto_save_load_created_tokens: Option<(String, String)>,
 }
 
@@ -182,6 +190,7 @@ impl TwitchEventSubApiBuilder {
       custom_subscription: None,
       generate_token_if_none: false,
       generate_token_on_scope_error: false,
+      generate_access_token_on_expire: false,
       auto_save_load_created_tokens: None,
     }
   }
@@ -209,6 +218,14 @@ impl TwitchEventSubApiBuilder {
     self
   }
 
+  pub fn generate_access_token_on_expire(
+    mut self,
+    should_generate_access_token_on_expire: bool,
+  ) -> TwitchEventSubApiBuilder {
+    self.generate_access_token_on_expire = should_generate_access_token_on_expire;
+    self
+  }
+
   pub fn auto_save_load_created_tokens<S: Into<String>, T: Into<String>>(
     mut self,
     user_token_file: S,
@@ -227,6 +244,8 @@ impl TwitchEventSubApiBuilder {
   }
 
   pub fn build(mut self) -> Result<TwitchEventSubApi, EventSubError> {
+    let mut newly_generated_token = None;
+
     if self.subscriptions.is_empty() {
       return Err(EventSubError::NoSubscriptionsRequested);
     }
@@ -289,8 +308,9 @@ impl TwitchEventSubApiBuilder {
                 refresh_token,
               ) {
                 println!("Generated user access token from refresh key.");
-                self.twitch_keys.access_token = Some(token.access);
-                self.twitch_keys.refresh_token = Some(token.refresh);
+                self.twitch_keys.access_token = Some(token.access.clone());
+                self.twitch_keys.refresh_token = Some(token.refresh.to_owned());
+                newly_generated_token = Some(token);
                 save_new_tokens = true;
                 generate_token = false;
               } else {
@@ -310,8 +330,9 @@ impl TwitchEventSubApiBuilder {
                 &self.subscriptions,
               ) {
                 Ok(user_token) => {
-                  self.twitch_keys.access_token = Some(user_token.access);
-                  self.twitch_keys.refresh_token = Some(user_token.refresh);
+                  self.twitch_keys.access_token = Some(user_token.access.clone());
+                  self.twitch_keys.refresh_token = Some(user_token.refresh.to_owned());
+                  newly_generated_token = Some(user_token);
                   save_new_tokens = true;
                 }
                 Err(e) => {
@@ -341,8 +362,9 @@ impl TwitchEventSubApiBuilder {
               &self.subscriptions,
             ) {
               Ok(user_token) => {
-                self.twitch_keys.refresh_token = Some(user_token.refresh);
-                self.twitch_keys.access_token = Some(user_token.access);
+                self.twitch_keys.refresh_token = Some(user_token.refresh.clone());
+                self.twitch_keys.access_token = Some(user_token.access.to_owned());
+                newly_generated_token = Some(user_token);
                 save_new_tokens = true;
               }
               Err(e) => {
@@ -361,13 +383,11 @@ impl TwitchEventSubApiBuilder {
 
     if save_new_tokens {
       if let Some((token_file, refresh_file)) = self.auto_save_load_created_tokens {
-        let created_token = Token {
-          access: self.twitch_keys.access_token.clone().unwrap(),
-          refresh: self.twitch_keys.refresh_token.clone().unwrap(),
-        };
         println!("saving tokens");
-        if let Err(e) = created_token.save_to_file(token_file, refresh_file) {
-          return Err(e);
+        if let Some(new_token) = newly_generated_token {
+          if let Err(e) = new_token.save_to_file(token_file, refresh_file) {
+            return Err(e);
+          }
         }
       }
     }
@@ -439,7 +459,8 @@ impl TwitchEventSubApi {
       match serde_json::from_str::<Validation>(&data) {
         Ok(validation) => {
           if validation.is_error() {
-            return Err(EventSubError::InvalidAccessToken(validation.error_msg()));
+            //return Err(EventSubError::InvalidAccessToken(validation.error_msg()));
+            Ok(false)
           } else {
             return Ok(
               subs
@@ -510,9 +531,12 @@ impl TwitchEventSubApi {
       .and_then(|twitch_response| {
         serde_json::from_str::<NewAccessTokenResponse>(&twitch_response)
           .map_err(|_| EventSubError::AuthorisationError(twitch_response))
-          .map(|new_token_data| Token {
-            access: TokenAccess::User(new_token_data.access_token),
-            refresh: new_token_data.refresh_token.unwrap(),
+          .map(|new_token_data| {
+            Token::new_user_token(
+              new_token_data.access_token,
+              new_token_data.refresh_token.unwrap(),
+              new_token_data.expires_in as f32,
+            )
           })
       })
   }
