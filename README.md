@@ -2,25 +2,18 @@
 A simple rust library for dealing with that pesky twitch api, specifically event subs.
 
 ## Quick Start
- - Setting up authentication keys.
+### Setting up authentication keys.
 
-.secrets.env or .example.env in working directory
+Create a .secrets.env or .example.env file in working directory with the following filled out:
 ```
 // Required
-TWITCH_OAUTH_TOKEN = ""
 TWITCH_CLIENT_ID = "CLIENT_ID from twitch console app"
 TWITCH_CLIENT_SECRET = "CLIENT_SECRET from twitch console app"
 TWITCH_BROADCASTER_ID = "Your broadcaster ID as numbers"
-
-// Required but are generated once the first time during run time can be reused after first run.
-TWITCH_TEMP_APP_TOKEN = "Don't remember what we need this for"
-TWITCH_TEMP_SCOPED_TOKEN = "Required as it allows subscriptions based on the scopes of the genericaled oauth key"
-
-// Optional
-TWITCH_BOT_ID = "The ID of the account your bot uses"
+TWITCH_BOT_ID = "Your broadcaster ID as numbers"
 ```
 
-Example Usage
+### Example Usage
 ```Rust
 fn main() {
   let mut twitch = TwitchEventSubApi::builder(keys)
