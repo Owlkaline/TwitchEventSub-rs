@@ -2,32 +2,31 @@
 A simple rust library for dealing with that pesky twitch api, specifically event subs.
 
 ## Quick Start
- - Setting up authentication keys.
+### Setting up authentication keys.
 
-.secrets.env or .example.env in working directory
-```
+Create a .secrets.env or .example.env file in working directory with the following filled out:
+```dotenv
 // Required
-TWITCH_OAUTH_TOKEN = ""
 TWITCH_CLIENT_ID = "CLIENT_ID from twitch console app"
 TWITCH_CLIENT_SECRET = "CLIENT_SECRET from twitch console app"
 TWITCH_BROADCASTER_ID = "Your broadcaster ID as numbers"
-
-// Required but are generated once the first time during run time can be reused after first run.
-TWITCH_TEMP_APP_TOKEN = "Don't remember what we need this for"
-TWITCH_TEMP_SCOPED_TOKEN = "Required as it allows subscriptions based on the scopes of the genericaled oauth key"
-
-// Optional
-TWITCH_BOT_ID = "The ID of the account your bot uses"
+TWITCH_BOT_ID = "Your broadcaster ID as numbers"
 ```
 
-Example Usage
-```rust
+### Example Usage
+```Rust
 fn main() {
-  let event_sub_api = TwitchEventSubApiBuilder::new(TwitchKeys::from_secrets_env())
-    .set_local_authentication_server("localhost:3000")
+  let mut twitch = TwitchEventSubApi::builder(keys)
+    .set_redirect_url(redirect_url)
+    .generate_new_token_if_insufficent_scope(true)
+    .generate_new_token_if_none(true)
+    .generate_access_token_on_expire(true)
+    .auto_save_load_created_tokens(".user_token.env", ".refresh_token.env")
     .add_subscription(SubscriptionPermission::ChatMessage)
-    .add_subscription(SubscriptionPermission::ChannelFollow)
-    .add_subscription(SubscriptionPermission::CustomRedeem);
+    .add_subscription(SubscriptionPermission::CustomRedeem)
+    .add_subscription(SubscriptionPermission::BanTimeoutUser)
+    .add_subscription(SubscriptionPermission::DeleteMessage)
+    .add_subscription(SubscriptionPermission::AdBreakBegin);
 
    let mut api = {
      match event_sub_api.build() {
@@ -56,9 +55,17 @@ fn main() {
     // non blocking for loop of messages
     for msg in api.receive_messages() {
       match msg {
-        MessageType::Message((username, message)) => {
+        MessageType::Message(message_data) => {
+          let message = message_data.message;
+          let username = message_data.username;
           println!("{} said: {}", username, message);
           api.send_chat_message(MessageType::ChannelMessage(format!("Thank you for chatting {}!", username));
+        }
+        MessageType::CustomRedeem((username, input, reward)) => {
+            println!(
+              "{} redeemed {} with {} Channel Points: {}",
+              username, reward.title, reward.cost, input,
+            );
         }
         MessageType::Close => println!("Twitch requested socket close."),
         _ => {
@@ -69,29 +76,18 @@ fn main() {
   }
 }
 ```
-
-To new Scoped Token with the subscriptions you want, you can run the following command
-```Rust
-
-if let Ok(new_token) = TwitchEventSubApi::web_browser_authorisation(
-  &twitch_keys,
-  "localhost:3000",
-  &subscriptions,
-) {
-  // Save new token somewhere safe and Not in a repo
-  // Put it in the .secrets.env or directly into Twitchkeys if you are manually creating it.
-}
-```
-
 ## Building
 
 ```
-cargo run --release
+cargo build --release
 ```
 ## FAQ
 
-* Getting a Parameter+redirect_uri+does+not+match+registered+URI error
-  If you are getting this error, you've most likely forgotten http:// part of th oauth_redirect_url, as it has to match EXACTLY with what you have put as the OAuth Redirect URLs in the Twitch Console of your App.
+* Error redirect url does not match!
+```
+ Parameter+redirect_uri+does+not+match+registered+URI error
+```
+If you are recieving this error, you havve most likely forgotten to include the http:// prefix of your app redirect_url, as it has to match EXACTLY with what you have put as the OAuth Redirect URLs in the Twitch Console of your App.
 
 ## License
 
