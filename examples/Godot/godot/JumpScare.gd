@@ -10,9 +10,11 @@ func _ready():
 func _process(delta):
 	pass
 
+func _on_twitch_event_chat_message(username, message):
+	message = message.to_lower();
 
-func _on_custom_loop_jumpscare():
-	#visible = !visible;
-	var shader = (material as ShaderMaterial);
-	var opacity = shader.get_shader_parameter("opacity");
-	shader.set_shader_parameter("opacity", 1.0 - opacity);
+	if message.contains("godot"):
+		var shader = (material as ShaderMaterial);
+		var opacity = shader.get_shader_parameter("opacity");
+		shader.set_shader_parameter("opacity", 1.0 - opacity);
+

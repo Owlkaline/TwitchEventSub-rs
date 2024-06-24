@@ -10,13 +10,20 @@ shader_parameter/opacity = 1.0
 
 [node name="Node2D" type="Node2D"]
 
-[node name="CustomLoop" type="CustomLoop" parent="."]
-
 [node name="JumpScare" type="Sprite2D" parent="."]
 material = SubResource("ShaderMaterial_83e3o")
-position = Vector2(318, 308)
-scale = Vector2(3.08984, 3.08984)
+position = Vector2(227, 115)
+scale = Vector2(1.15918, 1.05762)
 texture = ExtResource("1_lb0pb")
 script = ExtResource("2_4id3q")
 
-[connection signal="jumpscare" from="CustomLoop" to="JumpScare" method="_on_custom_loop_jumpscare"]
+[node name="RichTextLabel" type="RichTextLabel" parent="JumpScare"]
+offset_left = -177.712
+offset_top = 75.6415
+offset_right = 189.288
+offset_bottom = 141.642
+text = "Type Godot to make the icon change opacity!"
+
+[node name="TwitchEvent" type="TwitchEvent" parent="."]
+
+[connection signal="chat_message" from="TwitchEvent" to="JumpScare" method="_on_twitch_event_chat_message"]
