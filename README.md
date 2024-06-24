@@ -5,7 +5,7 @@ A simple rust library for dealing with that pesky twitch api, specifically event
 ### Setting up authentication keys.
 
 Create a .secrets.env or .example.env file in working directory with the following filled out:
-```
+```dotenv
 // Required
 TWITCH_CLIENT_ID = "CLIENT_ID from twitch console app"
 TWITCH_CLIENT_SECRET = "CLIENT_SECRET from twitch console app"
