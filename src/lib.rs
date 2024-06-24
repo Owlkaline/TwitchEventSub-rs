@@ -20,6 +20,8 @@ use std::net::TcpListener;
 
 use websocket::stream::sync::TlsStream;
 
+use log::{error, info, trace, warn};
+
 mod modules;
 
 use crate::modules::generic_message::*;
@@ -77,11 +79,12 @@ impl Token {
     {
       Ok(mut writer) => {
         if let Err(e) = writer.write(format!("{}", self.access.get_token()).as_bytes()) {
+          info!("Saving token failed: {}", e);
           return Err(EventSubError::WriteError(e.to_string()));
         }
       }
       Err(e) => {
-        println!("Failed!: {:?}", e)
+        error!("Writing failed: {}", e);
       }
     }
 
@@ -93,6 +96,7 @@ impl Token {
       .open(refresh_file.into())
     {
       if let Err(e) = writer.write(format!("{}", self.refresh).as_bytes()) {
+        info!("Saving token failed: {}", e);
         return Err(EventSubError::WriteError(e.to_string()));
       }
     }
@@ -247,13 +251,17 @@ impl TwitchEventSubApiBuilder {
     let mut newly_generated_token = None;
 
     if self.subscriptions.is_empty() {
+      error!("No Subscriptions selected.");
       return Err(EventSubError::NoSubscriptionsRequested);
     }
 
     if (self.generate_token_if_none || self.generate_token_on_scope_error)
       && self.redirect_url.is_none()
     {
-      panic!("Redirect url was not set, when a generate token setting was enabled.");
+      error!("No redirect url given when generate token is enabled.");
+      return Err(EventSubError::UnhandledError(
+        "Redirect url was not set, when a generate token setting was enabled.".to_owned(),
+      ));
     }
 
     let mut save_new_tokens = false;
@@ -286,11 +294,11 @@ impl TwitchEventSubApiBuilder {
           generate_token = true;
         } else {
           if !new_token.is_empty() {
-            println!("Found user access token!");
+            info!("Found user access token!");
             self.twitch_keys.access_token = Some(TokenAccess::User(new_token));
           }
           if !refresh_token.is_empty() {
-            println!("Found refresh token!");
+            info!("Found refresh token!");
             self.twitch_keys.refresh_token = Some(refresh_token.to_owned());
           }
         }
@@ -298,7 +306,7 @@ impl TwitchEventSubApiBuilder {
         if self.generate_token_if_none {
           if generate_token {
             if !refresh_token.is_empty() {
-              println!(
+              info!(
                 "No access token provided, attempting to generate access token from refresh token."
               );
               // Try to create new token from refresh token
@@ -307,21 +315,21 @@ impl TwitchEventSubApiBuilder {
                 self.twitch_keys.client_secret.to_owned(),
                 refresh_token,
               ) {
-                println!("Generated user access token from refresh key.");
+                info!("Generated user access token from refresh key.");
                 self.twitch_keys.access_token = Some(token.access.clone());
                 self.twitch_keys.refresh_token = Some(token.refresh.to_owned());
                 newly_generated_token = Some(token);
                 save_new_tokens = true;
                 generate_token = false;
               } else {
-                println!("Couldn't generate access token from refresh token.");
+                warn!("Couldn't generate access token from refresh token.");
               }
             }
 
             // If there are no refresh tokens or refresh token could created
             // a new access token, then get a completely new user token
             if generate_token {
-              println!("Generating new user token.");
+              info!("Generating new user token.");
               // Returns app access token
               match TwitchApi::generate_user_token(
                 self.twitch_keys.client_id.to_owned(),
@@ -330,18 +338,21 @@ impl TwitchEventSubApiBuilder {
                 &self.subscriptions,
               ) {
                 Ok(user_token) => {
+                  info!("Token created!");
                   self.twitch_keys.access_token = Some(user_token.access.clone());
                   self.twitch_keys.refresh_token = Some(user_token.refresh.to_owned());
                   newly_generated_token = Some(user_token);
                   save_new_tokens = true;
                 }
                 Err(e) => {
+                  error!("Failed to generate token: {:?}", e);
                   return Err(e);
                 }
               }
             }
           }
         } else {
+          error!("No access token provided");
           return Err(EventSubError::NoAccessTokenProvided);
         }
       }
@@ -354,7 +365,7 @@ impl TwitchEventSubApiBuilder {
       Ok(is_valid) => {
         if !is_valid {
           if self.generate_token_on_scope_error {
-            println!("Generating new token because current token doesn't have correct scope.");
+            info!("Generating new token because current token doesn't have correct scope.");
             match TwitchApi::generate_user_token(
               self.twitch_keys.client_id.to_owned(),
               self.twitch_keys.client_secret.to_owned(),
@@ -362,28 +373,32 @@ impl TwitchEventSubApiBuilder {
               &self.subscriptions,
             ) {
               Ok(user_token) => {
+                info!("Token Generated!");
                 self.twitch_keys.refresh_token = Some(user_token.refresh.clone());
                 self.twitch_keys.access_token = Some(user_token.access.to_owned());
                 newly_generated_token = Some(user_token);
                 save_new_tokens = true;
               }
               Err(e) => {
+                error!("Generating token failed: {:?}", e);
                 return Err(e);
               }
             }
           } else {
+            error!("Token missing required scope!");
             return Err(EventSubError::TokenMissingScope);
           }
         }
       }
       Err(e) => {
+        error!("Failed parsing validation response: {:?}", e);
         return Err(e);
       }
     }
 
     if save_new_tokens {
       if let Some((token_file, refresh_file)) = self.auto_save_load_created_tokens {
-        println!("saving tokens");
+        info!("saving tokens");
         if let Some(new_token) = newly_generated_token {
           if let Err(e) = new_token.save_to_file(token_file, refresh_file) {
             return Err(e);
@@ -418,6 +433,7 @@ impl TwitchEventSubApi {
     subscriptions: Vec<SubscriptionPermission>,
     custom_subscription_data: Vec<String>,
   ) -> TwitchEventSubApi {
+    info!("Starting websocket client.");
     let client = ClientBuilder::new(CONNECTION_EVENTS)
       .unwrap()
       .add_protocol("rust-websocket-events")
@@ -459,7 +475,6 @@ impl TwitchEventSubApi {
       match serde_json::from_str::<Validation>(&data) {
         Ok(validation) => {
           if validation.is_error() {
-            //return Err(EventSubError::InvalidAccessToken(validation.error_msg()));
             Ok(false)
           } else {
             return Ok(
@@ -494,6 +509,7 @@ impl TwitchEventSubApi {
     redirect_url: T,
   ) -> Result<String, EventSubError> {
     if let Err(e) = open::that(browser_url.into()) {
+      error!("Failed to open browser: {}", e);
       return Err(EventSubError::UnhandledError(e.to_string()));
     }
 
@@ -508,6 +524,7 @@ impl TwitchEventSubApi {
         .to_string();
     }
 
+    info!("Starting local tcp listener for token generation");
     let listener = TcpListener::bind(&redirect_url).expect("Failed to create tcp listener.");
 
     // accept connections and process them serially
@@ -644,7 +661,7 @@ impl TwitchEventSubApi {
       let message = match client.recv_message() {
         Ok(m) => m,
         Err(e) => {
-          println!("message match Receive Loop: {:?}", e);
+          error!("recv message error: {:?}", e);
           let _ = client.send_message(&OwnedMessage::Close(None));
           message_sender.send(MessageType::Close).unwrap();
 
@@ -656,6 +673,7 @@ impl TwitchEventSubApi {
         let message = serde_json::from_str(&msg);
 
         if let Err(e) = message {
+          error!("Unimplemented twitch response: {}\n{}", msg, e);
           panic!("Unimplement Twitch Response {}\n{}", msg, e);
         }
 
@@ -673,6 +691,7 @@ impl TwitchEventSubApi {
               .collect::<Vec<_>>();
             sub_data.append(&mut custom_subscriptions);
 
+            info!("Subscribing to events!");
             if let Some(TokenAccess::User(ref token)) = twitch_keys.access_token {
               sub_data
                 .iter()
@@ -741,7 +760,7 @@ impl TwitchEventSubApi {
 
       match message {
         OwnedMessage::Close(a) => {
-          println!("Close message received: {:?}", a);
+          warn!("Close message received: {:?}", a);
           // Got a close message, so send a close message and return
           let _ = client.send_message(&OwnedMessage::Close(None));
           return;
@@ -751,7 +770,7 @@ impl TwitchEventSubApi {
             // Send a pong in response
             Ok(()) => {}
             Err(e) => {
-              println!("Received an Error from Server: {:?}", e);
+              error!("Received an Error from Server: {:?}", e);
               return;
             }
           }
