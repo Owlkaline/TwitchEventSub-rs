@@ -1,0 +1,22 @@
+[gd_scene load_steps=5 format=3 uid="uid://bcoyxcknkppto"]
+
+[ext_resource type="Texture2D" uid="uid://h7ep5n403uta" path="res://icon.svg" id="1_lb0pb"]
+[ext_resource type="Shader" path="res://node_2d.gdshader" id="1_vc2sq"]
+[ext_resource type="Script" path="res://JumpScare.gd" id="2_4id3q"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_83e3o"]
+shader = ExtResource("1_vc2sq")
+shader_parameter/opacity = 1.0
+
+[node name="Node2D" type="Node2D"]
+
+[node name="CustomLoop" type="CustomLoop" parent="."]
+
+[node name="JumpScare" type="Sprite2D" parent="."]
+material = SubResource("ShaderMaterial_83e3o")
+position = Vector2(318, 308)
+scale = Vector2(3.08984, 3.08984)
+texture = ExtResource("1_lb0pb")
+script = ExtResource("2_4id3q")
+
+[connection signal="jumpscare" from="CustomLoop" to="JumpScare" method="_on_custom_loop_jumpscare"]
