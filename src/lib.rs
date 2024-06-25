@@ -457,7 +457,6 @@ impl TwitchEventSubApiBuilder {
       self.twitch_keys,
       self.subscriptions,
       Vec::new(),
-//      self.generate_access_token_on_expire,
     )
     .map_err(|e| EventSubError::UnhandledError(e.to_string()))
   }
@@ -602,17 +601,21 @@ impl TwitchEventSubApi {
     }
   }
 
-  fn test_funct(result: Result<String, EventSubError>, mut twitch_keys: &mut TwitchKeys) -> Result<String, EventSubError> {
-      if let Err(EventSubError::TokenRequiresRefreshing(http_request)) = result {
+  fn regen_token_if_401(result: Result<String, EventSubError>,  twitch_keys: &mut TwitchKeys) -> Result<String, EventSubError> {
+      if let Err(EventSubError::TokenRequiresRefreshing(mut http_request)) = result {
         if let Ok(token) = TwitchApi::generate_token_from_refresh_token(
                 twitch_keys.client_id.to_owned(),
                 twitch_keys.client_secret.to_owned(),
                 twitch_keys.refresh_token.clone().unwrap().to_owned(),
               ) {
+          println!("Generated new keys as 401 was returned!");
+          info!("Generated new keys as 401 was returned!");
           twitch_keys.access_token = Some(token.access);
           twitch_keys.refresh_token = Some(token.refresh.to_owned());
         }
 
+        let access_token = twitch_keys.access_token.as_ref().unwrap();
+        http_request.update_token(access_token.get_token());
         http_request.run()
       } else {
         result
@@ -624,7 +627,6 @@ impl TwitchEventSubApi {
       .url_encoded_content()
       .is_post(post_data)
       .run()
-      //.map(||)
      .and_then(|twitch_response| {
      serde_json::from_str::<NewAccessTokenResponse>(&twitch_response)
          .map_err(|_| EventSubError::AuthorisationError(twitch_response))
@@ -651,7 +653,7 @@ impl TwitchEventSubApi {
     messages
   }
 
-  pub fn delete_message<S: Into<String>>(&self, message_id: S) {
+  pub fn delete_message<S: Into<String>>(&mut self, message_id: S) {
     let broadcaster_account_id = self.twitch_keys.broadcaster_account_id.to_string();
     let moderator_account_id = broadcaster_account_id.to_owned();
     let access_token = self
@@ -662,17 +664,17 @@ impl TwitchEventSubApi {
       .get_token();
     let client_id = self.twitch_keys.client_id.to_string();
 
-    TwitchApi::delete_message(
+   let _  =TwitchEventSubApi::regen_token_if_401(TwitchApi::delete_message(
       broadcaster_account_id,
       moderator_account_id,
       message_id.into(),
       access_token,
       client_id,
-    );
+    ), &mut self.twitch_keys);
   }
 
   pub fn timeout_user<S: Into<String>, T: Into<String>>(
-    &self,
+    &mut self,
     user_id: S,
     duration: u32,
     reason: T,
@@ -687,7 +689,7 @@ impl TwitchEventSubApi {
       .expect("No Access Token set")
       .get_token();
     let client_id = self.twitch_keys.client_id.to_string();
-    TwitchApi::timeout_user(
+    let _ = TwitchEventSubApi::regen_token_if_401(TwitchApi::timeout_user(
       access_token,
       client_id,
       broadcaster_account_id,
@@ -695,10 +697,10 @@ impl TwitchEventSubApi {
       user_id.into(),
       duration,
       reason.into(),
-    );
+    ), &mut self.twitch_keys);
   }
 
-  pub fn send_chat_message<S: Into<String>>(&self, message: S) {
+  pub fn send_chat_message<S: Into<String>>(&mut self, message: S) {
     let message: String = message.into();
     let access_token = self
       .twitch_keys
@@ -714,13 +716,13 @@ impl TwitchEventSubApi {
       .clone()
       .unwrap_or(self.twitch_keys.broadcaster_account_id.to_string());
 
-    TwitchApi::send_chat_message(
+    let _ = TwitchEventSubApi::regen_token_if_401(TwitchApi::send_chat_message(
       message,
       access_token,
       client_id,
       broadcaster_account_id,
       Some(sender_id),
-    );
+    ), &mut self.twitch_keys);
   }
 
   fn wait_for_threads_to_close(self) {
@@ -728,7 +730,7 @@ impl TwitchEventSubApi {
     let _ = self.receive_thread.join();
   }
 
-  #[cfg(feature = "only_raw_respones")]
+  #[cfg(feature = "only_raw_responses")]
   fn event_sub_events(
     client: Arc<Mutex<Client<TlsStream<TcpStream>>>>,
     message_sender: SyncSender<MessageType>,
@@ -762,13 +764,13 @@ impl TwitchEventSubApi {
     }
   }
 
-  #[cfg(not(feature = "only_raw_response"))]
+  #[cfg(not(feature = "only_raw_responses"))]
   fn event_sub_events(
     client: Arc<Mutex<Client<TlsStream<TcpStream>>>>,
     message_sender: SyncSender<MessageType>,
     subscriptions: Vec<SubscriptionPermission>,
     mut custom_subscriptions: Vec<String>,
-    twitch_keys: TwitchKeys,
+    mut twitch_keys: TwitchKeys,
   ) {
     loop {
       let client = client.clone();
@@ -811,6 +813,7 @@ impl TwitchEventSubApi {
             sub_data.append(&mut custom_subscriptions);
 
             info!("Subscribing to events!");
+            let mut clone_twitch_keys = twitch_keys.clone();
             if let Some(TokenAccess::User(ref token)) = twitch_keys.access_token {
               sub_data
                 .iter()
@@ -822,7 +825,7 @@ impl TwitchEventSubApi {
                     .run();
                   a
                 })
-                //.map(|a | TwitchEventSubApi::test_funct::<_>(a, &mut twitch_keys))
+               .map(|a| TwitchEventSubApi::regen_token_if_401(a, &mut clone_twitch_keys))
                 .filter_map(Result::err)
                 .for_each(|error| {
                   message_sender
@@ -837,6 +840,8 @@ impl TwitchEventSubApi {
                 ),
               )));
             }
+
+            twitch_keys = clone_twitch_keys;
           }
           EventMessageType::KeepAlive => {
             //println!("Keep alive receive message sent, !implemented");
