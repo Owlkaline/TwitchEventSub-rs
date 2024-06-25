@@ -3,6 +3,8 @@ use crate::{
 };
 use curl::easy::{Easy, List};
 
+use log::{error, info, warn, LevelFilter};
+
 use crate::modules::{
   consts::*,
   generic_message::{SendTimeoutRequest, TimeoutRequestData},
@@ -192,7 +194,7 @@ impl TwitchApi {
 
     let post_data = serde_json::to_string(&post_data).unwrap();
 
-    TwitchHttpRequest::new(url)
+    let _ = TwitchHttpRequest::new(url)
       .header_authorisation(access_token.into(), AuthType::Bearer)
       .header_client_id(client_id.into())
       .json_content()
@@ -230,7 +232,7 @@ impl RequestType {
         handle.post_fields_copy(data.as_bytes()).unwrap();
       }
       RequestType::Delete => {
-        handle.custom_request("DELETE");
+        let _ = handle.custom_request("DELETE");
       }
     }
   }
@@ -341,6 +343,8 @@ impl TwitchHttpRequest {
   pub fn run(&self) -> Result<String, EventSubError> {
     let mut data = Vec::new();
 
+    info!("Running curl command with:");
+    info!("    url: {}", self.url);
     let mut handle = Easy::new();
     {
       handle.url(&self.url).unwrap();
@@ -368,9 +372,11 @@ impl TwitchHttpRequest {
       if let Err(e) = handle.perform() {
         if let Ok(error) = serde_json::from_str::<Validation>(&e.to_string()) {
           if error.is_error() {
+            error!("Converting result from curl request to validation failed!");
             return Err(EventSubError::InvalidOauthToken(error.error_msg()));
           }
         }
+        error!("Curl error: {}", e);
         return Err(EventSubError::CurlFailed(e));
       }
     }

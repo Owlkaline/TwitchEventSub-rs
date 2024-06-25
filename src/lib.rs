@@ -20,28 +20,24 @@ use std::net::TcpListener;
 
 use websocket::stream::sync::TlsStream;
 
-use log::{error, info, trace, warn};
-
 mod modules;
 
 use crate::modules::generic_message::*;
 
-use log::{Level, Metadata, Record};
+use log::{error, info, warn, LevelFilter};
+use simple_logging;
 
-struct SimpleLogger;
+pub use websocket::WebSocketError;
 
-impl log::Log for SimpleLogger {
-  fn enabled(&self, metadata: &Metadata) -> bool {
-    metadata.level() <= Level::Info
-  }
+pub const LOG_FILE: &str = "twitch_events.log";
+pub const LOG_FILE_BUILDER: &str = "twitch_event_builder.log";
 
-  fn log(&self, record: &Record) {
-    if self.enabled(record.metadata()) {
-      println!("{} - {}", record.level(), record.args());
-    }
-  }
+fn log_info() {
+  let _ = simple_logging::log_to_file(LOG_FILE, LevelFilter::Info);
+}
 
-  fn flush(&self) {}
+fn log_builder() {
+  let _ = simple_logging::log_to_file(LOG_FILE_BUILDER, LevelFilter::Info);
 }
 
 pub use crate::modules::{
@@ -64,6 +60,12 @@ pub enum EventSubError {
   InvalidAccessToken(String),
   InvalidOauthToken(String),
   CurlFailed(curl::Error),
+}
+
+#[derive(Debug)]
+pub enum TwitchKeysError {
+  ClientIdNotFound,
+  ClientSecretNotFound,
 }
 
 pub struct Token {
@@ -163,31 +165,51 @@ pub struct TwitchKeys {
 }
 
 impl TwitchKeys {
-  pub fn from_secrets_env() -> TwitchKeys {
+  pub fn from_secrets_env() -> Result<TwitchKeys, TwitchKeysError> {
     simple_env_load::load_env_from([".example.env", ".secrets.env"]);
 
     fn get(key: &str) -> Result<String, String> {
       std::env::var(key).map_err(|_| format!("please set {key} in .example.env"))
     }
 
-    let client_id = get("TWITCH_CLIENT_ID").unwrap();
-    let client_secret: String = get("TWITCH_CLIENT_SECRET").unwrap();
-    let broadcaster_id = get("TWITCH_BROADCASTER_ID").unwrap();
+    let client_id = match get("TWITCH_CLIENT_ID") {
+      Ok(s) => s,
+      Err(e) => {
+        error!("{}", e);
+        return Err(TwitchKeysError::ClientIdNotFound);
+      }
+    };
+
+    let client_secret = match get("TWITCH_CLIENT_SECRET") {
+      Ok(s) => s,
+      Err(e) => {
+        error!("{}", e);
+        return Err(TwitchKeysError::ClientSecretNotFound);
+      }
+    };
+
+    let broadcaster_id = match get("TWITCH_BROADCASTER_ID") {
+      Ok(s) => s,
+      Err(e) => {
+        error!("{}", e);
+        return Err(TwitchKeysError::ClientSecretNotFound);
+      }
+    };
+
     let bot_account_id = get("TWITCH_BOT_ID").unwrap_or(broadcaster_id.to_owned());
 
     let user_access_token = get("TWITCH_USER_ACCESS_TOKEN").ok().map(TokenAccess::User);
     let user_refresh_token = get("TWITCH_USER_REFRESH_TOKEN").ok();
 
-    TwitchKeys {
+    Ok(TwitchKeys {
       authorisation_code: None,
       access_token: user_access_token,
       refresh_token: user_refresh_token,
       client_id,
       client_secret,
-
       broadcaster_account_id: broadcaster_id,
       sender_account_id: Some(bot_account_id),
-    }
+    })
   }
 }
 
@@ -266,6 +288,7 @@ impl TwitchEventSubApiBuilder {
   }
 
   pub fn build(mut self) -> Result<TwitchEventSubApi, EventSubError> {
+    log_builder();
     let mut newly_generated_token = None;
 
     if self.subscriptions.is_empty() {
@@ -283,9 +306,10 @@ impl TwitchEventSubApiBuilder {
     }
 
     let mut save_new_tokens = false;
+    // If there is no access token
     if self.twitch_keys.access_token.is_none() {
-      let mut generate_token = false;
-
+      // If auto save and load created tokens is enabled
+      // We check those files for the relevant keys
       if let Some((ref token_file, ref refresh_file)) = self.auto_save_load_created_tokens {
         let mut new_token = String::new();
         let mut refresh_token = String::new();
@@ -308,22 +332,22 @@ impl TwitchEventSubApiBuilder {
           let _ = reader.read_to_string(&mut refresh_token);
         }
 
-        if refresh_token.is_empty() && new_token.is_empty() {
-          generate_token = true;
-        } else {
-          if !new_token.is_empty() {
-            info!("Found user access token!");
-            self.twitch_keys.access_token = Some(TokenAccess::User(new_token));
-          }
-          if !refresh_token.is_empty() {
-            info!("Found refresh token!");
-            self.twitch_keys.refresh_token = Some(refresh_token.to_owned());
-          }
+        if !new_token.is_empty() {
+          info!("Found user access token!");
+          self.twitch_keys.access_token = Some(TokenAccess::User(new_token));
         }
+        if !refresh_token.is_empty() {
+          info!("Found refresh token!");
+          self.twitch_keys.refresh_token = Some(refresh_token);
+        }
+
+        let mut generate_token = self.twitch_keys.refresh_token.is_none()
+          && self.twitch_keys.access_token.is_none()
+          || self.twitch_keys.access_token.is_none();
 
         if self.generate_token_if_none {
           if generate_token {
-            if !refresh_token.is_empty() {
+            if let Some(refresh_token) = &self.twitch_keys.refresh_token {
               info!(
                 "No access token provided, attempting to generate access token from refresh token."
               );
@@ -380,8 +404,8 @@ impl TwitchEventSubApiBuilder {
       self.twitch_keys.access_token.clone().unwrap(),
       &self.subscriptions,
     ) {
-      Ok(is_valid) => {
-        if !is_valid {
+      Ok(token_meets_requirements) => {
+        if !token_meets_requirements {
           if self.generate_token_on_scope_error {
             info!("Generating new token because current token doesn't have correct scope.");
             match TwitchApi::generate_user_token(
@@ -419,22 +443,19 @@ impl TwitchEventSubApiBuilder {
         info!("saving tokens");
         if let Some(new_token) = newly_generated_token {
           if let Err(e) = new_token.save_to_file(token_file, refresh_file) {
+            warn!("Failed to save tokens to file!");
             return Err(e);
           }
         }
       }
     }
 
-    Ok(TwitchEventSubApi::new(
-      self.twitch_keys,
-      self.subscriptions,
-      Vec::new(),
-    ))
+    TwitchEventSubApi::new(self.twitch_keys, self.subscriptions, Vec::new())
+      .map_err(|e| EventSubError::UnhandledError(e.to_string()))
   }
 }
 
 pub struct TwitchEventSubApi {
-  tx: Option<SyncSender<GenericMessage>>,
   receive_thread: JoinHandle<()>,
   send_thread: Option<JoinHandle<()>>,
   messages_received: SyncReceiver<MessageType>,
@@ -450,13 +471,17 @@ impl TwitchEventSubApi {
     twitch_keys: TwitchKeys,
     subscriptions: Vec<SubscriptionPermission>,
     custom_subscription_data: Vec<String>,
-  ) -> TwitchEventSubApi {
+  ) -> Result<TwitchEventSubApi, WebSocketError> {
+    log_info();
     info!("Starting websocket client.");
-    let client = ClientBuilder::new(CONNECTION_EVENTS)
+    let client = match ClientBuilder::new(CONNECTION_EVENTS)
       .unwrap()
       .add_protocol("rust-websocket-events")
       .connect_secure(None)
-      .unwrap();
+    {
+      Ok(c) => c,
+      Err(e) => return Err(e),
+    };
 
     let receiver = Arc::new(Mutex::new(client));
 
@@ -473,13 +498,12 @@ impl TwitchEventSubApi {
       )
     });
 
-    TwitchEventSubApi {
-      tx: None,
+    Ok(TwitchEventSubApi {
       receive_thread,
       send_thread: None,
       messages_received: receive_message,
       twitch_keys,
-    }
+    })
   }
 
   pub fn check_token_meets_requirements(
@@ -547,7 +571,7 @@ impl TwitchEventSubApi {
 
     // accept connections and process them serially
     match listener.accept() {
-      Ok((mut stream, b)) => {
+      Ok((mut stream, _b)) => {
         let mut http_output = String::new();
         stream
           .read_to_string(&mut http_output)
@@ -723,7 +747,6 @@ impl TwitchEventSubApi {
                 })
                 .filter_map(Result::err)
                 .for_each(|error| {
-                  todo!("handled error in text");
                   message_sender
                     .send(MessageType::SubscribeError(error))
                     .expect("Failed to send error Message back to main thread.");

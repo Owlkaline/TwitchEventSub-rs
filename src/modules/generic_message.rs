@@ -1,10 +1,7 @@
 use serde_derive::{Deserialize, Serialize};
 //use serde_json::Result;
 
-use crate::{
-  modules::messages::MessageData, EventSubError, SubscriptionPermission, Token, TokenAccess,
-  TwitchKeys,
-};
+use crate::{modules::messages::MessageData, EventSubError, SubscriptionPermission, Token};
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct NewAccessTokenResponse {
