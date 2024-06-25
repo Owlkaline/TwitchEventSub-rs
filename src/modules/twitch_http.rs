@@ -203,7 +203,7 @@ impl TwitchApi {
   }
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Clone, Debug)]
 pub enum RequestType {
   Post(String),
   Delete,
@@ -267,6 +267,7 @@ impl RequestBuilder {
   }
 }
 
+#[derive(Clone, PartialEq, Debug)]
 pub struct TwitchHttpRequest {
   url: String,
   header: Vec<String>,
@@ -372,6 +373,11 @@ impl TwitchHttpRequest {
       if let Err(e) = handle.perform() {
         if let Ok(error) = serde_json::from_str::<Validation>(&e.to_string()) {
           if error.is_error() {
+            if error.status.unwrap() == 401 {
+              // Regen access token
+              // Re run the query
+              return Err(EventSubError::TokenRequiresRefreshing(self.to_owned()));
+            }
             error!("Converting result from curl request to validation failed!");
             return Err(EventSubError::InvalidOauthToken(error.error_msg()));
           }

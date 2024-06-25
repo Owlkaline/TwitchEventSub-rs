@@ -11,9 +11,9 @@ pub struct MessageData {
 #[derive(Debug, PartialEq)]
 pub enum MessageType {
   AdBreakNotification(u32),
-  Message(MessageData),
+  ChatMessage(MessageData),
   CustomRedeem((String, String, Reward)),
-  ChannelMessage(String),
+  RawResponse(String),
   CustomSubscriptionResponse(String),
   SubscribeError(EventSubError),
   Error(EventSubError),

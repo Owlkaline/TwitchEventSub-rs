@@ -32,8 +32,8 @@ pub struct Validation {
   login: Option<String>,
   pub scopes: Option<Vec<String>>,
   user_id: Option<String>,
-  expires_in: Option<u32>,
-  status: Option<u32>,
+  pub expires_in: Option<u32>,
+  pub status: Option<u32>,
   message: Option<String>,
 }
 

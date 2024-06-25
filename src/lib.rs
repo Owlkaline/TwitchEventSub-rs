@@ -10,15 +10,14 @@ use std::sync::{Arc, Mutex};
 
 use crate::modules::consts::*;
 use open;
-use std::io::Read;
+use std::io::{Error, ErrorKind, Read};
 
 use websocket::client::ClientBuilder;
-
+use websocket::stream::sync::TlsStream;
+pub use websocket::WebSocketError;
 use websocket::{sync::Client, OwnedMessage};
 
 use std::net::TcpListener;
-
-use websocket::stream::sync::TlsStream;
 
 mod modules;
 
@@ -26,8 +25,6 @@ use crate::modules::generic_message::*;
 
 use log::{error, info, warn, LevelFilter};
 use simple_logging;
-
-pub use websocket::WebSocketError;
 
 pub const LOG_FILE: &str = "twitch_events.log";
 pub const LOG_FILE_BUILDER: &str = "twitch_event_builder.log";
@@ -60,6 +57,8 @@ pub enum EventSubError {
   InvalidAccessToken(String),
   InvalidOauthToken(String),
   CurlFailed(curl::Error),
+  ParseError(String),
+  TokenRequiresRefreshing(TwitchHttpRequest),
 }
 
 #[derive(Debug)]
@@ -68,11 +67,10 @@ pub enum TwitchKeysError {
   ClientSecretNotFound,
 }
 
-pub struct Token {
+struct Token {
   pub access: TokenAccess,
   pub refresh: String,
   expires_in: f32,
-  generation_time: Instant,
 }
 
 impl Token {
@@ -81,7 +79,6 @@ impl Token {
       access,
       refresh,
       expires_in,
-      generation_time: Instant::now(),
     }
   }
 
@@ -223,6 +220,7 @@ pub struct TwitchEventSubApiBuilder {
   generate_token_on_scope_error: bool,
   generate_access_token_on_expire: bool,
   auto_save_load_created_tokens: Option<(String, String)>,
+  only_raw_responses: bool,
 }
 
 impl TwitchEventSubApiBuilder {
@@ -236,6 +234,7 @@ impl TwitchEventSubApiBuilder {
       generate_token_on_scope_error: false,
       generate_access_token_on_expire: false,
       auto_save_load_created_tokens: None,
+      only_raw_responses: false,
     }
   }
 
@@ -285,6 +284,10 @@ impl TwitchEventSubApiBuilder {
 
   pub fn set_keys(&mut self, keys: TwitchKeys) {
     self.twitch_keys = keys;
+  }
+
+  pub fn recieve_all_responses_raw(&mut self, recieve_raw_data: bool) {
+    self.only_raw_responses = recieve_raw_data;
   }
 
   pub fn build(mut self) -> Result<TwitchEventSubApi, EventSubError> {
@@ -450,8 +453,13 @@ impl TwitchEventSubApiBuilder {
       }
     }
 
-    TwitchEventSubApi::new(self.twitch_keys, self.subscriptions, Vec::new())
-      .map_err(|e| EventSubError::UnhandledError(e.to_string()))
+    TwitchEventSubApi::new(
+      self.twitch_keys,
+      self.subscriptions,
+      Vec::new(),
+//      self.generate_access_token_on_expire,
+    )
+    .map_err(|e| EventSubError::UnhandledError(e.to_string()))
   }
 }
 
@@ -460,6 +468,7 @@ pub struct TwitchEventSubApi {
   send_thread: Option<JoinHandle<()>>,
   messages_received: SyncReceiver<MessageType>,
   twitch_keys: TwitchKeys,
+  token: Arc<Mutex<Token>>,
 }
 
 impl TwitchEventSubApi {
@@ -487,6 +496,18 @@ impl TwitchEventSubApi {
 
     let (transmit_messages, receive_message) = channel();
 
+    let mut token = Arc::new(Mutex::new(Token::new(
+      twitch_keys
+        .access_token
+        .to_owned()
+        .unwrap_or(TokenAccess::User("".to_owned())),
+      twitch_keys
+        .refresh_token
+        .to_owned()
+        .unwrap_or("".to_owned()),
+      0.0,
+    )));
+
     let keys_clone = twitch_keys.clone();
     let receive_thread = thread::spawn(move || {
       TwitchEventSubApi::event_sub_events(
@@ -503,47 +524,46 @@ impl TwitchEventSubApi {
       send_thread: None,
       messages_received: receive_message,
       twitch_keys,
+      token,
     })
+  }
+
+  pub fn validate_token<S: Into<String>>(token: S) -> Result<Validation, EventSubError> {
+    TwitchHttpRequest::new(VALIDATION_TOKEN_URL)
+      .header_authorisation(token.into(), AuthType::OAuth)
+      .run()
+      .and_then(|data| {
+        serde_json::from_str::<Validation>(&data)
+          .map_err(|e| EventSubError::ParseError(e.to_string()))
+      })
   }
 
   pub fn check_token_meets_requirements(
     access_token: TokenAccess,
     subs: &Vec<SubscriptionPermission>,
   ) -> Result<bool, EventSubError> {
-    if let Ok(data) = TwitchHttpRequest::new(VALIDATION_TOKEN_URL)
-      .header_authorisation(access_token.get_token(), AuthType::OAuth)
-      .run()
-    {
-      match serde_json::from_str::<Validation>(&data) {
-        Ok(validation) => {
-          if validation.is_error() {
-            Ok(false)
-          } else {
-            return Ok(
-              subs
-                .iter()
-                .map(move |s| {
-                  let r = s.required_scope();
-                  let requirements = r.split('+').map(ToString::to_string).collect::<Vec<_>>();
+    TwitchEventSubApi::validate_token(access_token.get_token()).map(|validation| {
+      if validation.is_error() {
+        false
+      } else {
+        subs
+          .iter()
+          .map(move |s| {
+            let r = s.required_scope();
+            let requirements = r.split('+').map(ToString::to_string).collect::<Vec<_>>();
 
-                  for req in requirements {
-                    if !validation.scopes.as_ref().unwrap().contains(&req) {
-                      return 0;
-                    }
-                  }
+            for req in requirements {
+              if !validation.scopes.as_ref().unwrap().contains(&req) {
+                return 0;
+              }
+            }
 
-                  1
-                })
-                .sum::<usize>()
-                == subs.len(),
-            );
-          }
-        }
-        Err(e) => Err(EventSubError::AuthorisationError(e.to_string())),
+            1
+          })
+          .sum::<usize>()
+          == subs.len()
       }
-    } else {
-      Ok(false)
-    }
+    })
   }
 
   pub fn open_browser<S: Into<String>, T: Into<String>>(
@@ -582,22 +602,40 @@ impl TwitchEventSubApi {
     }
   }
 
+  fn test_funct(result: Result<String, EventSubError>, mut twitch_keys: &mut TwitchKeys) -> Result<String, EventSubError> {
+      if let Err(EventSubError::TokenRequiresRefreshing(http_request)) = result {
+        if let Ok(token) = TwitchApi::generate_token_from_refresh_token(
+                twitch_keys.client_id.to_owned(),
+                twitch_keys.client_secret.to_owned(),
+                twitch_keys.refresh_token.clone().unwrap().to_owned(),
+              ) {
+          twitch_keys.access_token = Some(token.access);
+          twitch_keys.refresh_token = Some(token.refresh.to_owned());
+        }
+
+        http_request.run()
+      } else {
+        result
+      }
+  }
+
   fn process_token_query<S: Into<String>>(post_data: S) -> Result<Token, EventSubError> {
     TwitchHttpRequest::new(TWITCH_TOKEN_URL)
       .url_encoded_content()
       .is_post(post_data)
       .run()
-      .and_then(|twitch_response| {
-        serde_json::from_str::<NewAccessTokenResponse>(&twitch_response)
-          .map_err(|_| EventSubError::AuthorisationError(twitch_response))
-          .map(|new_token_data| {
-            Token::new_user_token(
-              new_token_data.access_token,
-              new_token_data.refresh_token.unwrap(),
-              new_token_data.expires_in as f32,
-            )
-          })
-      })
+      //.map(||)
+     .and_then(|twitch_response| {
+     serde_json::from_str::<NewAccessTokenResponse>(&twitch_response)
+         .map_err(|_| EventSubError::AuthorisationError(twitch_response))
+         .map(|new_token_data| {
+           Token::new_user_token(
+             new_token_data.access_token,
+             new_token_data.refresh_token.unwrap(),
+             new_token_data.expires_in as f32,
+           )
+         })
+     })
   }
 
   pub fn receive_messages(&mut self) -> Vec<MessageType> {
@@ -685,11 +723,12 @@ impl TwitchEventSubApi {
     );
   }
 
-  pub fn wait_for_threads_to_close(self) {
+  fn wait_for_threads_to_close(self) {
     let _ = self.send_thread.unwrap().join();
     let _ = self.receive_thread.join();
   }
 
+  #[cfg(feature = "only_raw_respones")]
   fn event_sub_events(
     client: Arc<Mutex<Client<TlsStream<TcpStream>>>>,
     message_sender: SyncSender<MessageType>,
@@ -702,6 +741,43 @@ impl TwitchEventSubApi {
       let mut client = client.lock().unwrap();
       let message = match client.recv_message() {
         Ok(m) => m,
+        Err(WebSocketError::IoError(e)) if e.kind() == ErrorKind::WouldBlock => {
+          continue;
+        }
+        Err(e) => {
+          error!("recv message error: {:?}", e);
+          let _ = client.send_message(&OwnedMessage::Close(None));
+          message_sender.send(MessageType::Close).unwrap();
+
+          return;
+        }
+      };
+
+      if let OwnedMessage::Text(msg) = message.clone() {
+        if only_raw_responses {
+          message_sender.send(MessageType::RawResponse(msg)).unwrap();
+          continue;
+        }
+      }
+    }
+  }
+
+  #[cfg(not(feature = "only_raw_response"))]
+  fn event_sub_events(
+    client: Arc<Mutex<Client<TlsStream<TcpStream>>>>,
+    message_sender: SyncSender<MessageType>,
+    subscriptions: Vec<SubscriptionPermission>,
+    mut custom_subscriptions: Vec<String>,
+    twitch_keys: TwitchKeys,
+  ) {
+    loop {
+      let client = client.clone();
+      let mut client = client.lock().unwrap();
+      let message = match client.recv_message() {
+        Ok(m) => m,
+        Err(WebSocketError::IoError(e)) if e.kind() == ErrorKind::WouldBlock => {
+          continue;
+        }
         Err(e) => {
           error!("recv message error: {:?}", e);
           let _ = client.send_message(&OwnedMessage::Close(None));
@@ -716,7 +792,8 @@ impl TwitchEventSubApi {
 
         if let Err(e) = message {
           error!("Unimplemented twitch response: {}\n{}", msg, e);
-          panic!("Unimplement Twitch Response {}\n{}", msg, e);
+          message_sender.send(MessageType::RawResponse(msg)).unwrap();
+          continue;
         }
 
         let message: GenericMessage = message.unwrap();
@@ -745,6 +822,7 @@ impl TwitchEventSubApi {
                     .run();
                   a
                 })
+                //.map(|a | TwitchEventSubApi::test_funct::<_>(a, &mut twitch_keys))
                 .filter_map(Result::err)
                 .for_each(|error| {
                   message_sender
@@ -768,7 +846,7 @@ impl TwitchEventSubApi {
               let message_info = message.chat_message();
 
               message_sender
-                .send(MessageType::Message(message_info))
+                .send(MessageType::ChatMessage(message_info))
                 .unwrap();
             }
             SubscriptionType::CustomRedeem => {
@@ -796,7 +874,6 @@ impl TwitchEventSubApi {
           }
           _ => {}
         }
-        //      }
       }
 
       match message {
