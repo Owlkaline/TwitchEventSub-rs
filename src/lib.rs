@@ -1,16 +1,14 @@
-use std::io::Write;
-
 use std::fs;
 use std::net::TcpStream;
 use std::sync::mpsc::{channel, Receiver as SyncReceiver, Sender as SyncSender};
 use std::thread::{self, JoinHandle};
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 use std::sync::{Arc, Mutex};
 
 use crate::modules::consts::*;
 use open;
-use std::io::{Error, ErrorKind, Read};
+use std::io::{ErrorKind, Read};
 
 use websocket::client::ClientBuilder;
 use websocket::stream::sync::TlsStream;
@@ -21,194 +19,18 @@ use std::net::TcpListener;
 
 mod modules;
 
-use crate::modules::generic_message::*;
+use crate::modules::{errors::*, generic_message::*, token::Token};
 
-use log::{error, info, warn, LevelFilter};
-use simple_logging;
-
-pub const LOG_FILE: &str = "twitch_events.log";
-pub const LOG_FILE_BUILDER: &str = "twitch_event_builder.log";
-
-fn log_info() {
-  let _ = simple_logging::log_to_file(LOG_FILE, LevelFilter::Info);
-}
-
-fn log_builder() {
-  let _ = simple_logging::log_to_file(LOG_FILE_BUILDER, LevelFilter::Info);
-}
+pub use log::{error, info, warn};
 
 pub use crate::modules::{
-  generic_message::Reward,
-  messages::MessageType,
+  errors::EventSubError,
+  generic_message::{Condition, EventSubscription, Reward, Transport},
+  messages::{MessageData, MessageType, RaidInfo},
   subscriptions::SubscriptionPermission,
+  token::{TokenAccess, TwitchKeys},
   twitch_http::{AuthType, RequestType, TwitchApi, TwitchHttpRequest},
 };
-
-#[derive(Debug, PartialEq)]
-pub enum EventSubError {
-  TokenMissingScope,
-  NoSubscriptionsRequested,
-  AuthorisationError(String),
-  WebsocketCreationFailed,
-  UnhandledError(String),
-  NoAccessTokenProvided,
-  WriteError(String),
-  // status 401 = invalid access token
-  InvalidAccessToken(String),
-  InvalidOauthToken(String),
-  CurlFailed(curl::Error),
-  ParseError(String),
-  TokenRequiresRefreshing(TwitchHttpRequest),
-}
-
-#[derive(Debug)]
-pub enum TwitchKeysError {
-  ClientIdNotFound,
-  ClientSecretNotFound,
-}
-
-struct Token {
-  pub access: TokenAccess,
-  pub refresh: String,
-  expires_in: f32,
-}
-
-impl Token {
-  pub fn new(access: TokenAccess, refresh: String, expires_in: f32) -> Token {
-    Token {
-      access,
-      refresh,
-      expires_in,
-    }
-  }
-
-  pub fn save_to_file<S: Into<String>, T: Into<String>>(
-    &self,
-    token_file: S,
-    refresh_file: T,
-  ) -> Result<(), EventSubError> {
-    match fs::OpenOptions::new()
-      .append(false)
-      .create(true)
-      .write(true)
-      .truncate(true)
-      .open(format!("./{}", token_file.into()))
-    {
-      Ok(mut writer) => {
-        if let Err(e) = writer.write(format!("{}", self.access.get_token()).as_bytes()) {
-          info!("Saving token failed: {}", e);
-          return Err(EventSubError::WriteError(e.to_string()));
-        }
-      }
-      Err(e) => {
-        error!("Writing failed: {}", e);
-      }
-    }
-
-    if let Ok(mut writer) = fs::OpenOptions::new()
-      .append(false)
-      .create(true)
-      .write(true)
-      .truncate(true)
-      .open(refresh_file.into())
-    {
-      if let Err(e) = writer.write(format!("{}", self.refresh).as_bytes()) {
-        info!("Saving token failed: {}", e);
-        return Err(EventSubError::WriteError(e.to_string()));
-      }
-    }
-
-    Ok(())
-  }
-
-  pub fn new_user_token(access_token: String, refresh: String, expires_in: f32) -> Token {
-    Token::new(TokenAccess::User(access_token), refresh, expires_in)
-  }
-
-  pub fn new_app_token(access_token: String, refresh: String, expires_in: f32) -> Token {
-    Token::new(TokenAccess::App(access_token), refresh, expires_in)
-  }
-}
-
-#[derive(Clone, Debug)]
-pub enum TokenAccess {
-  App(String),
-  User(String),
-}
-
-impl TokenAccess {
-  pub fn get_token(&self) -> String {
-    match self {
-      TokenAccess::User(token) => token.to_string(),
-      TokenAccess::App(token) => token.to_string(),
-    }
-  }
-}
-
-/// When subscribing to events, webhooks uses app access tokens and WebSockets uses user access tokens.
-/// If you use app access tokens with WebSockets, the subscriptions will fail.
-
-#[derive(Clone)]
-pub struct TwitchKeys {
-  //  pub oauth: String,
-  pub authorisation_code: Option<String>,
-  pub access_token: Option<TokenAccess>,
-  pub refresh_token: Option<String>,
-  pub client_id: String,
-  pub client_secret: String,
-
-  pub broadcaster_account_id: String,
-  pub sender_account_id: Option<String>,
-}
-
-impl TwitchKeys {
-  pub fn from_secrets_env() -> Result<TwitchKeys, TwitchKeysError> {
-    simple_env_load::load_env_from([".example.env", ".secrets.env"]);
-
-    fn get(key: &str) -> Result<String, String> {
-      std::env::var(key).map_err(|_| format!("please set {key} in .example.env"))
-    }
-
-    let client_id = match get("TWITCH_CLIENT_ID") {
-      Ok(s) => s,
-      Err(e) => {
-        error!("{}", e);
-        return Err(TwitchKeysError::ClientIdNotFound);
-      }
-    };
-
-    let client_secret = match get("TWITCH_CLIENT_SECRET") {
-      Ok(s) => s,
-      Err(e) => {
-        error!("{}", e);
-        return Err(TwitchKeysError::ClientSecretNotFound);
-      }
-    };
-
-    let broadcaster_id = match get("TWITCH_BROADCASTER_ID") {
-      Ok(s) => s,
-      Err(e) => {
-        error!("{}", e);
-        return Err(TwitchKeysError::ClientSecretNotFound);
-      }
-    };
-
-    let bot_account_id = get("TWITCH_BOT_ID").unwrap_or(broadcaster_id.to_owned());
-
-    let user_access_token = get("TWITCH_USER_ACCESS_TOKEN").ok().map(TokenAccess::User);
-    let user_refresh_token = get("TWITCH_USER_REFRESH_TOKEN").ok();
-
-    Ok(TwitchKeys {
-      authorisation_code: None,
-      access_token: user_access_token,
-      refresh_token: user_refresh_token,
-      client_id,
-      client_secret,
-      broadcaster_account_id: broadcaster_id,
-      sender_account_id: Some(bot_account_id),
-    })
-  }
-}
 
 #[must_use]
 pub struct TwitchEventSubApiBuilder {
@@ -345,7 +167,6 @@ impl TwitchEventSubApiBuilder {
         }
 
         let mut generate_token = self.twitch_keys.refresh_token.is_none()
-          && self.twitch_keys.access_token.is_none()
           || self.twitch_keys.access_token.is_none();
 
         if self.generate_token_if_none {
@@ -453,12 +274,8 @@ impl TwitchEventSubApiBuilder {
       }
     }
 
-    TwitchEventSubApi::new(
-      self.twitch_keys,
-      self.subscriptions,
-      Vec::new(),
-    )
-    .map_err(|e| EventSubError::UnhandledError(e.to_string()))
+    TwitchEventSubApi::new(self.twitch_keys, self.subscriptions, Vec::new())
+      .map_err(|e| EventSubError::UnhandledError(e.to_string()))
   }
 }
 
@@ -547,20 +364,19 @@ impl TwitchEventSubApi {
       } else {
         subs
           .iter()
-          .map(move |s| {
+          .filter(|s| !s.required_scope().is_empty())
+          .all(move |s| {
             let r = s.required_scope();
+            
             let requirements = r.split('+').map(ToString::to_string).collect::<Vec<_>>();
-
-            for req in requirements {
+            
+            for req in requirements { 
               if !validation.scopes.as_ref().unwrap().contains(&req) {
-                return 0;
+                return false;
               }
             }
-
-            1
+            true
           })
-          .sum::<usize>()
-          == subs.len()
       }
     })
   }
@@ -601,25 +417,34 @@ impl TwitchEventSubApi {
     }
   }
 
-  fn regen_token_if_401(result: Result<String, EventSubError>,  twitch_keys: &mut TwitchKeys) -> Result<String, EventSubError> {
-      if let Err(EventSubError::TokenRequiresRefreshing(mut http_request)) = result {
-        if let Ok(token) = TwitchApi::generate_token_from_refresh_token(
-                twitch_keys.client_id.to_owned(),
-                twitch_keys.client_secret.to_owned(),
-                twitch_keys.refresh_token.clone().unwrap().to_owned(),
-              ) {
-          println!("Generated new keys as 401 was returned!");
-          info!("Generated new keys as 401 was returned!");
-          twitch_keys.access_token = Some(token.access);
-          twitch_keys.refresh_token = Some(token.refresh.to_owned());
-        }
-
-        let access_token = twitch_keys.access_token.as_ref().unwrap();
-        http_request.update_token(access_token.get_token());
-        http_request.run()
-      } else {
-        result
+  fn regen_token_if_401(
+    result: Result<String, EventSubError>,
+    twitch_keys: &mut TwitchKeys,
+  ) -> Result<String, EventSubError> {
+    warn!("Token return 401!");
+    if let Err(EventSubError::TokenRequiresRefreshing(mut http_request)) = result {
+      warn!("Token requires refreshing return!");
+      if let Ok(token) = TwitchApi::generate_token_from_refresh_token(
+        twitch_keys.client_id.to_owned(),
+        twitch_keys.client_secret.to_owned(),
+        twitch_keys.refresh_token.clone().unwrap().to_owned(),
+      ) {
+        println!("Generated new keys as 401 was returned!");
+        info!("Generated new keys as 401 was returned!");
+        twitch_keys.access_token = Some(token.access);
+        twitch_keys.refresh_token = Some(token.refresh.to_owned());
       }
+      
+      let access_token = twitch_keys.access_token.as_ref().unwrap();
+      http_request.update_token(access_token.get_token());
+      http_request.run()
+    } else {
+      if result.is_err() {
+        error!("regen 401 called with result being an error, but wasnt token refresh required: {:?}", result);
+        println!("BIG ERROR!");
+      }              
+      result
+    }
   }
 
   fn process_token_query<S: Into<String>>(post_data: S) -> Result<Token, EventSubError> {
@@ -627,17 +452,17 @@ impl TwitchEventSubApi {
       .url_encoded_content()
       .is_post(post_data)
       .run()
-     .and_then(|twitch_response| {
-     serde_json::from_str::<NewAccessTokenResponse>(&twitch_response)
-         .map_err(|_| EventSubError::AuthorisationError(twitch_response))
-         .map(|new_token_data| {
-           Token::new_user_token(
-             new_token_data.access_token,
-             new_token_data.refresh_token.unwrap(),
-             new_token_data.expires_in as f32,
-           )
-         })
-     })
+      .and_then(|twitch_response| {
+        serde_json::from_str::<NewAccessTokenResponse>(&twitch_response)
+          .map_err(|_| EventSubError::AuthorisationError(twitch_response))
+          .map(|new_token_data| {
+            Token::new_user_token(
+              new_token_data.access_token,
+              new_token_data.refresh_token.unwrap(),
+              new_token_data.expires_in as f32,
+            )
+          })
+      })
   }
 
   pub fn receive_messages(&mut self) -> Vec<MessageType> {
@@ -664,13 +489,16 @@ impl TwitchEventSubApi {
       .get_token();
     let client_id = self.twitch_keys.client_id.to_string();
 
-   let _  =TwitchEventSubApi::regen_token_if_401(TwitchApi::delete_message(
-      broadcaster_account_id,
-      moderator_account_id,
-      message_id.into(),
-      access_token,
-      client_id,
-    ), &mut self.twitch_keys);
+    let _ = TwitchEventSubApi::regen_token_if_401(
+      TwitchApi::delete_message(
+        broadcaster_account_id,
+        moderator_account_id,
+        message_id.into(),
+        access_token,
+        client_id,
+      ),
+      &mut self.twitch_keys,
+    );
   }
 
   pub fn timeout_user<S: Into<String>, T: Into<String>>(
@@ -689,15 +517,18 @@ impl TwitchEventSubApi {
       .expect("No Access Token set")
       .get_token();
     let client_id = self.twitch_keys.client_id.to_string();
-    let _ = TwitchEventSubApi::regen_token_if_401(TwitchApi::timeout_user(
-      access_token,
-      client_id,
-      broadcaster_account_id,
-      moderator_account_id,
-      user_id.into(),
-      duration,
-      reason.into(),
-    ), &mut self.twitch_keys);
+    let _ = TwitchEventSubApi::regen_token_if_401(
+      TwitchApi::timeout_user(
+        access_token,
+        client_id,
+        broadcaster_account_id,
+        moderator_account_id,
+        user_id.into(),
+        duration,
+        reason.into(),
+      ),
+      &mut self.twitch_keys,
+    );
   }
 
   pub fn send_chat_message<S: Into<String>>(&mut self, message: S) {
@@ -716,13 +547,16 @@ impl TwitchEventSubApi {
       .clone()
       .unwrap_or(self.twitch_keys.broadcaster_account_id.to_string());
 
-    let _ = TwitchEventSubApi::regen_token_if_401(TwitchApi::send_chat_message(
-      message,
-      access_token,
-      client_id,
-      broadcaster_account_id,
-      Some(sender_id),
-    ), &mut self.twitch_keys);
+    let _ = TwitchEventSubApi::regen_token_if_401(
+      TwitchApi::send_chat_message(
+        message,
+        access_token,
+        client_id,
+        broadcaster_account_id,
+        Some(sender_id),
+      ),
+      &mut self.twitch_keys,
+    );
   }
 
   fn wait_for_threads_to_close(self) {
@@ -756,10 +590,8 @@ impl TwitchEventSubApi {
       };
 
       if let OwnedMessage::Text(msg) = message.clone() {
-        if only_raw_responses {
-          message_sender.send(MessageType::RawResponse(msg)).unwrap();
-          continue;
-        }
+        message_sender.send(MessageType::RawResponse(msg)).unwrap();
+        continue;
       }
     }
   }
@@ -825,7 +657,7 @@ impl TwitchEventSubApi {
                     .run();
                   a
                 })
-               .map(|a| TwitchEventSubApi::regen_token_if_401(a, &mut clone_twitch_keys))
+                .map(|a| TwitchEventSubApi::regen_token_if_401(a, &mut clone_twitch_keys))
                 .filter_map(Result::err)
                 .for_each(|error| {
                   message_sender
@@ -867,6 +699,11 @@ impl TwitchEventSubApi {
               message_sender
                 .send(MessageType::AdBreakNotification(ad_break_duration))
                 .unwrap();
+            }
+            SubscriptionType::ChannelRaid => {
+              let raid_info = message.get_raid_info();
+              info!("Got Raid: {:?}", raid_info);
+              message_sender.send(MessageType::Raid(raid_info)).unwrap();
             }
             _ => {}
           },

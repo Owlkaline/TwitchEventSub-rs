@@ -1,7 +1,10 @@
 use serde_derive::{Deserialize, Serialize};
 //use serde_json::Result;
 
-use crate::{modules::messages::MessageData, EventSubError, SubscriptionPermission, Token};
+use crate::{
+  modules::messages::{MessageData, RaidInfo},
+  EventSubError, SubscriptionPermission, Token,
+};
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct NewAccessTokenResponse {
@@ -129,11 +132,18 @@ pub struct Emote {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct CheerMote {
+  prefix: String,
+  bits: u32,
+  tier: u32,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Fragments {
   #[serde(rename = "type")]
   kind: String,
   text: String,
-  cheer_mode: Option<String>,
+  cheermote: Option<CheerMote>,
   emote: Option<Emote>,
   mention: Option<Mention>,
 }
@@ -156,15 +166,15 @@ impl Message {
   pub fn get_written_message(&self) -> Option<String> {
     let mut text = None;
     for fragment in &self.fragments {
-      if fragment.is_text() {
+      if !fragment.is_mention() {
         if let Some(ref mut text) = text {
           *text = format!("{} {}", text, fragment.text());
         } else {
-          text = Some(fragment.text());
+          text = Some(fragment.text().to_string().trim().to_string());
         }
       }
     }
-    None
+    text
   }
 }
 
@@ -203,10 +213,21 @@ pub struct Reward {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct Cheer {
+  bits: u32,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Event {
-  broadcaster_user_id: String,
-  broadcaster_user_login: String,
-  broadcaster_user_name: String,
+  broadcaster_user_id: Option<String>,
+  broadcaster_user_login: Option<String>,
+  broadcaster_user_name: Option<String>,
+  from_broadcaster_user_id: Option<String>,
+  from_broadcaster_user_login: Option<String>,
+  from_broadcaster_user_name: Option<String>,
+  to_broadcaster_user_id: Option<String>,
+  to_broadcaster_user_login: Option<String>,
+  to_broadcaster_user_name: Option<String>,
   chatter_user_id: Option<String>,
   chatter_user_login: Option<String>,
   chatter_user_name: Option<String>,
@@ -222,10 +243,11 @@ pub struct Event {
   redeemed_at: Option<String>,
   message_id: Option<String>,
   message: Option<Message>,
+  viewers: Option<u32>,
   color: Option<String>,
   badges: Option<Vec<Badge>>,
   message_type: Option<String>,
-  cheer: Option<String>,
+  cheer: Option<Cheer>,
   reply: Option<Reply>,
   reward: Option<Reward>,
   channel_points_custom_reward_id: Option<String>,
@@ -260,6 +282,7 @@ pub struct GenericMessage {
 }
 
 pub enum SubscriptionType {
+  ChannelRaid,
   ChannelChatMessage,
   CustomRedeem,
   AdBreakBegin,
@@ -277,6 +300,7 @@ pub enum EventMessageType {
 impl SubscriptionType {
   pub fn from_string(t: &str) -> SubscriptionType {
     let chat_message = &SubscriptionPermission::ChatMessage.tag();
+    let channel_raid = &SubscriptionPermission::ChannelRaid.tag();
     let custom_redeem = &SubscriptionPermission::CustomRedeem.tag();
     let ad_break_bagin = &SubscriptionPermission::AdBreakBegin.tag();
 
@@ -284,6 +308,7 @@ impl SubscriptionType {
       t if t == chat_message => SubscriptionType::ChannelChatMessage,
       t if t == custom_redeem => SubscriptionType::CustomRedeem,
       t if t == ad_break_bagin => SubscriptionType::AdBreakBegin,
+      t if t == channel_raid => SubscriptionType::ChannelRaid,
       _ => SubscriptionType::Unknown,
     }
   }
@@ -353,6 +378,17 @@ impl GenericMessage {
     )
   }
 
+  pub fn get_raid_info(&self) -> RaidInfo {
+    let payload = self.payload.clone().unwrap();
+    let event = payload.event.clone().unwrap();
+
+    RaidInfo {
+      raider_user_id: event.from_broadcaster_user_id.unwrap(),
+      raider_username: event.from_broadcaster_user_name.unwrap(),
+      viewers: event.viewers.unwrap(),
+    }
+  }
+
   pub fn get_ad_duration(&self) -> u32 {
     self
       .payload
@@ -365,12 +401,14 @@ impl GenericMessage {
   }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct Condition {
   pub user_id: Option<String>,
   pub moderator_user_id: Option<String>,
   pub broadcaster_user_id: Option<String>,
   pub reward_id: Option<String>,
+  pub from_broadcaster_user_id: Option<String>,
+  pub to_broadcaster_user_id: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

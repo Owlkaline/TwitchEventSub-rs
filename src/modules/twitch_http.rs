@@ -19,7 +19,7 @@ impl TwitchApi {
     client_id: V,
     broadcaster_account_id: X,
     sender_account_id: Option<V>,
-  ) ->Result<String, EventSubError> {
+  ) -> Result<String, EventSubError> {
     let broadcaster_account_id = broadcaster_account_id.into();
     TwitchHttpRequest::new(SEND_MESSAGE_URL)
       .json_content()
@@ -85,6 +85,7 @@ impl TwitchApi {
     let scope = &scopes
       .iter()
       .map(|s| s.required_scope())
+      .filter(|s| !s.is_empty())
       .collect::<Vec<String>>()
       .join("+");
 
@@ -148,14 +149,14 @@ impl TwitchApi {
     message_id: S,
     access_token: U,
     client_id: F,
-  ) ->Result<String, EventSubError>{
+  ) -> Result<String, EventSubError> {
     let url = RequestBuilder::new()
       .add_key_value("broadcaster_id", broadcaster_id.into())
       .add_key_value("moderator_id", moderator_id.into())
       .add_key_value("message_id", message_id.into())
       .build(TWITCH_DELETE_MESSAGE_URL);
 
-     TwitchHttpRequest::new(url)
+    TwitchHttpRequest::new(url)
       .header_authorisation(access_token.into(), AuthType::Bearer)
       .header_client_id(client_id.into())
       .is_delete()
@@ -280,22 +281,16 @@ impl Header {
   pub fn generate(&self) -> String {
     match self {
       Header::Auth((auth_type, token)) => {
-             format!(
-      "Authorization: {} {}",
-      auth_type.to_string(),
-      token
-    )
-      },
+        format!("Authorization: {} {}", auth_type.to_string(), token)
+      }
       Header::ClientId(id) => {
-    format!("Client-Id: {}", id)
-      },
+        format!("Client-Id: {}", id)
+      }
       Header::ContentJson => {
-
-    format!("Content-Type: application/json")
-      },
+        format!("Content-Type: application/json")
+      }
       Header::ContentUrlEncoded => {
-      format!("Content-Type: application/x-www-form-urlencoded")
-
+        format!("Content-Type: application/x-www-form-urlencoded")
       }
     }
   }
@@ -329,7 +324,7 @@ impl TwitchHttpRequest {
   }
 
   #[must_use]
-  pub fn add_header(mut self, header: Header) ->TwitchHttpRequest {
+  pub fn add_header(mut self, header: Header) -> TwitchHttpRequest {
     self.headers.push(header);
     self
   }
@@ -358,8 +353,7 @@ impl TwitchHttpRequest {
 
   #[must_use]
   pub fn url_encoded_content(mut self) -> TwitchHttpRequest {
-    self
-      .headers.push(Header::ContentUrlEncoded);
+    self.headers.push(Header::ContentUrlEncoded);
     self
   }
 
