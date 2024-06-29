@@ -3,7 +3,7 @@ use crate::{
 };
 use curl::easy::{Easy, List};
 
-use log::{error, info, warn, LevelFilter};
+use log::{error, info};
 
 use crate::modules::{
   consts::*,

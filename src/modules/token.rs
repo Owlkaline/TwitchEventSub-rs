@@ -8,15 +8,15 @@ use std::io::Write;
 pub struct Token {
   pub access: TokenAccess,
   pub refresh: String,
-  expires_in: f32,
+  //  expires_in: f32,
 }
 
 impl Token {
-  pub fn new(access: TokenAccess, refresh: String, expires_in: f32) -> Token {
+  pub fn new(access: TokenAccess, refresh: String, _expires_in: f32) -> Token {
     Token {
       access,
       refresh,
-      expires_in,
+      //    expires_in,
     }
   }
 

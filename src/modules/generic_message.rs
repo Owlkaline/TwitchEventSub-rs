@@ -6,17 +6,17 @@ use crate::{
   Condition, EventSubError, SubscriptionPermission, Token,
 };
 
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Deserialize)]
 pub struct NewAccessTokenResponse {
   pub access_token: String,
   pub expires_in: u32,
-  token_type: String,
+  _token_type: String,
   pub refresh_token: Option<String>,
-  scope: Option<Vec<String>>,
+  _scope: Option<Vec<String>>,
 }
 
 impl NewAccessTokenResponse {
-  pub fn get_token_from_data(raw_data: &str) -> Result<Token, EventSubError> {
+  pub fn _get_token_from_data(raw_data: &str) -> Result<Token, EventSubError> {
     serde_json::from_str::<NewAccessTokenResponse>(raw_data)
       .map(|validation| {
         Token::new_user_token(
@@ -149,7 +149,7 @@ pub struct Fragments {
 }
 
 impl Fragments {
-  pub fn is_text(&self) -> bool {
+  pub fn _is_text(&self) -> bool {
     self.kind == "text"
   }
 
@@ -285,7 +285,7 @@ pub enum EventMessageType {
   Welcome,
   KeepAlive,
   Notification,
-  Reconnect,
+  //  Reconnect,
   Unknown,
 }
 

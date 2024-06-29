@@ -280,11 +280,11 @@ impl TwitchEventSubApiBuilder {
 }
 
 pub struct TwitchEventSubApi {
-  receive_thread: JoinHandle<()>,
-  send_thread: Option<JoinHandle<()>>,
+  _receive_thread: JoinHandle<()>,
+
   messages_received: SyncReceiver<MessageType>,
   twitch_keys: TwitchKeys,
-  token: Arc<Mutex<Token>>,
+  _token: Arc<Mutex<Token>>,
 }
 
 impl TwitchEventSubApi {
@@ -336,11 +336,10 @@ impl TwitchEventSubApi {
     });
 
     Ok(TwitchEventSubApi {
-      receive_thread,
-      send_thread: None,
+      _receive_thread: receive_thread,
       messages_received: receive_message,
       twitch_keys,
-      token,
+      _token: token,
     })
   }
 
@@ -711,7 +710,6 @@ impl TwitchEventSubApi {
                 .unwrap();
             }
           }
-          _ => {}
         }
       }
 
