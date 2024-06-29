@@ -371,7 +371,7 @@ impl TwitchHttpRequest {
 
   pub fn update_token<S: Into<String>>(&mut self, new_token: S) {
     for header in &mut self.headers {
-      if let Header::Auth((auth_type, ref mut token)) = header {
+      if let Header::Auth((_, ref mut token)) = header {
         *token = new_token.into();
         break;
       }

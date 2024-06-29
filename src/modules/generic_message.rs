@@ -3,7 +3,7 @@ use serde_derive::{Deserialize, Serialize};
 
 use crate::{
   modules::messages::{MessageData, RaidInfo},
-  EventSubError, SubscriptionPermission, Token,
+  Condition, EventSubError, SubscriptionPermission, Token,
 };
 
 #[derive(Deserialize, Debug, Clone)]
@@ -281,14 +281,6 @@ pub struct GenericMessage {
   pub subscription_version: Option<String>,
 }
 
-pub enum SubscriptionType {
-  ChannelRaid,
-  ChannelChatMessage,
-  CustomRedeem,
-  AdBreakBegin,
-  Unknown,
-}
-
 pub enum EventMessageType {
   Welcome,
   KeepAlive,
@@ -297,22 +289,23 @@ pub enum EventMessageType {
   Unknown,
 }
 
-impl SubscriptionType {
-  pub fn from_string(t: &str) -> SubscriptionType {
-    let chat_message = &SubscriptionPermission::ChatMessage.tag();
-    let channel_raid = &SubscriptionPermission::ChannelRaid.tag();
-    let custom_redeem = &SubscriptionPermission::CustomRedeem.tag();
-    let ad_break_bagin = &SubscriptionPermission::AdBreakBegin.tag();
+//impl SubscriptionType {
+//  from_string!(SubscriptionType);
+//pub fn from_string(t: &str) -> SubscriptionType {
+//  let chat_message = &SubscriptionPermission::ChatMessage.tag();
+//  let channel_raid = &SubscriptionPermission::ChannelRaid.tag();
+//  let custom_redeem = &SubscriptionPermission::ChannelPointsCustomRewardRedeem.tag();
+//  let ad_break_bagin = &SubscriptionPermission::AdBreakBegin.tag();
 
-    match t {
-      t if t == chat_message => SubscriptionType::ChannelChatMessage,
-      t if t == custom_redeem => SubscriptionType::CustomRedeem,
-      t if t == ad_break_bagin => SubscriptionType::AdBreakBegin,
-      t if t == channel_raid => SubscriptionType::ChannelRaid,
-      _ => SubscriptionType::Unknown,
-    }
-  }
-}
+//  match t {
+//    t if t == chat_message => SubscriptionType::ChannelChatMessage,
+//    t if t == custom_redeem => SubscriptionType::CustomRedeem,
+//    t if t == ad_break_bagin => SubscriptionType::AdBreakBegin,
+//    t if t == channel_raid => SubscriptionType::ChannelRaid,
+//    _ => SubscriptionType::Unknown,
+//  }
+//}
+//}
 
 impl EventMessageType {
   pub fn from_string(t: &str) -> EventMessageType {
@@ -330,8 +323,9 @@ impl GenericMessage {
     EventMessageType::from_string(&self.metadata.message_type)
   }
 
-  pub fn subscription_type(&self) -> SubscriptionType {
-    SubscriptionType::from_string(&self.metadata.subscription_type.clone().unwrap())
+  pub fn subscription_type(&self) -> SubscriptionPermission {
+    //SubscriptionType::from_string(&self.metadata.subscription_type.clone().unwrap())
+    SubscriptionPermission::from_string(&self.metadata.subscription_type.clone().unwrap()).unwrap()
   }
 
   pub fn chat_message(&self) -> MessageData {
@@ -399,23 +393,4 @@ impl GenericMessage {
       .duration_seconds
       .unwrap()
   }
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, Default)]
-pub struct Condition {
-  pub user_id: Option<String>,
-  pub moderator_user_id: Option<String>,
-  pub broadcaster_user_id: Option<String>,
-  pub reward_id: Option<String>,
-  pub from_broadcaster_user_id: Option<String>,
-  pub to_broadcaster_user_id: Option<String>,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct EventSubscription {
-  #[serde(rename = "type")]
-  pub kind: String,
-  pub version: String,
-  pub condition: Condition,
-  pub transport: Transport,
 }

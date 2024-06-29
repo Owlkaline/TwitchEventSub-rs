@@ -25,9 +25,9 @@ pub use log::{error, info, warn};
 
 pub use crate::modules::{
   errors::EventSubError,
-  generic_message::{Condition, EventSubscription, Reward, Transport},
+  generic_message::{Reward, Transport},
   messages::{MessageData, MessageType, RaidInfo},
-  subscriptions::SubscriptionPermission,
+  subscriptions::{Condition, EventSubscription, SubscriptionPermission},
   token::{TokenAccess, TwitchKeys},
   twitch_http::{AuthType, RequestType, TwitchApi, TwitchHttpRequest},
 };
@@ -37,7 +37,7 @@ pub struct TwitchEventSubApiBuilder {
   twitch_keys: TwitchKeys,
   subscriptions: Vec<SubscriptionPermission>,
   redirect_url: Option<String>,
-  custom_subscription: Option<String>,
+
   generate_token_if_none: bool,
   generate_token_on_scope_error: bool,
   generate_access_token_on_expire: bool,
@@ -51,7 +51,7 @@ impl TwitchEventSubApiBuilder {
       twitch_keys: tk,
       subscriptions: Vec::new(),
       redirect_url: None,
-      custom_subscription: None,
+
       generate_token_if_none: false,
       generate_token_on_scope_error: false,
       generate_access_token_on_expire: false,
@@ -166,8 +166,8 @@ impl TwitchEventSubApiBuilder {
           self.twitch_keys.refresh_token = Some(refresh_token);
         }
 
-        let mut generate_token = self.twitch_keys.refresh_token.is_none()
-          || self.twitch_keys.access_token.is_none();
+        let mut generate_token =
+          self.twitch_keys.refresh_token.is_none() || self.twitch_keys.access_token.is_none();
 
         if self.generate_token_if_none {
           if generate_token {
@@ -312,7 +312,7 @@ impl TwitchEventSubApi {
 
     let (transmit_messages, receive_message) = channel();
 
-    let mut token = Arc::new(Mutex::new(Token::new(
+    let token = Arc::new(Mutex::new(Token::new(
       twitch_keys
         .access_token
         .to_owned()
@@ -367,10 +367,10 @@ impl TwitchEventSubApi {
           .filter(|s| !s.required_scope().is_empty())
           .all(move |s| {
             let r = s.required_scope();
-            
+
             let requirements = r.split('+').map(ToString::to_string).collect::<Vec<_>>();
-            
-            for req in requirements { 
+
+            for req in requirements {
               if !validation.scopes.as_ref().unwrap().contains(&req) {
                 return false;
               }
@@ -434,15 +434,18 @@ impl TwitchEventSubApi {
         twitch_keys.access_token = Some(token.access);
         twitch_keys.refresh_token = Some(token.refresh.to_owned());
       }
-      
+
       let access_token = twitch_keys.access_token.as_ref().unwrap();
       http_request.update_token(access_token.get_token());
       http_request.run()
     } else {
       if result.is_err() {
-        error!("regen 401 called with result being an error, but wasnt token refresh required: {:?}", result);
+        error!(
+          "regen 401 called with result being an error, but wasnt token refresh required: {:?}",
+          result
+        );
         println!("BIG ERROR!");
-      }              
+      }
       result
     }
   }
@@ -557,11 +560,6 @@ impl TwitchEventSubApi {
       ),
       &mut self.twitch_keys,
     );
-  }
-
-  fn wait_for_threads_to_close(self) {
-    let _ = self.send_thread.unwrap().join();
-    let _ = self.receive_thread.join();
   }
 
   #[cfg(feature = "only_raw_responses")]
@@ -679,30 +677,29 @@ impl TwitchEventSubApi {
             //println!("Keep alive receive message sent, !implemented");
           }
           EventMessageType::Notification => match message.subscription_type() {
-            SubscriptionType::ChannelChatMessage => {
+            SubscriptionPermission::ChatMessage => {
               let message_info = message.chat_message();
 
               message_sender
                 .send(MessageType::ChatMessage(message_info))
                 .unwrap();
             }
-            SubscriptionType::CustomRedeem => {
+            SubscriptionPermission::ChannelPointsCustomRewardRedeem => {
               let custom_redeem = message.custom_redeem();
 
               message_sender
                 .send(MessageType::CustomRedeem(custom_redeem))
                 .unwrap();
             }
-            SubscriptionType::AdBreakBegin => {
+            SubscriptionPermission::AdBreakBegin => {
               let ad_break_duration = message.get_ad_duration();
 
               message_sender
                 .send(MessageType::AdBreakNotification(ad_break_duration))
                 .unwrap();
             }
-            SubscriptionType::ChannelRaid => {
+            SubscriptionPermission::ChannelRaid => {
               let raid_info = message.get_raid_info();
-              info!("Got Raid: {:?}", raid_info);
               message_sender.send(MessageType::Raid(raid_info)).unwrap();
             }
             _ => {}

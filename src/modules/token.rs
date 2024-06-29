@@ -1,9 +1,9 @@
-use log::{error, info, warn, LevelFilter};
+use log::{error, info};
 
 use crate::modules::errors::*;
 
 use std::fs;
-use std::io::{Error, ErrorKind, Read, Write};
+use std::io::Write;
 
 pub struct Token {
   pub access: TokenAccess,
