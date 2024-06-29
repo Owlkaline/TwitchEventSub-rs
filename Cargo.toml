@@ -8,6 +8,9 @@ authors = ["Lilith645"]
 categories = ["api-bindings", "web-programming::websocket", "authentication", "network-programming"]
 keywords = ["Twitch", "EventSub", "oauth", "api", "websocket"]
 resolver = "2"
+exclude = [
+  "examples"
+]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [features]
