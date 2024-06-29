@@ -8,6 +8,7 @@ use std::sync::{Arc, Mutex};
 
 use crate::modules::consts::*;
 use open;
+use serde::Serialize;
 use std::io::{ErrorKind, Read};
 
 use websocket::client::ClientBuilder;
@@ -23,11 +24,13 @@ use crate::modules::{errors::*, generic_message::*, token::Token};
 
 pub use log::{error, info, warn};
 
+use serde_derive::{Deserialize as Deserialise, Serialize as Serialise};
+
 pub use crate::modules::{
   errors::EventSubError,
-  generic_message::{Reward, Transport},
-  messages::{MessageData, MessageType, RaidInfo},
-  subscriptions::{Condition, EventSubscription, SubscriptionPermission},
+  generic_message::{Event, Reward, Transport},
+  messages::{MessageData, MessageType, RaidData},
+  subscriptions::{Condition, EventSubscription, Subscription},
   token::{TokenAccess, TwitchKeys},
   twitch_http::{AuthType, RequestType, TwitchApi, TwitchHttpRequest},
 };
@@ -35,7 +38,7 @@ pub use crate::modules::{
 #[must_use]
 pub struct TwitchEventSubApiBuilder {
   twitch_keys: TwitchKeys,
-  subscriptions: Vec<SubscriptionPermission>,
+  subscriptions: Vec<Subscription>,
   redirect_url: Option<String>,
 
   generate_token_if_none: bool,
@@ -60,8 +63,13 @@ impl TwitchEventSubApiBuilder {
     }
   }
 
-  pub fn add_subscription(mut self, sub: SubscriptionPermission) -> TwitchEventSubApiBuilder {
+  pub fn add_subscription(mut self, sub: Subscription) -> TwitchEventSubApiBuilder {
     self.subscriptions.push(sub);
+    self
+  }
+
+  pub fn add_subscriptions(mut self, mut subs: Vec<Subscription>) -> TwitchEventSubApiBuilder {
+    self.subscriptions.append(&mut subs);
     self
   }
 
@@ -100,7 +108,7 @@ impl TwitchEventSubApiBuilder {
     self
   }
 
-  pub fn subscriptions(&self) -> Vec<SubscriptionPermission> {
+  pub fn subscriptions(&self) -> Vec<Subscription> {
     self.subscriptions.clone()
   }
 
@@ -294,7 +302,7 @@ impl TwitchEventSubApi {
 
   pub fn new(
     twitch_keys: TwitchKeys,
-    subscriptions: Vec<SubscriptionPermission>,
+    subscriptions: Vec<Subscription>,
     custom_subscription_data: Vec<String>,
   ) -> Result<TwitchEventSubApi, WebSocketError> {
     log_info();
@@ -355,7 +363,7 @@ impl TwitchEventSubApi {
 
   pub fn check_token_meets_requirements(
     access_token: TokenAccess,
-    subs: &Vec<SubscriptionPermission>,
+    subs: &Vec<Subscription>,
   ) -> Result<bool, EventSubError> {
     TwitchEventSubApi::validate_token(access_token.get_token()).map(|validation| {
       if validation.is_error() {
@@ -534,6 +542,14 @@ impl TwitchEventSubApi {
   }
 
   pub fn send_chat_message<S: Into<String>>(&mut self, message: S) {
+    self.send_chat_message_with_reply(message, None);
+  }
+
+  pub fn send_chat_message_with_reply<S: Into<String>>(
+    &mut self,
+    message: S,
+    reply_message_parent_id: Option<String>,
+  ) {
     let message: String = message.into();
     let access_token = self
       .twitch_keys
@@ -556,6 +572,7 @@ impl TwitchEventSubApi {
         client_id,
         broadcaster_account_id,
         Some(sender_id),
+        reply_message_parent_id,
       ),
       &mut self.twitch_keys,
     );
@@ -565,7 +582,7 @@ impl TwitchEventSubApi {
   fn event_sub_events(
     client: Arc<Mutex<Client<TlsStream<TcpStream>>>>,
     message_sender: SyncSender<MessageType>,
-    subscriptions: Vec<SubscriptionPermission>,
+    subscriptions: Vec<Subscription>,
     mut custom_subscriptions: Vec<String>,
     twitch_keys: TwitchKeys,
   ) {
@@ -597,7 +614,7 @@ impl TwitchEventSubApi {
   fn event_sub_events(
     client: Arc<Mutex<Client<TlsStream<TcpStream>>>>,
     message_sender: SyncSender<MessageType>,
-    subscriptions: Vec<SubscriptionPermission>,
+    subscriptions: Vec<Subscription>,
     mut custom_subscriptions: Vec<String>,
     mut twitch_keys: TwitchKeys,
   ) {
@@ -618,102 +635,76 @@ impl TwitchEventSubApi {
         }
       };
 
-      if let OwnedMessage::Text(msg) = message.clone() {
-        let message = serde_json::from_str(&msg);
-
-        if let Err(e) = message {
-          error!("Unimplemented twitch response: {}\n{}", msg, e);
-          message_sender.send(MessageType::RawResponse(msg)).unwrap();
-          continue;
-        }
-
-        let message: GenericMessage = message.unwrap();
-
-        match message.event_type() {
-          EventMessageType::Welcome => {
-            let session_id = message.clone().payload.unwrap().session.unwrap().id;
-
-            let mut sub_data = subscriptions
-              .iter()
-              .filter_map(|s| {
-                serde_json::to_string(&s.construct_data(&session_id, &twitch_keys)).ok()
-              })
-              .collect::<Vec<_>>();
-            sub_data.append(&mut custom_subscriptions);
-
-            info!("Subscribing to events!");
-            let mut clone_twitch_keys = twitch_keys.clone();
-            if let Some(TokenAccess::User(ref token)) = twitch_keys.access_token {
-              sub_data
-                .iter()
-                .map(|sub_data| {
-                  let a = TwitchHttpRequest::new(SUBSCRIBE_URL)
-                    .full_auth(token.to_owned(), twitch_keys.client_id.to_string())
-                    .json_content()
-                    .is_post(sub_data)
-                    .run();
-                  a
-                })
-                .map(|a| TwitchEventSubApi::regen_token_if_401(a, &mut clone_twitch_keys))
-                .filter_map(Result::err)
-                .for_each(|error| {
-                  message_sender
-                    .send(MessageType::SubscribeError(error))
-                    .expect("Failed to send error Message back to main thread.");
-                });
-            } else {
-              let _ = message_sender.send(MessageType::Error(EventSubError::InvalidAccessToken(
-                format!(
-                  "Expected TokenAccess::User(TOKENHERE) but found {:?}",
-                  twitch_keys.access_token
-                ),
-              )));
-            }
-
-            twitch_keys = clone_twitch_keys;
-          }
-          EventMessageType::KeepAlive => {
-            //println!("Keep alive receive message sent, !implemented");
-          }
-          EventMessageType::Notification => match message.subscription_type() {
-            SubscriptionPermission::ChatMessage => {
-              let message_info = message.chat_message();
-
-              message_sender
-                .send(MessageType::ChatMessage(message_info))
-                .unwrap();
-            }
-            SubscriptionPermission::ChannelPointsCustomRewardRedeem => {
-              let custom_redeem = message.custom_redeem();
-
-              message_sender
-                .send(MessageType::CustomRedeem(custom_redeem))
-                .unwrap();
-            }
-            SubscriptionPermission::AdBreakBegin => {
-              let ad_break_duration = message.get_ad_duration();
-
-              message_sender
-                .send(MessageType::AdBreakNotification(ad_break_duration))
-                .unwrap();
-            }
-            SubscriptionPermission::ChannelRaid => {
-              let raid_info = message.get_raid_info();
-              message_sender.send(MessageType::Raid(raid_info)).unwrap();
-            }
-            _ => {}
-          },
-          EventMessageType::Unknown => {
-            if !custom_subscriptions.is_empty() {
-              message_sender
-                .send(MessageType::CustomSubscriptionResponse(msg))
-                .unwrap();
-            }
-          }
-        }
-      }
-
       match message {
+        OwnedMessage::Text(msg) => {
+          let message = serde_json::from_str(&msg);
+
+          if let Err(e) = message {
+            error!("Unimplemented twitch response: {}\n{}", msg, e);
+            message_sender.send(MessageType::RawResponse(msg)).unwrap();
+            continue;
+          }
+
+          let message: GenericMessage = message.unwrap();
+
+          match message.event_type() {
+            EventMessageType::Welcome => {
+              let session_id = message.clone().payload.unwrap().session.unwrap().id;
+
+              let mut sub_data = subscriptions
+                .iter()
+                .filter_map(|s| {
+                  serde_json::to_string(&s.construct_data(&session_id, &twitch_keys)).ok()
+                })
+                .collect::<Vec<_>>();
+              sub_data.append(&mut custom_subscriptions);
+
+              info!("Subscribing to events!");
+              let mut clone_twitch_keys = twitch_keys.clone();
+              if let Some(TokenAccess::User(ref token)) = twitch_keys.access_token {
+                sub_data
+                  .iter()
+                  .map(|sub_data| {
+                    let a = TwitchHttpRequest::new(SUBSCRIBE_URL)
+                      .full_auth(token.to_owned(), twitch_keys.client_id.to_string())
+                      .json_content()
+                      .is_post(sub_data)
+                      .run();
+                    a
+                  })
+                  .map(|a| TwitchEventSubApi::regen_token_if_401(a, &mut clone_twitch_keys))
+                  .filter_map(Result::err)
+                  .for_each(|error| {
+                    message_sender
+                      .send(MessageType::Error(error))
+                      .expect("Failed to send error Message back to main thread.");
+                  });
+              } else {
+                let _ = message_sender.send(MessageType::Error(EventSubError::InvalidAccessToken(
+                  format!(
+                    "Expected TokenAccess::User(TOKENHERE) but found {:?}",
+                    twitch_keys.access_token
+                  ),
+                )));
+              }
+
+              twitch_keys = clone_twitch_keys;
+            }
+            EventMessageType::KeepAlive => {
+              //println!("Keep alive receive message sent, !implemented");
+            }
+            EventMessageType::Notification => {
+              message_sender
+                .send(MessageType::Event(message.payload.unwrap().event.unwrap()))
+                .unwrap();
+            }
+            EventMessageType::Unknown => {
+              if !custom_subscriptions.is_empty() {
+                message_sender.send(MessageType::RawResponse(msg)).unwrap();
+              }
+            }
+          }
+        }
         OwnedMessage::Close(a) => {
           warn!("Close message received: {:?}", a);
           // Got a close message, so send a close message and return
@@ -730,10 +721,7 @@ impl TwitchEventSubApi {
             }
           }
         }
-        // Say what we received
-        _ => {
-          // Already covered MessageType text
-        }
+        _ => {}
       }
     }
   }

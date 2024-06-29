@@ -20,6 +20,7 @@ pub enum EventSubError {
   NoSubscriptionsRequested,
   AuthorisationError(String),
   WebsocketCreationFailed,
+  MessageTooLong,
   UnhandledError(String),
   NoAccessTokenProvided,
   WriteError(String),

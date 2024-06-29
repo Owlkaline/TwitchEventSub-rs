@@ -1,18 +1,17 @@
-use serde_derive::{Deserialize, Serialize};
-//use serde_json::Result;
-
 use crate::{
-  modules::messages::{MessageData, RaidInfo},
-  Condition, EventSubError, SubscriptionPermission, Token,
+  modules::messages::{MessageData, RaidData},
+  Condition, Deserialise, EventSubError, Serialise, Subscription, Token,
 };
 
-#[derive(Deserialize)]
+use super::messages::*;
+
+#[derive(Deserialise)]
 pub struct NewAccessTokenResponse {
   pub access_token: String,
   pub expires_in: u32,
-  _token_type: String,
+  token_type: String,
   pub refresh_token: Option<String>,
-  _scope: Option<Vec<String>>,
+  scope: Option<Vec<String>>,
 }
 
 impl NewAccessTokenResponse {
@@ -29,7 +28,7 @@ impl NewAccessTokenResponse {
   }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialise, Deserialise, Debug, Clone)]
 pub struct Validation {
   client_id: Option<String>,
   login: Option<String>,
@@ -58,26 +57,27 @@ impl Validation {
   }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialise, Deserialise, Debug, Clone)]
 pub struct TimeoutRequestData {
   pub user_id: String,
   pub duration: u32,
   pub reason: String,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialise, Deserialise, Debug, Clone)]
 pub struct SendTimeoutRequest {
   pub data: TimeoutRequestData,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialise, Deserialise, Debug, Clone)]
 pub struct SendMessage {
   pub broadcaster_id: String,
   pub sender_id: String,
   pub message: String,
+  pub reply_parent_message_id: Option<String>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialise, Deserialise, Debug, Clone)]
 pub struct Transport {
   pub method: String,
   pub session_id: String,
@@ -92,7 +92,7 @@ impl Transport {
   }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialise, Deserialise, Debug, Clone)]
 pub struct Session {
   pub id: String,
   pub status: String,
@@ -102,8 +102,8 @@ pub struct Session {
   pub recovery_url: Option<String>,  // is null
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct Subscription {
+#[derive(Serialise, Deserialise, Debug, Clone)]
+pub struct GMSubscription {
   pub id: String,
   pub status: Option<String>,
   #[serde(rename = "type")]
@@ -116,14 +116,14 @@ pub struct Subscription {
   pub event: Option<Event>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialise, Deserialise, Debug, Clone)]
 pub struct Mention {
   user_id: String,
   user_login: String,
   user_name: String,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialise, Deserialise, Debug, Clone)]
 pub struct Emote {
   id: String,
   emote_set_id: String,
@@ -131,14 +131,14 @@ pub struct Emote {
   format: Vec<String>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialise, Deserialise, Debug, Clone)]
 pub struct CheerMote {
   prefix: String,
   bits: u32,
   tier: u32,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialise, Deserialise, Debug, Clone)]
 pub struct Fragments {
   #[serde(rename = "type")]
   kind: String,
@@ -178,33 +178,31 @@ impl Message {
   }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialise, Deserialise, Debug, Clone)]
 pub struct Message {
-  text: String,
-  fragments: Vec<Fragments>,
+  pub text: String,
+  pub fragments: Vec<Fragments>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialise, Deserialise, Debug, Clone)]
 pub struct Badge {
   set_id: String,
   id: String,
   info: String,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialise, Deserialise, Debug, Clone)]
 pub struct Reply {
+  #[serde(flatten)]
+  thread: ThreadUser,
+  #[serde(flatten)]
+  parent_user: ParentUser,
   parent_message_id: String,
   parent_message_body: String,
-  parent_user_id: String,
-  parent_user_name: String,
-  parent_user_login: String,
   thread_message_id: String,
-  thread_user_id: String,
-  thread_user_name: String,
-  thread_user_login: String,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialise, Deserialise, Debug, Clone, PartialEq)]
 pub struct Reward {
   pub id: String,
   pub title: String,
@@ -212,59 +210,27 @@ pub struct Reward {
   pub cost: u32,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialise, Deserialise, Debug, Clone)]
 pub struct Cheer {
   bits: u32,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct Event {
-  broadcaster_user_id: Option<String>,
-  broadcaster_user_login: Option<String>,
-  broadcaster_user_name: Option<String>,
-  from_broadcaster_user_id: Option<String>,
-  from_broadcaster_user_login: Option<String>,
-  from_broadcaster_user_name: Option<String>,
-  to_broadcaster_user_id: Option<String>,
-  to_broadcaster_user_login: Option<String>,
-  to_broadcaster_user_name: Option<String>,
-  chatter_user_id: Option<String>,
-  chatter_user_login: Option<String>,
-  chatter_user_name: Option<String>,
-  id: Option<String>,
-  user_id: Option<String>,
-  user_login: Option<String>,
-  user_name: Option<String>,
-  requester_user_id: Option<String>,
-  requester_user_login: Option<String>,
-  requester_user_name: Option<String>,
-  user_input: Option<String>,
-  status: Option<String>,
-  redeemed_at: Option<String>,
-  message_id: Option<String>,
-  message: Option<Message>,
-  viewers: Option<u32>,
-  color: Option<String>,
-  badges: Option<Vec<Badge>>,
-  message_type: Option<String>,
-  cheer: Option<Cheer>,
-  reply: Option<Reply>,
-  reward: Option<Reward>,
-  channel_points_custom_reward_id: Option<String>,
-  channel_points_animation_id: Option<String>,
-  is_automatic: Option<bool>,
-  started_at: Option<String>,
-  duration_seconds: Option<u32>,
+#[derive(Serialise, Deserialise, Debug, Clone)]
+#[serde(untagged)]
+pub enum Event {
+  ChatMessage(MessageData),
+  ChannelRaid(RaidData),
+  ChannelPointsCustomRewardRedeem(CustomPointsRewardRedeemData),
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialise, Deserialise, Debug, Clone)]
 pub struct Payload {
   pub session: Option<Session>,
-  pub subscription: Option<Subscription>,
+  pub subscription: Option<GMSubscription>,
   pub event: Option<Event>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialise, Deserialise, Debug, Clone)]
 pub struct MetaData {
   pub message_id: String,
   pub message_type: String,
@@ -273,7 +239,7 @@ pub struct MetaData {
   pub subscription_version: Option<String>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialise, Deserialise, Debug, Clone)]
 pub struct GenericMessage {
   pub metadata: MetaData,
   pub payload: Option<Payload>,
@@ -288,24 +254,6 @@ pub enum EventMessageType {
   //  Reconnect,
   Unknown,
 }
-
-//impl SubscriptionType {
-//  from_string!(SubscriptionType);
-//pub fn from_string(t: &str) -> SubscriptionType {
-//  let chat_message = &SubscriptionPermission::ChatMessage.tag();
-//  let channel_raid = &SubscriptionPermission::ChannelRaid.tag();
-//  let custom_redeem = &SubscriptionPermission::ChannelPointsCustomRewardRedeem.tag();
-//  let ad_break_bagin = &SubscriptionPermission::AdBreakBegin.tag();
-
-//  match t {
-//    t if t == chat_message => SubscriptionType::ChannelChatMessage,
-//    t if t == custom_redeem => SubscriptionType::CustomRedeem,
-//    t if t == ad_break_bagin => SubscriptionType::AdBreakBegin,
-//    t if t == channel_raid => SubscriptionType::ChannelRaid,
-//    _ => SubscriptionType::Unknown,
-//  }
-//}
-//}
 
 impl EventMessageType {
   pub fn from_string(t: &str) -> EventMessageType {
@@ -323,74 +271,56 @@ impl GenericMessage {
     EventMessageType::from_string(&self.metadata.message_type)
   }
 
-  pub fn subscription_type(&self) -> SubscriptionPermission {
+  pub fn subscription_type(&self) -> Subscription {
     //SubscriptionType::from_string(&self.metadata.subscription_type.clone().unwrap())
-    SubscriptionPermission::from_string(&self.metadata.subscription_type.clone().unwrap()).unwrap()
+    Subscription::from_string(&self.metadata.subscription_type.clone().unwrap()).unwrap()
   }
 
-  pub fn chat_message(&self) -> MessageData {
-    let payload = self.payload.clone().unwrap();
-    let event = payload.clone().event.unwrap();
+  //pub fn chat_message(self) -> MessageInfo {
+  //  self.payload.unwrap().event.unwrap().get_message_data()
+  //}
 
-    MessageData {
-      message_id: event.message_id.unwrap().to_owned(),
-      user_id: event.chatter_user_id.unwrap(),
-      message: event.message.unwrap().get_written_message().unwrap_or(
-        self
-          .payload
-          .clone()
-          .unwrap()
-          .event
-          .unwrap()
-          .message
-          .unwrap()
-          .text,
-      ),
-      username: event.chatter_user_name.unwrap(),
-    }
-  }
+  // pub fn custom_redeem(&self) -> (String, String, Reward) {
+  //   (
+  //     self
+  //       .payload
+  //       .clone()
+  //       .unwrap()
+  //       .event
+  //       .unwrap()
+  //       .user_name
+  //       .unwrap(),
+  //     self
+  //       .payload
+  //       .clone()
+  //       .unwrap()
+  //       .event
+  //       .unwrap()
+  //       .user_input
+  //       .unwrap(),
+  //     self.payload.clone().unwrap().event.unwrap().reward.unwrap(),
+  //   )
+  // }
 
-  pub fn custom_redeem(&self) -> (String, String, Reward) {
-    (
-      self
-        .payload
-        .clone()
-        .unwrap()
-        .event
-        .unwrap()
-        .user_name
-        .unwrap(),
-      self
-        .payload
-        .clone()
-        .unwrap()
-        .event
-        .unwrap()
-        .user_input
-        .unwrap(),
-      self.payload.clone().unwrap().event.unwrap().reward.unwrap(),
-    )
-  }
+  //pub fn get_raid_info(&self) -> RaidInfo {
+  //  let payload = self.payload.clone().unwrap();
+  //  let event = payload.event.clone().unwrap();
 
-  pub fn get_raid_info(&self) -> RaidInfo {
-    let payload = self.payload.clone().unwrap();
-    let event = payload.event.clone().unwrap();
+  //  RaidInfo {
+  //    raider_user_id: event.from_broadcaster_user_id.unwrap(),
+  //    raider_username: event.from_broadcaster_user_name.unwrap(),
+  //    viewers: event.viewers.unwrap(),
+  //  }
+  //}
 
-    RaidInfo {
-      raider_user_id: event.from_broadcaster_user_id.unwrap(),
-      raider_username: event.from_broadcaster_user_name.unwrap(),
-      viewers: event.viewers.unwrap(),
-    }
-  }
-
-  pub fn get_ad_duration(&self) -> u32 {
-    self
-      .payload
-      .clone()
-      .unwrap()
-      .event
-      .unwrap()
-      .duration_seconds
-      .unwrap()
-  }
+  //pub fn get_ad_duration(&self) -> u32 {
+  //  self
+  //    .payload
+  //    .clone()
+  //    .unwrap()
+  //    .event
+  //    .unwrap()
+  //    .duration_seconds
+  //    .unwrap()
+  //}
 }

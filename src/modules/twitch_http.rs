@@ -1,6 +1,4 @@
-use crate::{
-  EventSubError, SendMessage, SubscriptionPermission, Token, TwitchEventSubApi, Validation,
-};
+use crate::{EventSubError, SendMessage, Subscription, Token, TwitchEventSubApi, Validation};
 use curl::easy::{Easy, List};
 
 use log::{error, info};
@@ -13,13 +11,20 @@ use crate::modules::{
 pub struct TwitchApi;
 
 impl TwitchApi {
+  /// Returns EventSubError::
   pub fn send_chat_message<S: Into<String>, T: Into<String>, V: Into<String>, X: Into<String>>(
     message: S,
     access_token: T,
     client_id: V,
     broadcaster_account_id: X,
     sender_account_id: Option<V>,
+    is_reply_parent_message_id: Option<String>,
   ) -> Result<String, EventSubError> {
+    let message = message.into();
+    if message.len() > 500 {
+      return Err(EventSubError::MessageTooLong);
+    }
+
     let broadcaster_account_id = broadcaster_account_id.into();
     TwitchHttpRequest::new(SEND_MESSAGE_URL)
       .json_content()
@@ -32,6 +37,7 @@ impl TwitchApi {
             .map(|s| s.into())
             .unwrap(),
           message: message.into(),
+          reply_parent_message_id: is_reply_parent_message_id,
         })
         .unwrap(),
       )
@@ -78,7 +84,7 @@ impl TwitchApi {
   pub fn get_authorisation_code<S: Into<String>, T: Into<String>>(
     client_id: S,
     redirect_url: T,
-    scopes: &Vec<SubscriptionPermission>,
+    scopes: &Vec<Subscription>,
   ) -> Result<String, EventSubError> {
     let redirect_url = redirect_url.into();
 
@@ -116,7 +122,7 @@ impl TwitchApi {
     client_id: S,
     client_secret: T,
     redirect_url: V,
-    subscriptions: &Vec<SubscriptionPermission>,
+    subscriptions: &Vec<Subscription>,
   ) -> Result<Token, EventSubError> {
     let client_id = client_id.into();
     let client_secret = client_secret.into();

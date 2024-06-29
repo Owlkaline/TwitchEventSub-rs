@@ -1,7 +1,7 @@
 use crate::modules::generic_message::*;
 use crate::TwitchKeys;
 
-use serde_derive::{Deserialize, Serialize};
+use crate::{Deserialise, Serialise};
 
 macro_rules! from_string {
     ($enum_name:ident { $($variant:ident),* }) => {
@@ -17,7 +17,7 @@ macro_rules! from_string {
 }
 
 #[derive(Clone, Debug)]
-pub enum SubscriptionPermission {
+pub enum Subscription {
   UserUpdate,
   ChannelFollow,
   ChannelRaid,
@@ -51,7 +51,7 @@ pub enum SubscriptionPermission {
   Custom((String, String, EventSubscription)),
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialise, Deserialise, Debug, Clone)]
 pub struct EventSubscription {
   #[serde(rename = "type")]
   pub kind: String,
@@ -60,8 +60,8 @@ pub struct EventSubscription {
   pub transport: Transport,
 }
 
-impl SubscriptionPermission {
-  from_string!(SubscriptionPermission {
+impl Subscription {
+  from_string!(Subscription {
     UserUpdate,
     ChannelFollow,
     ChannelRaid,
@@ -96,109 +96,105 @@ impl SubscriptionPermission {
 
   fn details(&self) -> (String, String, String) {
     let details = match self {
-      SubscriptionPermission::UserUpdate => ("user.update", "", "1"),
-      SubscriptionPermission::ChannelFollow => ("channel.follow", "moderator:read:followers", "2"),
-      SubscriptionPermission::ChannelRaid => ("channel.raid", "", "1"),
-      SubscriptionPermission::ChatMessage => (
+      Subscription::UserUpdate => ("user.update", "", "1"),
+      Subscription::ChannelFollow => ("channel.follow", "moderator:read:followers", "2"),
+      Subscription::ChannelRaid => ("channel.raid", "", "1"),
+      Subscription::ChatMessage => (
         "channel.chat.message",
         "user:read:chat+user:write:chat",
         "1",
       ),
-      SubscriptionPermission::ChannelPointsCustomRewardRedeem => (
+      Subscription::ChannelPointsCustomRewardRedeem => (
         "channel.channel_points_custom_reward_redemption.add",
         "channel:read:redemptions",
         "1",
       ),
-      SubscriptionPermission::AdBreakBegin => ("channel.ad_break.begin", "channel:read:ads", "1"),
-      SubscriptionPermission::ChannelUpdate => ("channel.update", "", "2"),
-      SubscriptionPermission::BanTimeoutUser => ("", "moderator:manage:banned_users", ""),
-      SubscriptionPermission::DeleteMessage => ("", "moderator:manage:chat_messages", ""),
-      SubscriptionPermission::ChannelSubscribe => {
-        ("channel.subscribe", "channel:read:subscriptions", "1")
-      }
-      SubscriptionPermission::ChannelSubscriptionEnd => (
+      Subscription::AdBreakBegin => ("channel.ad_break.begin", "channel:read:ads", "1"),
+      Subscription::ChannelUpdate => ("channel.update", "", "2"),
+      Subscription::BanTimeoutUser => ("", "moderator:manage:banned_users", ""),
+      Subscription::DeleteMessage => ("", "moderator:manage:chat_messages", ""),
+      Subscription::ChannelSubscribe => ("channel.subscribe", "channel:read:subscriptions", "1"),
+      Subscription::ChannelSubscriptionEnd => (
         "channel.subscription.end",
         "channel:read:subscriptions",
         "1",
       ),
-      SubscriptionPermission::ChannelSubscriptionGift => (
+      Subscription::ChannelSubscriptionGift => (
         "channel.subscription.gift",
         "channel:read:subscriptions",
         "1",
       ),
-      SubscriptionPermission::ChannelSubscriptionMessage => (
+      Subscription::ChannelSubscriptionMessage => (
         "channel.subscription.message",
         "channel:read:subscriptions",
         "1",
       ),
-      SubscriptionPermission::ChannelCheer => ("channel.cheer", "bits:read", "1"),
-      SubscriptionPermission::ChannelPointsAutoRewardRedeem => (
+      Subscription::ChannelCheer => ("channel.cheer", "bits:read", "1"),
+      Subscription::ChannelPointsAutoRewardRedeem => (
         "channel.channel_points_automatic_reward_redemption.add",
         "channel:read:redemptions",
         "1",
       ),
-      SubscriptionPermission::ChannelPollBegin => (
+      Subscription::ChannelPollBegin => (
         "channel.poll.begin",
         "channel:read:polls+channel:write:polls",
         "1",
       ),
-      SubscriptionPermission::ChannelPollProgress => (
+      Subscription::ChannelPollProgress => (
         "channel.poll.progress",
         "channel:read:polls+channel:write:polls",
         "1",
       ),
-      SubscriptionPermission::ChannelPollEnd => (
+      Subscription::ChannelPollEnd => (
         "channel.poll.end",
         "channel:read:polls+channel:write:polls",
         "1",
       ),
-      SubscriptionPermission::ChannelPredictionBegin => (
+      Subscription::ChannelPredictionBegin => (
         "channel.prediction.begin",
         "channel:read:predictions+channel:write:predictions",
         "1",
       ),
-      SubscriptionPermission::ChannelPredictionProgress => (
+      Subscription::ChannelPredictionProgress => (
         "channel.prediction.progress",
         "channel:read:predictions+channel:write:predictions",
         "1",
       ),
-      SubscriptionPermission::ChannelPredictionLock => (
+      Subscription::ChannelPredictionLock => (
         "channel.prediction.lock",
         "channel:read:predictions+channel:write:predictions",
         "1",
       ),
-      SubscriptionPermission::ChannelPredictionEnd => (
+      Subscription::ChannelPredictionEnd => (
         "channel.prediction.end",
         "channel:read:predictions+channel:write:predictions",
         "1",
       ),
-      SubscriptionPermission::ChannelGoalBegin => ("channel.goal.begin", "channel:read:goals", "1"),
-      SubscriptionPermission::ChannelGoalProgress => {
-        ("channel.goal.progress", "channel:read:goals", "1")
-      }
-      SubscriptionPermission::ChannelGoalEnd => ("channel.goal.end", "channel:read:goals", "1"),
-      SubscriptionPermission::ChannelHypeTrainBegin => {
+      Subscription::ChannelGoalBegin => ("channel.goal.begin", "channel:read:goals", "1"),
+      Subscription::ChannelGoalProgress => ("channel.goal.progress", "channel:read:goals", "1"),
+      Subscription::ChannelGoalEnd => ("channel.goal.end", "channel:read:goals", "1"),
+      Subscription::ChannelHypeTrainBegin => {
         ("channel.hype_train.begin", "channel:read:hype_train", "1")
       }
-      SubscriptionPermission::ChannelHypeTrainProgress => (
+      Subscription::ChannelHypeTrainProgress => (
         "channel.hype_train.progress",
         "channel:read:hype_train",
         "1",
       ),
-      SubscriptionPermission::ChannelHypeTrainEnd => {
+      Subscription::ChannelHypeTrainEnd => {
         ("channel.hype_train.end", "channel:read:hype_train", "1")
       }
-      SubscriptionPermission::ChannelShoutoutCreate => (
+      Subscription::ChannelShoutoutCreate => (
         "channel.shoutout.create",
         "moderator:read:shoutouts+moderator:write:shoutouts",
         "1",
       ),
-      SubscriptionPermission::ChannelShoutoutReceive => (
+      Subscription::ChannelShoutoutReceive => (
         "channel.shoutout.receive",
         "moderator:read:shoutouts+moderator:write:shoutouts",
         "1",
       ),
-      SubscriptionPermission::Custom((tag, scope, ..)) => (tag.as_str(), scope.as_str(), ""),
+      Subscription::Custom((tag, scope, ..)) => (tag.as_str(), scope.as_str(), ""),
     };
 
     (
@@ -228,26 +224,24 @@ impl SubscriptionPermission {
       Condition::new().broadcaster_user_id(twitch_keys.broadcaster_account_id.to_owned());
 
     match self {
-      SubscriptionPermission::UserUpdate => event_subscription
+      Subscription::UserUpdate => event_subscription
         .condition(Condition::new().user_id(twitch_keys.broadcaster_account_id.to_owned())),
-      SubscriptionPermission::ChannelFollow => event_subscription.condition(
+      Subscription::ChannelFollow => event_subscription.condition(
         condition
           .moderator_user_id(twitch_keys.broadcaster_account_id.to_owned())
           .user_id(twitch_keys.broadcaster_account_id.to_owned()),
       ),
-      SubscriptionPermission::ChatMessage => event_subscription
+      Subscription::ChatMessage => event_subscription
         .condition(condition.user_id(twitch_keys.broadcaster_account_id.to_owned())),
-      SubscriptionPermission::ChannelPointsCustomRewardRedeem => {
-        event_subscription.condition(condition)
-      }
-      SubscriptionPermission::AdBreakBegin => event_subscription.condition(condition),
-      SubscriptionPermission::ChannelRaid => event_subscription.condition(condition),
-      SubscriptionPermission::ChannelUpdate => event_subscription.condition(condition),
-      SubscriptionPermission::ChannelSubscribe => event_subscription.condition(condition),
-      SubscriptionPermission::ChannelSubscriptionEnd => event_subscription.condition(condition),
-      SubscriptionPermission::ChannelSubscriptionGift => event_subscription.condition(condition),
-      SubscriptionPermission::ChannelSubscriptionMessage => event_subscription.condition(condition),
-      SubscriptionPermission::Custom((_, _, event)) => {
+      Subscription::ChannelPointsCustomRewardRedeem => event_subscription.condition(condition),
+      Subscription::AdBreakBegin => event_subscription.condition(condition),
+      Subscription::ChannelRaid => event_subscription.condition(condition),
+      Subscription::ChannelUpdate => event_subscription.condition(condition),
+      Subscription::ChannelSubscribe => event_subscription.condition(condition),
+      Subscription::ChannelSubscriptionEnd => event_subscription.condition(condition),
+      Subscription::ChannelSubscriptionGift => event_subscription.condition(condition),
+      Subscription::ChannelSubscriptionMessage => event_subscription.condition(condition),
+      Subscription::Custom((_, _, event)) => {
         let mut event = event.to_owned();
         event = event.transport(Transport::new(session_id));
         event.to_owned()
@@ -258,7 +252,7 @@ impl SubscriptionPermission {
 }
 
 impl EventSubscription {
-  pub fn new(event: &SubscriptionPermission, transport: Transport) -> EventSubscription {
+  pub fn new(event: &Subscription, transport: Transport) -> EventSubscription {
     EventSubscription {
       kind: event.tag(),
       version: event.version(),
@@ -278,7 +272,7 @@ impl EventSubscription {
   }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+#[derive(Serialise, Deserialise, Debug, Clone, Default)]
 pub struct Condition {
   pub user_id: Option<String>,
   pub moderator_user_id: Option<String>,
@@ -286,6 +280,11 @@ pub struct Condition {
   pub reward_id: Option<String>,
   pub from_broadcaster_user_id: Option<String>,
   pub to_broadcaster_user_id: Option<String>,
+  #[serde(rename = "organisation_id")]
+  pub organisation_id: Option<String>,
+  pub category_id: Option<String>,
+  pub campaign_id: Option<String>,
+  pub extension_client_id: Option<String>,
 }
 
 impl Condition {
