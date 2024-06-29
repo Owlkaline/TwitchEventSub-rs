@@ -8,6 +8,7 @@ authors = ["Lilith645"]
 categories = ["api-bindings", "web-programming::websocket", "authentication", "network-programming"]
 keywords = ["Twitch", "EventSub", "oauth", "api", "websocket"]
 resolver = "2"
+license = "MIT"
 exclude = [
   "examples"
 ]
