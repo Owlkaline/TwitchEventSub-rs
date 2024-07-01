@@ -1,0 +1,12 @@
+[package]
+name = "rust_unity"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "rust_unity"
+crate-type = ["dylib"]
+
+[dependencies]
+rand = "*"
+twitch_eventsub = { git="https://github.com/lilith645/TwitchEventSub-rs.git" }
