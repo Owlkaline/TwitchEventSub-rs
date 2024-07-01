@@ -31,3 +31,5 @@ Trephination.iml
 *(copy).rs
 src/shaders/glsl/compile_shaders*
 *.env
+*swp
+*kdev4
