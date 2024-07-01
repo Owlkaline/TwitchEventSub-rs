@@ -428,7 +428,7 @@ impl TwitchEventSubApi {
     result: Result<String, EventSubError>,
     twitch_keys: &mut TwitchKeys,
   ) -> Result<String, EventSubError> {
-    warn!("Token return 401!");
+    //warn!("Token return 401!");
     if let Err(EventSubError::TokenRequiresRefreshing(mut http_request)) = result {
       warn!("Token requires refreshing return!");
       if let Ok(token) = TwitchApi::generate_token_from_refresh_token(
@@ -447,7 +447,7 @@ impl TwitchEventSubApi {
       http_request.run()
     } else {
       if result.is_err() {
-        error!(
+        warn!(
           "regen 401 called with result being an error, but wasnt token refresh required: {:?}",
           result
         );

@@ -219,8 +219,24 @@ pub struct Cheer {
 #[serde(untagged)]
 pub enum Event {
   ChatMessage(MessageData),
-  ChannelRaid(RaidData),
-  ChannelPointsCustomRewardRedeem(CustomPointsRewardRedeemData),
+  Raid(RaidData),
+  PointsCustomRewardRedeem(CustomPointsRewardRedeemData),
+  AdBreakBegin(AdBreakBeginData),
+  Subscribe(SubscribeData),
+  SubscriptionGift(GiftData),
+  SubscriptionMessage(SubscribeMessageData),
+  Cheer(CheerData),
+  ChannelPointsAutoRewardRedeem(AutoRewardData),
+  PollBegin(PollBeginData),
+  PollProgress(PollProgressData),
+  PollEnd(PollEndData),
+  PredictionBegin(PredictionBeginData),
+  PredictionProgress(PredicitonProgressData),
+  PredictionLock(PredictionLockData),
+  PredictionEnd(PredicitionEndData),
+  HypeTrainBegin(HypeTrainBeginData),
+  HypeTrainProgress(HypeTrainProgressData),
+  HypeTrainEnd(HypeTrainEndData),
 }
 
 #[derive(Serialise, Deserialise, Debug, Clone)]
@@ -272,55 +288,6 @@ impl GenericMessage {
   }
 
   pub fn subscription_type(&self) -> Subscription {
-    //SubscriptionType::from_string(&self.metadata.subscription_type.clone().unwrap())
     Subscription::from_string(&self.metadata.subscription_type.clone().unwrap()).unwrap()
   }
-
-  //pub fn chat_message(self) -> MessageInfo {
-  //  self.payload.unwrap().event.unwrap().get_message_data()
-  //}
-
-  // pub fn custom_redeem(&self) -> (String, String, Reward) {
-  //   (
-  //     self
-  //       .payload
-  //       .clone()
-  //       .unwrap()
-  //       .event
-  //       .unwrap()
-  //       .user_name
-  //       .unwrap(),
-  //     self
-  //       .payload
-  //       .clone()
-  //       .unwrap()
-  //       .event
-  //       .unwrap()
-  //       .user_input
-  //       .unwrap(),
-  //     self.payload.clone().unwrap().event.unwrap().reward.unwrap(),
-  //   )
-  // }
-
-  //pub fn get_raid_info(&self) -> RaidInfo {
-  //  let payload = self.payload.clone().unwrap();
-  //  let event = payload.event.clone().unwrap();
-
-  //  RaidInfo {
-  //    raider_user_id: event.from_broadcaster_user_id.unwrap(),
-  //    raider_username: event.from_broadcaster_user_name.unwrap(),
-  //    viewers: event.viewers.unwrap(),
-  //  }
-  //}
-
-  //pub fn get_ad_duration(&self) -> u32 {
-  //  self
-  //    .payload
-  //    .clone()
-  //    .unwrap()
-  //    .event
-  //    .unwrap()
-  //    .duration_seconds
-  //    .unwrap()
-  //}
 }

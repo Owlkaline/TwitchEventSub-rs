@@ -137,37 +137,37 @@ impl Subscription {
       ),
       Subscription::ChannelPollBegin => (
         "channel.poll.begin",
-        "channel:read:polls+channel:write:polls",
+        "channel:read:polls+channel:manage:polls",
         "1",
       ),
       Subscription::ChannelPollProgress => (
         "channel.poll.progress",
-        "channel:read:polls+channel:write:polls",
+        "channel:read:polls+channel:manage:polls",
         "1",
       ),
       Subscription::ChannelPollEnd => (
         "channel.poll.end",
-        "channel:read:polls+channel:write:polls",
+        "channel:read:polls+channel:manage:polls",
         "1",
       ),
       Subscription::ChannelPredictionBegin => (
         "channel.prediction.begin",
-        "channel:read:predictions+channel:write:predictions",
+        "channel:read:predictions+channel:manage:predictions",
         "1",
       ),
       Subscription::ChannelPredictionProgress => (
         "channel.prediction.progress",
-        "channel:read:predictions+channel:write:predictions",
+        "channel:read:predictions+channel:manage:predictions",
         "1",
       ),
       Subscription::ChannelPredictionLock => (
         "channel.prediction.lock",
-        "channel:read:predictions+channel:write:predictions",
+        "channel:read:predictions+channel:manage:predictions",
         "1",
       ),
       Subscription::ChannelPredictionEnd => (
         "channel.prediction.end",
-        "channel:read:predictions+channel:write:predictions",
+        "channel:read:predictions+channel:manage:predictions",
         "1",
       ),
       Subscription::ChannelGoalBegin => ("channel.goal.begin", "channel:read:goals", "1"),
@@ -186,12 +186,12 @@ impl Subscription {
       }
       Subscription::ChannelShoutoutCreate => (
         "channel.shoutout.create",
-        "moderator:read:shoutouts+moderator:write:shoutouts",
+        "moderator:read:shoutouts+moderator:manage:shoutouts",
         "1",
       ),
       Subscription::ChannelShoutoutReceive => (
         "channel.shoutout.receive",
-        "moderator:read:shoutouts+moderator:write:shoutouts",
+        "moderator:read:shoutouts+moderator:manage:shoutouts",
         "1",
       ),
       Subscription::Custom((tag, scope, ..)) => (tag.as_str(), scope.as_str(), ""),
