@@ -186,20 +186,20 @@ pub struct Message {
 
 #[derive(Serialise, Deserialise, Debug, Clone)]
 pub struct Badge {
-  set_id: String,
-  id: String,
-  info: String,
+  pub set_id: String,
+  pub id: String,
+  pub info: String,
 }
 
 #[derive(Serialise, Deserialise, Debug, Clone)]
 pub struct Reply {
   #[serde(flatten)]
-  thread: ThreadUser,
+  pub thread: ThreadUser,
   #[serde(flatten)]
-  parent_user: ParentUser,
-  parent_message_id: String,
-  parent_message_body: String,
-  thread_message_id: String,
+  pub parent: ParentUser,
+  pub parent_message_id: String,
+  pub parent_message_body: String,
+  pub thread_message_id: String,
 }
 
 #[derive(Serialise, Deserialise, Debug, Clone, PartialEq)]
@@ -212,7 +212,7 @@ pub struct Reward {
 
 #[derive(Serialise, Deserialise, Debug, Clone)]
 pub struct Cheer {
-  bits: u32,
+  pub bits: u32,
 }
 
 #[derive(Serialise, Deserialise, Debug, Clone)]
@@ -220,6 +220,7 @@ pub struct Cheer {
 pub enum Event {
   ChatMessage(MessageData),
   Raid(RaidData),
+  Follow(FollowData),
   PointsCustomRewardRedeem(CustomPointsRewardRedeemData),
   AdBreakBegin(AdBreakBeginData),
   Subscribe(SubscribeData),

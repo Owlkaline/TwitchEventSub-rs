@@ -1,6 +1,6 @@
 use crate::{
-  Badge, Cheer, Deserialise, Emote, Event, EventSubError, Fragments, Message, Reward, Serialise,
-  Subscription,
+  Badge, Cheer, Deserialise, Emote, Event, EventSubError, Fragments, Message, Reply, Reward,
+  Serialise, Subscription,
 };
 
 #[derive(Serialise, Deserialise, Clone, Debug)]
@@ -316,31 +316,20 @@ pub struct User {
 #[derive(Serialise, Deserialise, Clone, Debug)]
 pub struct AdBreakBeginData {
   #[serde(flatten)]
-  pub broadcast_user: BroadcasterUser,
+  pub broadcaster: BroadcasterUser,
   #[serde(flatten)]
-  pub requester_user: RequesterUser,
+  pub requester: RequesterUser,
   pub duration_seconds: u32,
   pub started_at: String,
   pub is_automatic: bool,
 }
 
 #[derive(Serialise, Deserialise, Clone, Debug)]
-pub struct Reply {
-  #[serde(flatten)]
-  pub parent_user: ParentUser,
-  #[serde(flatten)]
-  pub thread_user: ThreadUser,
-  pub parent_message_id: String,
-  pub parent_message_body: String,
-  pub thread_message_id: String,
-}
-
-#[derive(Serialise, Deserialise, Clone, Debug)]
 pub struct MessageData {
   #[serde(flatten)]
-  pub broadcaster_user: BroadcasterUser,
+  pub broadcaster: BroadcasterUser,
   #[serde(flatten)]
-  pub chatter_user: ChatterUser,
+  pub chatter: ChatterUser,
   pub message_id: String,
   pub message: Message,
   #[serde(rename = "color")]

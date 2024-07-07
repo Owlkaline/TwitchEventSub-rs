@@ -28,8 +28,8 @@ use serde_derive::{Deserialize as Deserialise, Serialize as Serialise};
 
 pub use crate::modules::{
   errors::EventSubError,
-  generic_message::{Event, Reward, Transport},
-  messages::{MessageData, MessageType, RaidData},
+  generic_message::{Badge, Cheer, Event, Reply, Reward, Transport},
+  messages::{AdBreakBeginData, CustomPointsRewardRedeemData, MessageData, MessageType, RaidData},
   subscriptions::{Condition, EventSubscription, Subscription},
   token::{TokenAccess, TwitchKeys},
   twitch_http::{AuthType, RequestType, TwitchApi, TwitchHttpRequest},
@@ -475,13 +475,22 @@ impl TwitchEventSubApi {
       })
   }
 
-  pub fn receive_messages(&mut self) -> Vec<MessageType> {
+  ///
+  /// Set duration to Duration::ZERO for completely non-blocking
+  ///
+  /// Recommended to use Duration::ZERO when used in games and
+  /// in engines like Godot and Unity.
+  ///
+  /// For a chat bot I found setting duration to 1 millis was enough
+  /// to reduce cpu from 3.2% to 0.8% maximum
+  ///
+  pub fn receive_messages(&mut self, duration: Duration) -> Vec<MessageType> {
     // check thread for new messages without waiting
     //
     // return new messages if any
     let mut messages = Vec::new();
 
-    if let Ok(message) = self.messages_received.recv_timeout(Duration::ZERO) {
+    if let Ok(message) = self.messages_received.recv_timeout(duration) {
       messages.push(message);
     }
 
@@ -549,7 +558,7 @@ impl TwitchEventSubApi {
     &mut self,
     message: S,
     reply_message_parent_id: Option<String>,
-  ) {
+  ) -> Result<String, EventSubError> {
     let message: String = message.into();
     let access_token = self
       .twitch_keys
@@ -565,7 +574,7 @@ impl TwitchEventSubApi {
       .clone()
       .unwrap_or(self.twitch_keys.broadcaster_account_id.to_string());
 
-    let _ = TwitchEventSubApi::regen_token_if_401(
+    TwitchEventSubApi::regen_token_if_401(
       TwitchApi::send_chat_message(
         message,
         access_token,
@@ -575,7 +584,7 @@ impl TwitchEventSubApi {
         reply_message_parent_id,
       ),
       &mut self.twitch_keys,
-    );
+    )
   }
 
   #[cfg(feature = "only_raw_responses")]
