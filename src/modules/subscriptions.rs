@@ -16,16 +16,29 @@ macro_rules! from_string {
     };
 }
 
-#[derive(Clone, Debug)]
+macro_rules! from_scope {
+    ($enum_name:ident { $($variant:ident),* }) => {
+        pub fn from_scope(t: &str) -> Option<$enum_name> {
+            $(
+              if $enum_name::$variant.required_scope().contains(&t) {
+                    return Some($enum_name::$variant);
+                }
+            )*
+            None
+        }
+    };
+}
+
+#[derive(Clone, Debug, PartialEq)]
 pub enum Subscription {
   UserUpdate,
   ChannelFollow,
   ChannelRaid,
   ChannelUpdate,
-  ChannelSubscribe,
+  ChannelNewSubscription,
   ChannelSubscriptionEnd,
-  ChannelSubscriptionGift,
-  ChannelSubscriptionMessage,
+  ChannelGiftSubscription,
+  ChannelResubscription,
   ChannelCheer,
   ChannelPointsCustomRewardRedeem,
   ChannelPointsAutoRewardRedeem,
@@ -51,7 +64,7 @@ pub enum Subscription {
   Custom((String, String, EventSubscription)),
 }
 
-#[derive(Serialise, Deserialise, Debug, Clone)]
+#[derive(Serialise, Deserialise, Debug, Clone, PartialEq)]
 pub struct EventSubscription {
   #[serde(rename = "type")]
   pub kind: String,
@@ -66,10 +79,43 @@ impl Subscription {
     ChannelFollow,
     ChannelRaid,
     ChannelUpdate,
-    ChannelSubscribe,
+    ChannelNewSubscription,
     ChannelSubscriptionEnd,
-    ChannelSubscriptionGift,
-    ChannelSubscriptionMessage,
+    ChannelGiftSubscription,
+    ChannelResubscription,
+    ChannelCheer,
+    ChannelPointsCustomRewardRedeem,
+    ChannelPointsAutoRewardRedeem,
+    ChannelPollBegin,
+    ChannelPollProgress,
+    ChannelPollEnd,
+    ChannelPredictionBegin,
+    ChannelPredictionProgress,
+    ChannelPredictionLock,
+    ChannelPredictionEnd,
+    ChannelGoalBegin,
+    ChannelGoalProgress,
+    ChannelGoalEnd,
+    ChannelHypeTrainBegin,
+    ChannelHypeTrainProgress,
+    ChannelHypeTrainEnd,
+    ChannelShoutoutCreate,
+    ChannelShoutoutReceive,
+    ChatMessage,
+    BanTimeoutUser,
+    DeleteMessage,
+    AdBreakBegin
+  });
+
+  from_scope!(Subscription {
+    UserUpdate,
+    ChannelFollow,
+    ChannelRaid,
+    ChannelUpdate,
+    ChannelNewSubscription,
+    ChannelSubscriptionEnd,
+    ChannelGiftSubscription,
+    ChannelResubscription,
     ChannelCheer,
     ChannelPointsCustomRewardRedeem,
     ChannelPointsAutoRewardRedeem,
@@ -113,18 +159,20 @@ impl Subscription {
       Subscription::ChannelUpdate => ("channel.update", "", "2"),
       Subscription::BanTimeoutUser => ("", "moderator:manage:banned_users", ""),
       Subscription::DeleteMessage => ("", "moderator:manage:chat_messages", ""),
-      Subscription::ChannelSubscribe => ("channel.subscribe", "channel:read:subscriptions", "1"),
+      Subscription::ChannelNewSubscription => {
+        ("channel.subscribe", "channel:read:subscriptions", "1")
+      }
       Subscription::ChannelSubscriptionEnd => (
         "channel.subscription.end",
         "channel:read:subscriptions",
         "1",
       ),
-      Subscription::ChannelSubscriptionGift => (
+      Subscription::ChannelGiftSubscription => (
         "channel.subscription.gift",
         "channel:read:subscriptions",
         "1",
       ),
-      Subscription::ChannelSubscriptionMessage => (
+      Subscription::ChannelResubscription => (
         "channel.subscription.message",
         "channel:read:subscriptions",
         "1",
@@ -132,7 +180,7 @@ impl Subscription {
       Subscription::ChannelCheer => ("channel.cheer", "bits:read", "1"),
       Subscription::ChannelPointsAutoRewardRedeem => (
         "channel.channel_points_automatic_reward_redemption.add",
-        "channel:read:redemptions",
+        "channel:read:redemptions+channel:manage:redemptions",
         "1",
       ),
       Subscription::ChannelPollBegin => (
@@ -216,14 +264,22 @@ impl Subscription {
     self.details().2
   }
 
-  pub fn construct_data(&self, session_id: &str, twitch_keys: &TwitchKeys) -> EventSubscription {
+  pub fn construct_data(
+    &self,
+    session_id: &str,
+    twitch_keys: &TwitchKeys,
+  ) -> Option<EventSubscription> {
     let transport = Transport::new(session_id);
+
+    if self.tag().is_empty() {
+      return None;
+    }
 
     let event_subscription = EventSubscription::new(self, transport);
     let condition =
       Condition::new().broadcaster_user_id(twitch_keys.broadcaster_account_id.to_owned());
 
-    match self {
+    Some(match self {
       Subscription::UserUpdate => event_subscription
         .condition(Condition::new().user_id(twitch_keys.broadcaster_account_id.to_owned())),
       Subscription::ChannelFollow => event_subscription.condition(
@@ -235,19 +291,19 @@ impl Subscription {
         .condition(condition.user_id(twitch_keys.broadcaster_account_id.to_owned())),
       Subscription::ChannelPointsCustomRewardRedeem => event_subscription.condition(condition),
       Subscription::AdBreakBegin => event_subscription.condition(condition),
-      Subscription::ChannelRaid => event_subscription.condition(condition),
+      Subscription::ChannelRaid => event_subscription
+        .condition(condition.to_broadcaster_user_id(twitch_keys.broadcaster_account_id.clone())),
       Subscription::ChannelUpdate => event_subscription.condition(condition),
-      Subscription::ChannelSubscribe => event_subscription.condition(condition),
+      Subscription::ChannelNewSubscription => event_subscription.condition(condition),
       Subscription::ChannelSubscriptionEnd => event_subscription.condition(condition),
-      Subscription::ChannelSubscriptionGift => event_subscription.condition(condition),
-      Subscription::ChannelSubscriptionMessage => event_subscription.condition(condition),
-      Subscription::Custom((_, _, event)) => {
-        let mut event = event.to_owned();
-        event = event.transport(Transport::new(session_id));
-        event.to_owned()
-      }
+      Subscription::ChannelGiftSubscription => event_subscription.condition(condition),
+      Subscription::ChannelResubscription => event_subscription.condition(condition),
+      Subscription::ChannelCheer => event_subscription.condition(condition),
+      Subscription::ChannelPointsAutoRewardRedeem => event_subscription.condition(condition),
+      Subscription::Custom((_, _, event)) => event.to_owned().transport(Transport::new(session_id)),
+
       _ => event_subscription,
-    }
+    })
   }
 }
 
@@ -272,7 +328,7 @@ impl EventSubscription {
   }
 }
 
-#[derive(Serialise, Deserialise, Debug, Clone, Default)]
+#[derive(Serialise, Deserialise, Debug, Clone, Default, PartialEq)]
 pub struct Condition {
   pub user_id: Option<String>,
   pub moderator_user_id: Option<String>,
@@ -280,7 +336,7 @@ pub struct Condition {
   pub reward_id: Option<String>,
   pub from_broadcaster_user_id: Option<String>,
   pub to_broadcaster_user_id: Option<String>,
-  #[serde(rename = "organisation_id")]
+  #[serde(rename = "organization_id")]
   pub organisation_id: Option<String>,
   pub category_id: Option<String>,
   pub campaign_id: Option<String>,

@@ -414,22 +414,47 @@ impl TwitchHttpRequest {
       });
 
       if let Err(e) = handle.perform() {
-        if let Ok(error) = serde_json::from_str::<Validation>(&e.to_string()) {
-          if error.is_error() {
-            if error.status.unwrap() == 401 {
-              // Regen access token
-              // Re run the query
-              return Err(EventSubError::TokenRequiresRefreshing(self.to_owned()));
-            }
-            error!("Converting result from curl request to validation failed!");
-            return Err(EventSubError::InvalidOauthToken(error.error_msg()));
-          }
-        }
         error!("Curl error: {}", e);
         return Err(EventSubError::CurlFailed(e));
       }
     }
 
-    Ok(String::from_utf8_lossy(&data).to_string())
+    let data = String::from_utf8_lossy(&data).to_string();
+    if let Ok(error) = serde_json::from_str::<Validation>(&data) {
+      //println!("{:#?}", error);
+      if error.is_error() {
+        if error.status.unwrap() == 401 {
+          // Regen access token
+          // Re run the query
+
+          let error = error.message.unwrap();
+          if error.contains("Missing scope") {
+            let scope = error.split_whitespace().nth(2).unwrap();
+            if let Some(missing_subscription) = Subscription::from_scope(&scope) {
+              error!(
+                "Token missing subscription: Subscription::{:?}",
+                missing_subscription
+              );
+              return Err(EventSubError::TokenMissingSubscription(
+                missing_subscription,
+              ));
+            } else {
+              error!("Token missing unimplemented subscription: {}", scope);
+              return Err(EventSubError::TokenMissingUnimplementedSubscription(
+                scope.to_owned(),
+              ));
+            }
+          } else {
+            info!("Token requires refresing, debug: {:?}", error);
+            return Err(EventSubError::TokenRequiresRefreshing(self.to_owned()));
+          }
+        }
+        error!("Unhandled error: {}, {}", self.url, error.error_msg());
+        println!("Unhandled error: {}, {}", self.url, error.error_msg());
+        return Err(EventSubError::InvalidOauthToken(error.error_msg()));
+      }
+    }
+
+    Ok(data)
   }
 }

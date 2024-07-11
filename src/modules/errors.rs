@@ -1,7 +1,7 @@
 use log::LevelFilter;
 use simple_logging;
 
-use crate::modules::twitch_http::TwitchHttpRequest;
+use crate::{modules::twitch_http::TwitchHttpRequest, Subscription};
 
 pub const LOG_FILE: &str = "twitch_events.log";
 pub const LOG_FILE_BUILDER: &str = "twitch_event_builder.log";
@@ -17,6 +17,8 @@ pub fn log_builder() {
 #[derive(Debug, PartialEq)]
 pub enum EventSubError {
   TokenMissingScope,
+  TokenMissingSubscription(Subscription),
+  TokenMissingUnimplementedSubscription(String),
   NoSubscriptionsRequested,
   AuthorisationError(String),
   WebsocketCreationFailed,

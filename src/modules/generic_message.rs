@@ -36,7 +36,7 @@ pub struct Validation {
   user_id: Option<String>,
   pub expires_in: Option<u32>,
   pub status: Option<u32>,
-  message: Option<String>,
+  pub message: Option<String>,
 }
 
 impl Validation {
@@ -77,7 +77,7 @@ pub struct SendMessage {
   pub reply_parent_message_id: Option<String>,
 }
 
-#[derive(Serialise, Deserialise, Debug, Clone)]
+#[derive(Serialise, Deserialise, Debug, Clone, PartialEq)]
 pub struct Transport {
   pub method: String,
   pub session_id: String,
@@ -127,8 +127,8 @@ pub struct Mention {
 pub struct Emote {
   id: String,
   emote_set_id: String,
-  owner_id: String,
-  format: Vec<String>,
+  owner_id: Option<String>,
+  format: Option<Vec<String>>,
 }
 
 #[derive(Serialise, Deserialise, Debug, Clone)]
@@ -223,11 +223,11 @@ pub enum Event {
   Follow(FollowData),
   PointsCustomRewardRedeem(CustomPointsRewardRedeemData),
   AdBreakBegin(AdBreakBeginData),
-  Subscribe(SubscribeData),
-  SubscriptionGift(GiftData),
-  SubscriptionMessage(SubscribeMessageData),
+  NewSubscription(NewSubscriptionData),
+  GiftSubscription(GiftData),
+  Resubscription(ResubscriptionData),
   Cheer(CheerData),
-  ChannelPointsAutoRewardRedeem(AutoRewardData),
+  ChannelPointsAutoRewardRedeem(ChannelPointsAutoRewardRedeemData),
   PollBegin(PollBeginData),
   PollProgress(PollProgressData),
   PollEnd(PollEndData),

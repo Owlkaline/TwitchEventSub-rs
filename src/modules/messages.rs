@@ -156,13 +156,33 @@ pub struct RewardEmote {
 #[derive(Serialise, Deserialise, Clone, Debug)]
 pub struct RewardMessageData {
   pub text: String,
-  pub emotes: Vec<Emote>,
+  pub emotes: Vec<RewardEmote>,
+}
+
+#[derive(Serialise, Deserialise, Clone, Debug)]
+pub enum AutoRewardType {
+  #[serde(rename = "send_highlighted_message")]
+  SendHighlightedMessage,
+  #[serde(rename = "single_message_bypass_ub_mode")]
+  SingleMessageBypassSubMode,
+  #[serde(rename = "random_sub_emote_unlock")]
+  RandomSubEmoteUnlock,
+  #[serde(rename = "chosen_sub_emote_unlock")]
+  ChosenSubEmoteUnlock,
+  #[serde(rename = "chosen_modified_sub_emote_unlock")]
+  ChosenModifiedSubEmoteUnlock,
+  #[serde(rename = "message_effect")]
+  MessageEffect,
+  #[serde(rename = "gigantify_an_emote")]
+  GigantifyAnEmote,
+  #[serde(rename = "celebration")]
+  Celebration,
 }
 
 #[derive(Serialise, Deserialise, Clone, Debug)]
 pub struct AutoRewardData {
   #[serde(rename = "type")]
-  pub kind: String,
+  pub kind: AutoRewardType,
   pub cost: u32,
   pub unlocked_emote: Option<UnlockedEmote>,
   pub message: RewardMessageData,
@@ -177,7 +197,7 @@ pub struct ChannelPointsAutoRewardRedeemData {
   #[serde(flatten)]
   pub user: User,
   pub id: String,
-  pub reward: Reward,
+  pub reward: AutoRewardData,
 }
 
 #[derive(Serialise, Deserialise, Clone, Debug)]
@@ -201,17 +221,17 @@ pub struct FollowData {
 }
 
 #[derive(Serialise, Deserialise, Clone, Debug)]
-pub struct SubscribeData {
+pub struct NewSubscriptionData {
   #[serde(flatten)]
   pub user: User,
   #[serde(flatten)]
-  pub braodcaster: BroadcasterUser,
+  pub broadcaster: BroadcasterUser,
   pub tier: String,
   pub is_gift: bool,
 }
 
 #[derive(Serialise, Deserialise, Clone, Debug)]
-pub struct SubscribeMessageData {
+pub struct ResubscriptionData {
   #[serde(flatten)]
   pub user: User,
   #[serde(flatten)]
@@ -325,6 +345,22 @@ pub struct AdBreakBeginData {
 }
 
 #[derive(Serialise, Deserialise, Clone, Debug)]
+pub enum MessageType {
+  #[serde(rename = "text")]
+  Text,
+  #[serde(rename = "channel_points_highlighted")]
+  ChannelPointsHighlighted,
+  #[serde(rename = "channel_points_sub_only")]
+  ChannelPointsSubOnly,
+  #[serde(rename = "user_intro")]
+  UserIntro,
+  #[serde(rename = "power_ups_message_effect")]
+  PowerUpsMessageEffect,
+  #[serde(rename = "power_ups_gigantified_emote")]
+  PowerUpsGigantifiedEmote,
+}
+
+#[derive(Serialise, Deserialise, Clone, Debug)]
 pub struct MessageData {
   #[serde(flatten)]
   pub broadcaster: BroadcasterUser,
@@ -335,7 +371,7 @@ pub struct MessageData {
   #[serde(rename = "color")]
   pub colour: String,
   pub badges: Vec<Badge>,
-  pub message_type: String,
+  pub message_type: MessageType,
   pub cheer: Option<Cheer>,
   pub reply: Option<Reply>,
   pub channel_points_custom_reward_id: Option<String>,
@@ -426,10 +462,8 @@ pub struct CustomPointsRewardRedeemData {
 }
 
 #[derive(Debug)]
-pub enum MessageType {
+pub enum ResponseType {
   Event(Event),
-  BanTimeoutUser,
-  DeleteMessage,
   Error(EventSubError),
   RawResponse(String),
   Close,

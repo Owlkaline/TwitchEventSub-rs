@@ -29,7 +29,12 @@ use serde_derive::{Deserialize as Deserialise, Serialize as Serialise};
 pub use crate::modules::{
   errors::EventSubError,
   generic_message::{Badge, Cheer, Event, Reply, Reward, Transport},
-  messages::{AdBreakBeginData, CustomPointsRewardRedeemData, MessageData, MessageType, RaidData},
+  messages::{
+    AdBreakBeginData, AutoRewardType, BroadcasterUser, ChatterUser, CustomPointsRewardRedeemData,
+    FollowData, FromBroadcasterUser, GiftData, MessageData, MessageType, NewSubscriptionData,
+    ParentUser, RaidData, RequestUser, RequesterUser, ResponseType, ResubscriptionData,
+    RewardEmote, RewardMessageData, ThreadUser, ToBroadcasterUser, User,
+  },
   subscriptions::{Condition, EventSubscription, Subscription},
   token::{TokenAccess, TwitchKeys},
   twitch_http::{AuthType, RequestType, TwitchApi, TwitchHttpRequest},
@@ -290,7 +295,7 @@ impl TwitchEventSubApiBuilder {
 pub struct TwitchEventSubApi {
   _receive_thread: JoinHandle<()>,
 
-  messages_received: SyncReceiver<MessageType>,
+  messages_received: SyncReceiver<ResponseType>,
   twitch_keys: TwitchKeys,
   _token: Arc<Mutex<Token>>,
 }
@@ -484,7 +489,7 @@ impl TwitchEventSubApi {
   /// For a chat bot I found setting duration to 1 millis was enough
   /// to reduce cpu from 3.2% to 0.8% maximum
   ///
-  pub fn receive_messages(&mut self, duration: Duration) -> Vec<MessageType> {
+  pub fn receive_messages(&mut self, duration: Duration) -> Vec<ResponseType> {
     // check thread for new messages without waiting
     //
     // return new messages if any
@@ -497,7 +502,10 @@ impl TwitchEventSubApi {
     messages
   }
 
-  pub fn delete_message<S: Into<String>>(&mut self, message_id: S) {
+  pub fn delete_message<S: Into<String>>(
+    &mut self,
+    message_id: S,
+  ) -> Result<String, EventSubError> {
     let broadcaster_account_id = self.twitch_keys.broadcaster_account_id.to_string();
     let moderator_account_id = broadcaster_account_id.to_owned();
     let access_token = self
@@ -508,7 +516,7 @@ impl TwitchEventSubApi {
       .get_token();
     let client_id = self.twitch_keys.client_id.to_string();
 
-    let _ = TwitchEventSubApi::regen_token_if_401(
+    TwitchEventSubApi::regen_token_if_401(
       TwitchApi::delete_message(
         broadcaster_account_id,
         moderator_account_id,
@@ -517,7 +525,7 @@ impl TwitchEventSubApi {
         client_id,
       ),
       &mut self.twitch_keys,
-    );
+    )
   }
 
   pub fn timeout_user<S: Into<String>, T: Into<String>>(
@@ -590,7 +598,7 @@ impl TwitchEventSubApi {
   #[cfg(feature = "only_raw_responses")]
   fn event_sub_events(
     client: Arc<Mutex<Client<TlsStream<TcpStream>>>>,
-    message_sender: SyncSender<MessageType>,
+    message_sender: SyncSender<ResponseType>,
     subscriptions: Vec<Subscription>,
     mut custom_subscriptions: Vec<String>,
     twitch_keys: TwitchKeys,
@@ -606,14 +614,14 @@ impl TwitchEventSubApi {
         Err(e) => {
           error!("recv message error: {:?}", e);
           let _ = client.send_message(&OwnedMessage::Close(None));
-          message_sender.send(MessageType::Close).unwrap();
+          message_sender.send(ResponseType::Close).unwrap();
 
           return;
         }
       };
 
       if let OwnedMessage::Text(msg) = message.clone() {
-        message_sender.send(MessageType::RawResponse(msg)).unwrap();
+        message_sender.send(ResponseType::RawResponse(msg)).unwrap();
         continue;
       }
     }
@@ -622,7 +630,7 @@ impl TwitchEventSubApi {
   #[cfg(not(feature = "only_raw_responses"))]
   fn event_sub_events(
     client: Arc<Mutex<Client<TlsStream<TcpStream>>>>,
-    message_sender: SyncSender<MessageType>,
+    message_sender: SyncSender<ResponseType>,
     subscriptions: Vec<Subscription>,
     mut custom_subscriptions: Vec<String>,
     mut twitch_keys: TwitchKeys,
@@ -638,7 +646,7 @@ impl TwitchEventSubApi {
         Err(e) => {
           error!("recv message error: {:?}", e);
           let _ = client.send_message(&OwnedMessage::Close(None));
-          message_sender.send(MessageType::Close).unwrap();
+          message_sender.send(ResponseType::Close).unwrap();
 
           return;
         }
@@ -646,15 +654,18 @@ impl TwitchEventSubApi {
 
       match message {
         OwnedMessage::Text(msg) => {
+          //  println!("RAW MESSAGE: {}", msg);
           let message = serde_json::from_str(&msg);
 
           if let Err(e) = message {
             error!("Unimplemented twitch response: {}\n{}", msg, e);
-            message_sender.send(MessageType::RawResponse(msg)).unwrap();
+            message_sender.send(ResponseType::RawResponse(msg)).unwrap();
             continue;
           }
 
           let message: GenericMessage = message.unwrap();
+
+          //println!("{:#?}", message);
 
           match message.event_type() {
             EventMessageType::Welcome => {
@@ -662,9 +673,8 @@ impl TwitchEventSubApi {
 
               let mut sub_data = subscriptions
                 .iter()
-                .filter_map(|s| {
-                  serde_json::to_string(&s.construct_data(&session_id, &twitch_keys)).ok()
-                })
+                .filter_map(|s| s.construct_data(&session_id, &twitch_keys))
+                .filter_map(|s| serde_json::to_string(&s).ok())
                 .collect::<Vec<_>>();
               sub_data.append(&mut custom_subscriptions);
 
@@ -674,27 +684,28 @@ impl TwitchEventSubApi {
                 sub_data
                   .iter()
                   .map(|sub_data| {
-                    let a = TwitchHttpRequest::new(SUBSCRIBE_URL)
+                    //println!("{:?}", sub_data);
+                    TwitchHttpRequest::new(SUBSCRIBE_URL)
                       .full_auth(token.to_owned(), twitch_keys.client_id.to_string())
                       .json_content()
                       .is_post(sub_data)
-                      .run();
-                    a
+                      .run()
                   })
                   .map(|a| TwitchEventSubApi::regen_token_if_401(a, &mut clone_twitch_keys))
                   .filter_map(Result::err)
                   .for_each(|error| {
+                    error!("{:?}", error);
                     message_sender
-                      .send(MessageType::Error(error))
+                      .send(ResponseType::Error(error))
                       .expect("Failed to send error Message back to main thread.");
                   });
               } else {
-                let _ = message_sender.send(MessageType::Error(EventSubError::InvalidAccessToken(
-                  format!(
+                let _ = message_sender.send(ResponseType::Error(
+                  EventSubError::InvalidAccessToken(format!(
                     "Expected TokenAccess::User(TOKENHERE) but found {:?}",
                     twitch_keys.access_token
-                  ),
-                )));
+                  )),
+                ));
               }
 
               twitch_keys = clone_twitch_keys;
@@ -704,13 +715,13 @@ impl TwitchEventSubApi {
             }
             EventMessageType::Notification => {
               message_sender
-                .send(MessageType::Event(message.payload.unwrap().event.unwrap()))
+                .send(ResponseType::Event(message.payload.unwrap().event.unwrap()))
                 .unwrap();
             }
             EventMessageType::Unknown => {
-              if !custom_subscriptions.is_empty() {
-                message_sender.send(MessageType::RawResponse(msg)).unwrap();
-              }
+              //if !custom_subscriptions.is_empty() {
+              message_sender.send(ResponseType::RawResponse(msg)).unwrap();
+              //}
             }
           }
         }
