@@ -193,10 +193,10 @@ pub struct Badge {
 
 #[derive(Serialise, Deserialise, Debug, Clone)]
 pub struct Reply {
-  #[serde(flatten)]
-  pub thread: ThreadUser,
-  #[serde(flatten)]
-  pub parent: ParentUser,
+  #[serde(flatten, with = "prefix_thread")]
+  pub thread: User,
+  #[serde(flatten, with = "prefix_parent")]
+  pub parent: User,
   pub parent_message_id: String,
   pub parent_message_body: String,
   pub thread_message_id: String,

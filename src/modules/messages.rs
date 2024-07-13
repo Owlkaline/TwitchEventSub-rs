@@ -1,7 +1,18 @@
+use serde_with::with_prefix;
+
 use crate::{
   Badge, Cheer, Deserialise, Emote, Event, EventSubError, Fragments, Message, Reply, Reward,
   Serialise, Subscription,
 };
+
+with_prefix!(prefix_broadcaster "broadcaster_");
+with_prefix!(prefix_from_broadcaster "from_broadcaster_");
+with_prefix!(prefix_to_broadcaster "to_broadcaster_");
+with_prefix!(prefix_requester "requester_");
+with_prefix!(prefix_request "request_");
+with_prefix!(pub prefix_thread "thread_");
+with_prefix!(pub prefix_parent "parent_");
+with_prefix!(prefix_chatter "chatter_");
 
 #[derive(Serialise, Deserialise, Clone, Debug)]
 pub struct TopContributions {
@@ -24,8 +35,8 @@ pub struct LastContribution {
 #[derive(Serialise, Deserialise, Clone, Debug)]
 pub struct HypeTrainEndData {
   pub id: String,
-  #[serde(flatten)]
-  pub broadcaster: BroadcasterUser,
+  #[serde(flatten, with = "prefix_broadcaster")]
+  pub broadcaster: User,
   pub level: u32,
   pub total: u32,
   pub top_contributions: TopContributions,
@@ -37,8 +48,8 @@ pub struct HypeTrainEndData {
 #[derive(Serialise, Deserialise, Clone, Debug)]
 pub struct HypeTrainProgressData {
   pub id: String,
-  #[serde(flatten)]
-  pub broadcaster: BroadcasterUser,
+  #[serde(flatten, with = "prefix_broadcaster")]
+  pub broadcaster: User,
   pub level: u32,
   pub total: u32,
   pub progress: u32,
@@ -52,8 +63,8 @@ pub struct HypeTrainProgressData {
 #[derive(Serialise, Deserialise, Clone, Debug)]
 pub struct HypeTrainBeginData {
   pub id: String,
-  #[serde(flatten)]
-  pub broadcaster: BroadcasterUser,
+  #[serde(flatten, with = "prefix_broadcaster")]
+  pub broadcaster: User,
   pub total: u32,
   pub progress: u32,
   pub top_contributions: TopContributions,
@@ -85,8 +96,8 @@ pub struct Outcome {
 #[derive(Serialise, Deserialise, Clone, Debug)]
 pub struct PredictionBeginData {
   pub id: String,
-  #[serde(flatten)]
-  pub broadcaster: BroadcasterUser,
+  #[serde(flatten, with = "prefix_broadcaster")]
+  pub broadcaster: User,
   pub title: String,
   pub outcomes: Vec<Outcome>,
   pub started_at: String,
@@ -96,8 +107,8 @@ pub struct PredictionBeginData {
 #[derive(Serialise, Deserialise, Clone, Debug)]
 pub struct PredicitonProgressData {
   pub id: String,
-  #[serde(flatten)]
-  broadcaster: BroadcasterUser,
+  #[serde(flatten, with = "prefix_broadcaster")]
+  broadcaster: User,
   pub title: String,
   pub outcomes: Vec<Outcome>,
   pub started_at: String,
@@ -107,8 +118,8 @@ pub struct PredicitonProgressData {
 #[derive(Serialise, Deserialise, Clone, Debug)]
 pub struct PredictionLockData {
   pub id: String,
-  #[serde(flatten)]
-  pub broadcaster: BroadcasterUser,
+  #[serde(flatten, with = "prefix_broadcaster")]
+  pub broadcaster: User,
   pub title: String,
   pub outcomes: Vec<Outcome>,
   pub started_at: String,
@@ -118,8 +129,8 @@ pub struct PredictionLockData {
 #[derive(Serialise, Deserialise, Clone, Debug)]
 pub struct PredicitionEndData {
   pub id: String,
-  #[serde(flatten)]
-  pub broadcaster: BroadcasterUser,
+  #[serde(flatten, with = "prefix_broadcaster")]
+  pub broadcaster: User,
   pub title: String,
   pub winning_outcome_id: String,
   pub outcomes: Vec<Outcome>,
@@ -132,8 +143,8 @@ pub struct PredicitionEndData {
 pub struct GiftData {
   #[serde(flatten)]
   pub user: User,
-  #[serde(flatten)]
-  pub broadcaster: BroadcasterUser,
+  #[serde(flatten, with = "prefix_broadcaster")]
+  pub broadcaster: User,
   pub total: u32,
   pub tier: String,
   pub cumulative_total: u32,
@@ -192,8 +203,8 @@ pub struct AutoRewardData {
 
 #[derive(Serialise, Deserialise, Clone, Debug)]
 pub struct ChannelPointsAutoRewardRedeemData {
-  #[serde(flatten)]
-  pub broadcaster: BroadcasterUser,
+  #[serde(flatten, with = "prefix_broadcaster")]
+  pub broadcaster: User,
   #[serde(flatten)]
   pub user: User,
   pub id: String,
@@ -204,8 +215,8 @@ pub struct ChannelPointsAutoRewardRedeemData {
 pub struct CheerData {
   #[serde(flatten)]
   pub user: User,
-  #[serde(flatten)]
-  pub broadcaster: BroadcasterUser,
+  #[serde(flatten, with = "prefix_broadcaster")]
+  pub broadcaster: User,
   pub is_anonymous: bool,
   pub message: String,
   pub bits: u32,
@@ -215,8 +226,8 @@ pub struct CheerData {
 pub struct FollowData {
   #[serde(flatten)]
   pub user: User,
-  #[serde(flatten)]
-  pub broadcaster: BroadcasterUser,
+  #[serde(flatten, with = "prefix_broadcaster")]
+  pub broadcaster: User,
   pub followed_at: String,
 }
 
@@ -224,8 +235,8 @@ pub struct FollowData {
 pub struct NewSubscriptionData {
   #[serde(flatten)]
   pub user: User,
-  #[serde(flatten)]
-  pub broadcaster: BroadcasterUser,
+  #[serde(flatten, with = "prefix_broadcaster")]
+  pub broadcaster: User,
   pub tier: String,
   pub is_gift: bool,
 }
@@ -234,93 +245,13 @@ pub struct NewSubscriptionData {
 pub struct ResubscriptionData {
   #[serde(flatten)]
   pub user: User,
-  #[serde(flatten)]
-  pub broadcaster: BroadcasterUser,
+  #[serde(flatten, with = "prefix_broadcaster")]
+  pub broadcaster: User,
   pub tier: String,
   pub message: RewardMessageData,
   pub cumulative_months: u32,
   pub streak_months: Option<u32>,
   pub duration_months: u32,
-}
-
-#[derive(Serialise, Deserialise, Clone, Debug)]
-pub struct FromBroadcasterUser {
-  #[serde(rename = "from_broadcaster_user_id")]
-  pub id: String,
-  #[serde(rename = "from_broadcaster_user_login")]
-  pub login: String,
-  #[serde(rename = "from_broadcaster_user_name")]
-  pub name: String,
-}
-
-#[derive(Serialise, Deserialise, Clone, Debug)]
-pub struct ToBroadcasterUser {
-  #[serde(rename = "to_broadcaster_user_id")]
-  pub id: String,
-  #[serde(rename = "to_broadcaster_user_login")]
-  pub login: String,
-  #[serde(rename = "to_broadcaster_user_name")]
-  pub name: String,
-}
-
-#[derive(Serialise, Deserialise, Clone, Debug)]
-pub struct BroadcasterUser {
-  #[serde(rename = "broadcaster_user_id")]
-  pub id: String,
-  #[serde(rename = "broadcaster_user_login")]
-  pub login: String,
-  #[serde(rename = "broadcaster_user_name")]
-  pub name: String,
-}
-
-#[derive(Serialise, Deserialise, Clone, Debug)]
-pub struct RequesterUser {
-  #[serde(rename = "requester_user_id")]
-  pub id: String,
-  #[serde(rename = "requester_user_login")]
-  pub login: String,
-  #[serde(rename = "requester_user_name")]
-  pub name: String,
-}
-
-#[derive(Serialise, Deserialise, Clone, Debug)]
-pub struct RequestUser {
-  #[serde(rename = "request_user_id")]
-  pub id: String,
-  #[serde(rename = "request_user_login")]
-  pub login: String,
-  #[serde(rename = "request_user_name")]
-  pub name: String,
-}
-
-#[derive(Serialise, Deserialise, Clone, Debug)]
-pub struct ThreadUser {
-  #[serde(rename = "thread_user_id")]
-  pub id: String,
-  #[serde(rename = "thread_user_login")]
-  pub login: String,
-  #[serde(rename = "thread_user_name")]
-  pub name: String,
-}
-
-#[derive(Serialise, Deserialise, Clone, Debug)]
-pub struct ParentUser {
-  #[serde(rename = "parent_user_id")]
-  pub id: String,
-  #[serde(rename = "parent_user_login")]
-  pub login: String,
-  #[serde(rename = "parent_user_name")]
-  pub name: String,
-}
-
-#[derive(Serialise, Deserialise, Clone, Debug)]
-pub struct ChatterUser {
-  #[serde(rename = "chatter_user_id")]
-  pub id: String,
-  #[serde(rename = "chatter_user_name")]
-  pub name: String,
-  #[serde(rename = "chatter_user_login")]
-  pub login: String,
 }
 
 #[derive(Serialise, Deserialise, Clone, Debug)]
@@ -335,10 +266,10 @@ pub struct User {
 
 #[derive(Serialise, Deserialise, Clone, Debug)]
 pub struct AdBreakBeginData {
-  #[serde(flatten)]
-  pub broadcaster: BroadcasterUser,
-  #[serde(flatten)]
-  pub requester: RequesterUser,
+  #[serde(flatten, with = "prefix_broadcaster")]
+  pub broadcaster: User,
+  #[serde(flatten, with = "prefix_requester")]
+  pub requester: User,
   pub duration_seconds: u32,
   pub started_at: String,
   pub is_automatic: bool,
@@ -362,10 +293,10 @@ pub enum MessageType {
 
 #[derive(Serialise, Deserialise, Clone, Debug)]
 pub struct MessageData {
-  #[serde(flatten)]
-  pub broadcaster: BroadcasterUser,
-  #[serde(flatten)]
-  pub chatter: ChatterUser,
+  #[serde(flatten, with = "prefix_broadcaster")]
+  pub broadcaster: User,
+  #[serde(flatten, with = "prefix_chatter")]
+  pub chatter: User,
   pub message_id: String,
   pub message: Message,
   #[serde(rename = "color")]
@@ -380,10 +311,10 @@ pub struct MessageData {
 
 #[derive(Serialise, Deserialise, Clone, Debug)]
 pub struct RaidData {
-  #[serde(flatten)]
-  pub from_broadcaster: FromBroadcasterUser,
-  #[serde(flatten)]
-  pub to_broadcaster: ToBroadcasterUser,
+  #[serde(flatten, with = "prefix_from_broadcaster")]
+  pub from_broadcaster: User,
+  #[serde(flatten, with = "prefix_to_broadcaster")]
+  pub to_broadcaster: User,
   pub viewers: u32,
 }
 
@@ -411,8 +342,8 @@ pub struct Choices {
 #[derive(Serialise, Deserialise, Clone, Debug)]
 pub struct PollEndData {
   pub id: String,
-  #[serde(flatten)]
-  pub broadcaster: BroadcasterUser,
+  #[serde(flatten, with = "prefix_broadcaster")]
+  pub broadcaster: User,
   pub title: String,
   pub choices: Vec<Choices>,
   pub bits_voting: BitsVotingData,
@@ -425,8 +356,8 @@ pub struct PollEndData {
 #[derive(Serialise, Deserialise, Clone, Debug)]
 pub struct PollProgressData {
   pub id: String,
-  #[serde(flatten)]
-  pub broadcaster: BroadcasterUser,
+  #[serde(flatten, with = "prefix_broadcaster")]
+  pub broadcaster: User,
   pub title: String,
   pub choices: Vec<Choices>,
   pub bits_voting: BitsVotingData,
@@ -438,8 +369,8 @@ pub struct PollProgressData {
 #[derive(Serialise, Deserialise, Clone, Debug)]
 pub struct PollBeginData {
   pub id: String,
-  #[serde(flatten)]
-  pub braodcaster: BroadcasterUser,
+  #[serde(flatten, with = "prefix_broadcaster")]
+  pub braodcaster: User,
   pub title: String,
   pub choices: Vec<Choices>,
   pub bits_voting: BitsVotingData,
@@ -453,8 +384,8 @@ pub struct CustomPointsRewardRedeemData {
   pub id: String,
   #[serde(flatten)]
   pub user: User,
-  #[serde(flatten)]
-  pub broadcaster: BroadcasterUser,
+  #[serde(flatten, with = "prefix_broadcaster")]
+  pub broadcaster: User,
   pub user_input: String,
   pub status: String,
   pub reward: Reward,

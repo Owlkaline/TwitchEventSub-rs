@@ -32,10 +32,9 @@ pub use crate::modules::{
   errors::EventSubError,
   generic_message::{Badge, Cheer, Event, Reply, Reward, Transport},
   messages::{
-    AdBreakBeginData, AutoRewardType, BroadcasterUser, ChatterUser, CustomPointsRewardRedeemData,
-    FollowData, FromBroadcasterUser, GiftData, MessageData, MessageType, NewSubscriptionData,
-    ParentUser, RaidData, RequestUser, RequesterUser, ResponseType, ResubscriptionData,
-    RewardEmote, RewardMessageData, ThreadUser, ToBroadcasterUser, User,
+    AdBreakBeginData, AutoRewardType, CustomPointsRewardRedeemData, FollowData, GiftData,
+    MessageData, MessageType, NewSubscriptionData, RaidData, ResponseType, ResubscriptionData,
+    RewardEmote, RewardMessageData, User,
   },
   subscriptions::{Condition, EventSubscription, Subscription},
   token::{TokenAccess, TwitchKeys},
@@ -123,8 +122,8 @@ impl TwitchEventSubApiBuilder {
     self.twitch_keys = keys;
   }
 
-  pub fn recieve_all_responses_raw(&mut self, recieve_raw_data: bool) {
-    self.only_raw_responses = recieve_raw_data;
+  pub fn receive_all_responses_raw(&mut self, receive_raw_data: bool) {
+    self.only_raw_responses = receive_raw_data;
   }
 
   pub fn build(mut self) -> Result<TwitchEventSubApi, EventSubError> {
