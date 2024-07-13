@@ -1,4 +1,5 @@
 use std::fs;
+use std::iter;
 use std::net::TcpStream;
 use std::sync::mpsc::{channel, Receiver as SyncReceiver, Sender as SyncSender};
 use std::thread::{self, JoinHandle};
@@ -488,6 +489,33 @@ impl TwitchEventSubApi {
       })
   }
 
+  /// Collect all pending message immediately
+  /// Should be non-blocking
+  ///
+  /// WARNING: Override the duration is just for circumstances
+  /// where you don't want it to consume your entire cpu
+  /// if its the only expensive function running on this thread
+  ///
+  /// Do note setting duration on this function, doesn't mean it will wait
+  /// exactly DURATION time, it has the possibility of never returning if
+  /// duration is high enough and at least one message is sent within the
+  /// set timeout
+  pub fn receive_all_messages(&mut self, override_duration: Option<Duration>) -> Vec<ResponseType> {
+    debug_assert!(
+      override_duration.is_some(),
+      "Warning: This isn't recommended to be setup unless you know what you are doing."
+    );
+    // check thread for new messages without waiting
+    //
+    // return new messages if any
+    iter::from_fn(|| self.receive_single_message(override_duration.unwrap_or(Duration::ZERO)))
+      .collect::<Vec<_>>()
+  }
+
+  ///
+  /// This is the recommended function to use for getting twitch events
+  ///
+  /// This retrieves a single message if there are any messages waiting
   ///
   /// Set duration to Duration::ZERO for completely non-blocking
   ///
@@ -497,17 +525,8 @@ impl TwitchEventSubApi {
   /// For a chat bot I found setting duration to 1 millis was enough
   /// to reduce cpu from 3.2% to 0.8% maximum
   ///
-  pub fn receive_messages(&mut self, duration: Duration) -> Vec<ResponseType> {
-    // check thread for new messages without waiting
-    //
-    // return new messages if any
-    let mut messages = Vec::new();
-
-    if let Ok(message) = self.messages_received.recv_timeout(duration) {
-      messages.push(message);
-    }
-
-    messages
+  pub fn receive_single_message(&mut self, duration: Duration) -> Option<ResponseType> {
+    self.messages_received.recv_timeout(duration).ok()
   }
 
   pub fn delete_message<S: Into<String>>(
