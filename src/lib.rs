@@ -7,6 +7,7 @@ use std::time::Duration;
 use std::sync::{Arc, Mutex};
 
 use crate::modules::consts::*;
+use modules::apitypes::AdSchedule;
 use open;
 use serde::Serialize;
 use std::io::{ErrorKind, Read};
@@ -269,6 +270,12 @@ impl TwitchEventSubApiBuilder {
           }
         }
       }
+      Err(EventSubError::TokenRequiresRefreshing(http)) => {
+        TwitchEventSubApi::regen_token_if_401(
+          Err(EventSubError::TokenRequiresRefreshing(http)),
+          &mut self.twitch_keys,
+        );
+      }
       Err(e) => {
         error!("Failed parsing validation response: {:?}", e);
         return Err(e);
@@ -292,6 +299,7 @@ impl TwitchEventSubApiBuilder {
   }
 }
 
+#[derive(Debug)]
 pub struct TwitchEventSubApi {
   _receive_thread: JoinHandle<()>,
 
@@ -558,8 +566,25 @@ impl TwitchEventSubApi {
     );
   }
 
-  pub fn send_chat_message<S: Into<String>>(&mut self, message: S) {
-    self.send_chat_message_with_reply(message, None);
+  pub fn get_ad_schedule(&mut self) -> Result<AdSchedule, EventSubError> {
+    let access_token = self
+      .twitch_keys
+      .access_token
+      .clone()
+      .expect("Access token not set")
+      .get_token();
+    let client_id = self.twitch_keys.client_id.to_string();
+    let broadcaster_id = self.twitch_keys.broadcaster_account_id.to_string();
+
+    TwitchApi::get_ad_schedule(broadcaster_id, access_token, client_id)
+      .and_then(|x| serde_json::from_str(&x).map_err(|e| EventSubError::ParseError(e.to_string())))
+  }
+
+  pub fn send_chat_message<S: Into<String>>(
+    &mut self,
+    message: S,
+  ) -> Result<String, EventSubError> {
+    self.send_chat_message_with_reply(message, None)
   }
 
   pub fn send_chat_message_with_reply<S: Into<String>>(

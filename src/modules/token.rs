@@ -5,6 +5,7 @@ use crate::modules::errors::*;
 use std::fs;
 use std::io::Write;
 
+#[derive(Debug)]
 pub struct Token {
   pub access: TokenAccess,
   pub refresh: String,
@@ -86,7 +87,7 @@ impl TokenAccess {
 /// When subscribing to events, webhooks uses app access tokens and WebSockets uses user access tokens.
 /// If you use app access tokens with WebSockets, the subscriptions will fail.
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct TwitchKeys {
   //  pub oauth: String,
   pub authorisation_code: Option<String>,

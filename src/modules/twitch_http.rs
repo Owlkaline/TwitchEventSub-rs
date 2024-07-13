@@ -11,7 +11,23 @@ use crate::modules::{
 pub struct TwitchApi;
 
 impl TwitchApi {
-  /// Returns EventSubError::
+  pub fn get_ad_schedule<S: Into<String>, T: Into<String>, X: Into<String>>(
+    broadcaster_id: X,
+    access_token: S,
+    client_id: T,
+  ) -> Result<String, EventSubError> {
+    let url = RequestBuilder::new()
+      .add_key_value("broadcaster_id", broadcaster_id.into())
+      .build(GET_AD_SCHEDULE_URL);
+
+    let a = TwitchHttpRequest::new(url)
+      .header_authorisation(access_token.into(), AuthType::Bearer)
+      .header_client_id(client_id.into())
+      .run();
+    println!("Result: {:?}", a);
+    a
+  }
+
   pub fn send_chat_message<S: Into<String>, T: Into<String>, V: Into<String>, X: Into<String>>(
     message: S,
     access_token: T,
