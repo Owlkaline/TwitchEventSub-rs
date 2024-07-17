@@ -9,16 +9,11 @@ use std::io::Write;
 pub struct Token {
   pub access: TokenAccess,
   pub refresh: String,
-  //  expires_in: f32,
 }
 
 impl Token {
   pub fn new(access: TokenAccess, refresh: String, _expires_in: f32) -> Token {
-    Token {
-      access,
-      refresh,
-      //    expires_in,
-    }
+    Token { access, refresh }
   }
 
   pub fn save_to_file<S: Into<String>, T: Into<String>>(
@@ -101,6 +96,16 @@ pub struct TwitchKeys {
 }
 
 impl TwitchKeys {
+  pub fn token(&self) -> Option<Token> {
+    if let (Some(access), Some(refresh)) =
+      (self.access_token.to_owned(), self.refresh_token.to_owned())
+    {
+      Some(Token { access, refresh })
+    } else {
+      None
+    }
+  }
+
   pub fn from_secrets_env() -> Result<TwitchKeys, TwitchKeysError> {
     simple_env_load::load_env_from([".example.env", ".secrets.env"]);
 

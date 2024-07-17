@@ -20,12 +20,10 @@ impl TwitchApi {
       .add_key_value("broadcaster_id", broadcaster_id.into())
       .build(GET_AD_SCHEDULE_URL);
 
-    let a = TwitchHttpRequest::new(url)
+    TwitchHttpRequest::new(url)
       .header_authorisation(access_token.into(), AuthType::Bearer)
       .header_client_id(client_id.into())
-      .run();
-    println!("Result: {:?}", a);
-    a
+      .run()
   }
 
   pub fn send_chat_message<S: Into<String>, T: Into<String>, V: Into<String>, X: Into<String>>(
@@ -437,7 +435,6 @@ impl TwitchHttpRequest {
 
     let data = String::from_utf8_lossy(&data).to_string();
     if let Ok(error) = serde_json::from_str::<Validation>(&data) {
-      //println!("{:#?}", error);
       if error.is_error() {
         if error.status.unwrap() == 401 {
           // Regen access token

@@ -271,10 +271,14 @@ impl TwitchEventSubApiBuilder {
         }
       }
       Err(EventSubError::TokenRequiresRefreshing(http)) => {
-        TwitchEventSubApi::regen_token_if_401(
+        warn!("Checking validation failed as token needs refreshing");
+        if let Err(error) = TwitchEventSubApi::regen_token_if_401(
           Err(EventSubError::TokenRequiresRefreshing(http)),
           &mut self.twitch_keys,
-        );
+          &self.auto_save_load_created_tokens,
+        ) {
+          return Err(error);
+        }
       }
       Err(e) => {
         error!("Failed parsing validation response: {:?}", e);
@@ -306,6 +310,7 @@ pub struct TwitchEventSubApi {
   messages_received: SyncReceiver<ResponseType>,
   twitch_keys: TwitchKeys,
   _token: Arc<Mutex<Token>>,
+  save_locations: Option<(String, String)>,
 }
 
 impl TwitchEventSubApi {
@@ -353,6 +358,7 @@ impl TwitchEventSubApi {
         subscriptions,
         custom_subscription_data,
         keys_clone,
+        None,
       )
     });
 
@@ -361,6 +367,7 @@ impl TwitchEventSubApi {
       messages_received: receive_message,
       twitch_keys,
       _token: token,
+      save_locations: None,
     })
   }
 
@@ -440,6 +447,7 @@ impl TwitchEventSubApi {
   fn regen_token_if_401(
     result: Result<String, EventSubError>,
     twitch_keys: &mut TwitchKeys,
+    auto_save_load_created_tokens: &Option<(String, String)>,
   ) -> Result<String, EventSubError> {
     //warn!("Token return 401!");
     if let Err(EventSubError::TokenRequiresRefreshing(mut http_request)) = result {
@@ -453,6 +461,17 @@ impl TwitchEventSubApi {
         info!("Generated new keys as 401 was returned!");
         twitch_keys.access_token = Some(token.access);
         twitch_keys.refresh_token = Some(token.refresh.to_owned());
+      }
+
+      // TODO: SAVE
+      if let Some((token_file, refresh_file)) = auto_save_load_created_tokens {
+        info!("saving tokens");
+        if let Some(new_token) = twitch_keys.token() {
+          if let Err(e) = new_token.save_to_file(token_file, refresh_file) {
+            warn!("Failed to save tokens to file!");
+            return Err(e);
+          }
+        }
       }
 
       let access_token = twitch_keys.access_token.as_ref().unwrap();
@@ -551,6 +570,7 @@ impl TwitchEventSubApi {
         client_id,
       ),
       &mut self.twitch_keys,
+      &self.save_locations,
     )
   }
 
@@ -581,6 +601,7 @@ impl TwitchEventSubApi {
         reason.into(),
       ),
       &mut self.twitch_keys,
+      &self.save_locations,
     );
   }
 
@@ -635,6 +656,7 @@ impl TwitchEventSubApi {
         reply_message_parent_id,
       ),
       &mut self.twitch_keys,
+      &self.save_locations,
     )
   }
 
@@ -677,6 +699,7 @@ impl TwitchEventSubApi {
     subscriptions: Vec<Subscription>,
     mut custom_subscriptions: Vec<String>,
     mut twitch_keys: TwitchKeys,
+    save_locations: Option<(String, String)>,
   ) {
     loop {
       let client = client.clone();
@@ -734,7 +757,13 @@ impl TwitchEventSubApi {
                       .is_post(sub_data)
                       .run()
                   })
-                  .map(|a| TwitchEventSubApi::regen_token_if_401(a, &mut clone_twitch_keys))
+                  .map(|a| {
+                    TwitchEventSubApi::regen_token_if_401(
+                      a,
+                      &mut clone_twitch_keys,
+                      &save_locations,
+                    )
+                  })
                   .filter_map(Result::err)
                   .for_each(|error| {
                     error!("{:?}", error);
@@ -755,6 +784,26 @@ impl TwitchEventSubApi {
             }
             EventMessageType::KeepAlive => {
               //println!("Keep alive receive message sent, !implemented");
+            }
+            EventMessageType::Reconnect => {
+              let url = message
+                .clone()
+                .payload
+                .unwrap()
+                .session
+                .unwrap()
+                .reconnect_url
+                .unwrap();
+
+              *client = ClientBuilder::new(&url)
+                .unwrap()
+                .add_protocol("rust-websocket-events")
+                .connect_secure(None)
+                .expect(
+                  "Failed to reconnect to new url after recieving reocnnect message from twitch.",
+                );
+
+              //client = ClientBuilder::from_url(url).connect(ssl_config)
             }
             EventMessageType::Notification => {
               message_sender

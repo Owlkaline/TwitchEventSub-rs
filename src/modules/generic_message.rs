@@ -268,7 +268,7 @@ pub enum EventMessageType {
   Welcome,
   KeepAlive,
   Notification,
-  //  Reconnect,
+  Reconnect,
   Unknown,
 }
 
@@ -278,6 +278,7 @@ impl EventMessageType {
       "session_welcome" => EventMessageType::Welcome,
       "session_keepalive" => EventMessageType::KeepAlive,
       "notification" => EventMessageType::Notification,
+      "session_reconnect" => EventMessageType::Reconnect,
       _ => EventMessageType::Unknown,
     }
   }

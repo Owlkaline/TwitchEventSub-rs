@@ -142,12 +142,12 @@ pub struct PredicitionEndData {
 #[derive(Serialise, Deserialise, Clone, Debug)]
 pub struct GiftData {
   #[serde(flatten)]
-  pub user: User,
+  pub user: OptionalUser,
   #[serde(flatten, with = "prefix_broadcaster")]
   pub broadcaster: User,
   pub total: u32,
   pub tier: String,
-  pub cumulative_total: u32,
+  pub cumulative_total: Option<u32>,
   pub is_anonymous: bool,
 }
 
@@ -196,9 +196,6 @@ pub struct AutoRewardData {
   pub kind: AutoRewardType,
   pub cost: u32,
   pub unlocked_emote: Option<UnlockedEmote>,
-  pub message: RewardMessageData,
-  pub user_input: Option<String>,
-  pub redeemed_at: String,
 }
 
 #[derive(Serialise, Deserialise, Clone, Debug)]
@@ -209,6 +206,9 @@ pub struct ChannelPointsAutoRewardRedeemData {
   pub user: User,
   pub id: String,
   pub reward: AutoRewardData,
+  pub message: RewardMessageData,
+  pub user_input: Option<String>,
+  pub redeemed_at: String,
 }
 
 #[derive(Serialise, Deserialise, Clone, Debug)]
@@ -252,6 +252,16 @@ pub struct ResubscriptionData {
   pub cumulative_months: u32,
   pub streak_months: Option<u32>,
   pub duration_months: u32,
+}
+
+#[derive(Serialise, Deserialise, Clone, Debug)]
+pub struct OptionalUser {
+  #[serde(rename = "user_id")]
+  pub id: Option<String>,
+  #[serde(rename = "user_name")]
+  pub name: Option<String>,
+  #[serde(rename = "user_login")]
+  pub login: Option<String>,
 }
 
 #[derive(Serialise, Deserialise, Clone, Debug)]
