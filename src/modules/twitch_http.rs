@@ -436,6 +436,11 @@ impl TwitchHttpRequest {
     let data = String::from_utf8_lossy(&data).to_string();
     if let Ok(error) = serde_json::from_str::<Validation>(&data) {
       if error.is_error() {
+        if error.status.unwrap() == 429 {
+          return Err(EventSubError::MaximumWebsocketTransmissionsExceeded(
+            error.error_msg(),
+          ));
+        }
         if error.status.unwrap() == 401 {
           // Regen access token
           // Re run the query

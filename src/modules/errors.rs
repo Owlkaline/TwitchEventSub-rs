@@ -32,6 +32,7 @@ pub enum EventSubError {
   CurlFailed(curl::Error),
   ParseError(String),
   TokenRequiresRefreshing(TwitchHttpRequest),
+  MaximumWebsocketTransmissionsExceeded(String),
 }
 
 #[derive(Debug)]
