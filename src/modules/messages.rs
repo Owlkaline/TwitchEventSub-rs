@@ -167,7 +167,7 @@ pub struct RewardEmote {
 #[derive(Serialise, Deserialise, Clone, Debug)]
 pub struct RewardMessageData {
   pub text: String,
-  pub emotes: Vec<RewardEmote>,
+  pub emotes: Option<Vec<RewardEmote>>,
 }
 
 #[derive(Serialise, Deserialise, Clone, Debug)]
@@ -247,8 +247,8 @@ pub struct ResubscriptionData {
   pub user: User,
   #[serde(flatten, with = "prefix_broadcaster")]
   pub broadcaster: User,
-  pub tier: String,
   pub message: RewardMessageData,
+  pub tier: String,
   pub cumulative_months: u32,
   pub streak_months: Option<u32>,
   pub duration_months: u32,
@@ -264,6 +264,7 @@ pub struct OptionalUser {
   pub login: Option<String>,
 }
 
+#[repr(C)]
 #[derive(Serialise, Deserialise, Clone, Debug)]
 pub struct User {
   #[serde(rename = "user_id")]
@@ -285,6 +286,7 @@ pub struct AdBreakBeginData {
   pub is_automatic: bool,
 }
 
+#[repr(u8)]
 #[derive(Serialise, Deserialise, Clone, Debug)]
 pub enum MessageType {
   #[serde(rename = "text")]
@@ -301,6 +303,7 @@ pub enum MessageType {
   PowerUpsGigantifiedEmote,
 }
 
+#[repr(C)]
 #[derive(Serialise, Deserialise, Clone, Debug)]
 pub struct MessageData {
   #[serde(flatten, with = "prefix_broadcaster")]

@@ -9,4 +9,5 @@ crate-type = ["dylib"]
 
 [dependencies]
 rand = "*"
+serde_json = "*"
 twitch_eventsub = { git="https://github.com/lilith645/TwitchEventSub-rs.git" }

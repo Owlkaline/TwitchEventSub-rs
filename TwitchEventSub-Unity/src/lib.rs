@@ -63,26 +63,45 @@ pub extern "C" fn create_twitch_events() -> *mut TwitchEventSubApiBuilder {
   unsafe { transmute(Box::new(twitch)) }
 }
 
+#[repr(C)]
+pub struct EventData {
+  pub kind: CString,
+  pub json: CString,
+}
+
+impl EventData {
+  pub fn new() -> EventData {
+    EventData {
+      kind: CString::new("").unwrap(),
+      json: CString::new("").unwrap(),
+    }
+  }
+}
+
 #[no_mangle]
-pub extern "C" fn get_event(twitch: *mut TwitchEvents) -> CString {
+pub extern "C" fn get_event(twitch: *mut TwitchEvents) -> EventData {
   let twitch = unsafe { &mut *twitch };
+  let mut event = EventData::new();
 
   for response in twitch.api.receive_all_messages(None) {
     match response {
-      ResponseType::Event(event) => match event {
+      ResponseType::Event(event_a) => match event_a {
         Event::ChatMessage(message_data) => {
           println!("chat message recieved");
-          return CString::new(message_data.message.text).unwrap();
+          event.kind = CString::new("ChatMessage").unwrap();
+          event.json = CString::new(serde_json::to_string(&message_data).unwrap()).unwrap();
         }
         _ => {}
       },
       ResponseType::RawResponse(raw_string) => {
-        return CString::new(raw_string).unwrap();
+        event.kind = CString::new("RawResponse").unwrap();
+        event.json = CString::new(raw_string).unwrap();
       }
       _ => {}
     }
   }
-  CString::new("").unwrap()
+
+  event
 }
 
 #[no_mangle]

@@ -116,6 +116,7 @@ pub struct GMSubscription {
   pub event: Option<Event>,
 }
 
+#[repr(C)]
 #[derive(Serialise, Deserialise, Debug, Clone)]
 pub struct Mention {
   user_id: String,
@@ -123,6 +124,7 @@ pub struct Mention {
   user_name: String,
 }
 
+#[repr(C)]
 #[derive(Serialise, Deserialise, Debug, Clone)]
 pub struct Emote {
   id: String,
@@ -131,6 +133,7 @@ pub struct Emote {
   format: Option<Vec<String>>,
 }
 
+#[repr(C)]
 #[derive(Serialise, Deserialise, Debug, Clone)]
 pub struct CheerMote {
   prefix: String,
@@ -138,6 +141,7 @@ pub struct CheerMote {
   tier: u32,
 }
 
+#[repr(C)]
 #[derive(Serialise, Deserialise, Debug, Clone)]
 pub struct Fragments {
   #[serde(rename = "type")]
@@ -178,12 +182,14 @@ impl Message {
   }
 }
 
+#[repr(C)]
 #[derive(Serialise, Deserialise, Debug, Clone)]
 pub struct Message {
   pub text: String,
   pub fragments: Vec<Fragments>,
 }
 
+#[repr(C)]
 #[derive(Serialise, Deserialise, Debug, Clone)]
 pub struct Badge {
   pub set_id: String,
@@ -191,6 +197,7 @@ pub struct Badge {
   pub info: String,
 }
 
+#[repr(C)]
 #[derive(Serialise, Deserialise, Debug, Clone)]
 pub struct Reply {
   #[serde(flatten, with = "prefix_thread")]
@@ -210,6 +217,7 @@ pub struct Reward {
   pub cost: u32,
 }
 
+#[repr(C)]
 #[derive(Serialise, Deserialise, Debug, Clone)]
 pub struct Cheer {
   pub bits: u32,
