@@ -33,8 +33,8 @@ pub use crate::modules::{
   generic_message::{Badge, Cheer, Event, Reply, Reward, Transport},
   messages::{
     AdBreakBeginData, AutoRewardType, CustomPointsRewardRedeemData, FollowData, GiftData,
-    MessageData, MessageType, NewSubscriptionData, RaidData, ResponseType, ResubscriptionData,
-    RewardEmote, RewardMessageData, User,
+    MessageData, MessageType, NewSubscriptionData, OptionalUser, RaidData, ResponseType,
+    ResubscriptionData, RewardEmote, RewardMessageData, User,
   },
   subscriptions::{Condition, EventSubscription, Subscription},
   token::{TokenAccess, TwitchKeys},
