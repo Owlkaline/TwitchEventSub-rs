@@ -5,8 +5,10 @@ use log::{error, info};
 
 use crate::modules::{
   consts::*,
-  generic_message::{SendTimeoutRequest, TimeoutRequestData},
+  //  generic_message::{SendTimeoutRequest, TimeoutRequestData};
 };
+
+use twitch_eventsub_structs::*;
 
 pub struct TwitchApi;
 

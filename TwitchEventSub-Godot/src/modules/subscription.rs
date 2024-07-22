@@ -69,7 +69,7 @@ impl From<GiftData> for GGift {
       broadcaster: Gd::from_object(GUser::from(gift.broadcaster)),
       total: gift.total,
       tier: gift.tier.into(),
-      cumulative_total: gift.cumulative_total,
+      cumulative_total: gift.cumulative_total.unwrap_or(0),
       is_anonymous: gift.is_anonymous,
     }
   }
@@ -81,6 +81,7 @@ impl From<RewardMessageData> for GRewardMessage {
       text: reward_message.text.into(),
       emotes: reward_message
         .emotes
+        .unwrap_or(Vec::new())
         .iter()
         .map(|e| Gd::from_object(GRewardEmote::from(e.clone())))
         .collect::<Array<_>>(),

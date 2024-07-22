@@ -10,7 +10,6 @@ use std::sync::{Arc, Mutex};
 use crate::modules::consts::*;
 use modules::apitypes::AdSchedule;
 use open;
-use serde::Serialize;
 use std::io::{ErrorKind, Read};
 
 use websocket::client::ClientBuilder;
@@ -20,26 +19,36 @@ use websocket::{sync::Client, OwnedMessage};
 
 use std::net::TcpListener;
 
+#[macro_use]
+extern crate twitch_eventsub_structs;
+pub use twitch_eventsub_structs::*;
+
 mod modules;
 
-use crate::modules::{errors::*, generic_message::*, token::Token};
+use crate::modules::{errors::*, token::Token};
 
 pub use log::{error, info, warn};
 
-use serde_derive::{Deserialize as Deserialise, Serialize as Serialise};
-
 pub use crate::modules::{
   errors::EventSubError,
-  generic_message::{Badge, Cheer, Event, Reply, Reward, Transport},
-  messages::{
-    AdBreakBeginData, AutoRewardType, CustomPointsRewardRedeemData, FollowData, GiftData,
-    MessageData, MessageType, NewSubscriptionData, OptionalUser, RaidData, ResponseType,
-    ResubscriptionData, RewardEmote, RewardMessageData, User,
-  },
-  subscriptions::{Condition, EventSubscription, Subscription},
+  //generic_message::{Badge, Cheer, Event, Reply, Reward, Transport},
+  //messages::{
+  //  AdBreakBeginData, AutoRewardType, CustomPointsRewardRedeemData, FollowData, GiftData,
+  //  MessageData, MessageType, NewSubscriptionData, OptionalUser, RaidData, ResponseType,
+  //  ResubscriptionData, RewardEmote, RewardMessageData, User,
+  //},
+  //subscriptions::{Condition, EventSubscription, Subscription},
   token::{TokenAccess, TwitchKeys},
   twitch_http::{AuthType, RequestType, TwitchApi, TwitchHttpRequest},
 };
+
+#[derive(Debug)]
+pub enum ResponseType {
+  Event(Event),
+  Error(EventSubError),
+  RawResponse(String),
+  Close,
+}
 
 #[must_use]
 pub struct TwitchEventSubApiBuilder {
@@ -742,7 +751,9 @@ impl TwitchEventSubApi {
               if !is_reconnecting {
                 let mut sub_data = subscriptions
                   .iter()
-                  .filter_map(|s| s.construct_data(&session_id, &twitch_keys))
+                  .filter_map(|s| {
+                    s.construct_data(&session_id, &twitch_keys.broadcaster_account_id)
+                  })
                   .filter_map(|s| serde_json::to_string(&s).ok())
                   .collect::<Vec<_>>();
                 sub_data.append(&mut custom_subscriptions);

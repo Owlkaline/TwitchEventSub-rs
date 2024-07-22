@@ -91,6 +91,13 @@ pub struct GdResubscriptionContainer {
   pub data: Gd<GResubscription>,
 }
 
+#[derive(GodotClass, Debug, GodotConvert)]
+#[godot(transparent)]
+#[class(init)]
+pub struct GdCheerContainer {
+  pub data: Gd<GCheer>,
+}
+
 #[godot_api]
 impl TwitchEvent {
   #[signal]
@@ -122,6 +129,9 @@ impl TwitchEvent {
 
   #[signal]
   fn resubscription(subscription: GdResubscriptionContainer);
+
+  #[signal]
+  fn cheer(cheer: GdCheerContainer);
 }
 
 #[godot_api]
@@ -145,6 +155,7 @@ impl INode for TwitchEvent {
       .add_subscription(Subscription::AdBreakBegin)
       .add_subscription(Subscription::ChannelRaid)
       .add_subscription(Subscription::ChannelFollow)
+      .add_subscription(Subscription::ChannelCheer)
       .build()
       .unwrap();
     self.twitch = Some(twitch);
@@ -152,7 +163,7 @@ impl INode for TwitchEvent {
 
   fn process(&mut self, _delta: f64) {
     if let Some(ref mut api) = &mut self.twitch {
-      for message in api.receive_messages(Duration::ZERO) {
+      if let Some(message) = api.receive_single_message(Duration::ZERO) {
         match message {
           ResponseType::Event(event) => match event {
             Event::ChatMessage(message_data) => {
@@ -231,6 +242,11 @@ impl INode for TwitchEvent {
                 }
                 .to_variant()],
               );
+            }
+            Event::Cheer(cheer) => {
+              self.base_mut().emit_signal("cheer".into(), &[GdCheerContainer {
+                data: Gd::from_object(GCheer::from(cheer));
+              }])
             }
             _ => {}
           },

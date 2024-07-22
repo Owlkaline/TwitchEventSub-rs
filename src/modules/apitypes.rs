@@ -1,11 +1,15 @@
-use crate::{Deserialise, Serialise};
+//use twitch_eventsub_structs::serde::{Deserialize as Deserialise, Serialize as Serialise};
+#[macro_use]
+use crate::serde::{self, Deserialize as Deserialise, Serialize as Serialise};
 
 #[derive(Serialise, Deserialise, Debug)]
+#[serde(crate = "self::serde")]
 pub struct AdSchedule {
   pub data: Vec<AdDetails>,
 }
 
 #[derive(Serialise, Deserialise, Debug)]
+#[serde(crate = "self::serde")]
 pub struct AdDetails {
   pub next_ad_at: u32,
   pub last_ad_at: u32,

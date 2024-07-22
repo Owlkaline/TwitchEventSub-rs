@@ -5,13 +5,16 @@ edition = "2021"
 description = "A library that handles everything with Twitch EventSub helix api for you."
 repository = "https://github.com/lilith645/TwitchEventSub-rs.git"
 authors = ["Owlkaline"]
-categories = ["api-bindings", "web-programming::websocket", "authentication", "network-programming"]
+categories = [
+  "api-bindings",
+  "web-programming::websocket",
+  "authentication",
+  "network-programming",
+]
 keywords = ["Twitch", "EventSub", "oauth", "api", "websocket"]
 resolver = "2"
 license = "MIT"
-exclude = [
-  "examples"
-]
+exclude = ["examples"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [features]
@@ -21,14 +24,10 @@ only_raw_responses = []
 [dependencies]
 websocket = "0.27.1"
 enum_all_variants = "0.2.0"
-serde_json = "1.0.117"
-serde = "1.0.117"
-serde_derive = "1.0.117"
-serde_with = "3.8.3"
 curl = "0.4.46"
 sysinfo = "0.30.12"
 open = "5.1.4"
 simple_env_load = "0.2.0"
 simple-logging = "2.0.2"
 log = "0.4"
-godot = { version = "0.1.1", optional = true }
+twitch_eventsub_structs = { git = "https://github.com/Owlkaline/TwitchEventSubStructs.git" }
