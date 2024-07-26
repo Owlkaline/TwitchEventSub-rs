@@ -742,8 +742,6 @@ impl TwitchEventSubApi {
 
           let message: GenericMessage = message.unwrap();
 
-          //println!("{:#?}", message);
-
           match message.event_type() {
             EventMessageType::Welcome => {
               let session_id = message.clone().payload.unwrap().session.unwrap().id;
@@ -801,6 +799,8 @@ impl TwitchEventSubApi {
               //println!("Keep alive receive message sent, !implemented");
             }
             EventMessageType::Reconnect => {
+              println!("Reconnecting to Twitch!");
+              info!("Reconnecting to Twitch!");
               let url = message
                 .clone()
                 .payload
@@ -818,8 +818,6 @@ impl TwitchEventSubApi {
                 .expect(
                   "Failed to reconnect to new url after recieving reocnnect message from twitch.",
                 );
-
-              //client = ClientBuilder::from_url(url).connect(ssl_config)
             }
             EventMessageType::Notification => {
               message_sender
