@@ -8,7 +8,7 @@ use crate::modules::GUser;
 #[class(init)]
 pub struct GAdBreakBegin {
   #[var]
-  broadcast: Gd<GUser>,
+  broadcaster: Gd<GUser>,
   #[var]
   requester: Gd<GUser>,
   #[var]
@@ -22,7 +22,7 @@ pub struct GAdBreakBegin {
 impl From<AdBreakBeginData> for GAdBreakBegin {
   fn from(ad: AdBreakBeginData) -> Self {
     GAdBreakBegin {
-      broadcast: Gd::from_object(GUser::from(ad.broadcaster)),
+      broadcaster: Gd::from_object(GUser::from(ad.broadcaster)),
       requester: Gd::from_object(GUser::from(ad.requester)),
       duration_seconds: ad.duration_seconds,
       started_at: ad.started_at.to_owned().into(),
