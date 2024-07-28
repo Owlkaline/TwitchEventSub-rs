@@ -52,7 +52,6 @@ fn main() {
          panic!("No subscriptions passed into builder!");
        }
        Err(EventSubError::NoScopedOuthTokenProvided) => {
-         // Provide a Scopeid Oauth key or get a new one
          panic!("Provide a Scoped Oauth key or get a new one");
        }
        Err(e) => {
@@ -76,7 +75,10 @@ fn main() {
             let message = message_data.message;
             let username = message_data.username;
             println!("{} said: {}", username, message);
-            api.send_chat_message(MessageType::ChannelMessage(format!("Thank you for chatting {}!", username)));
+            api.send_chat_message(MessageType::ChannelMessage(format!(
+              "Thank you for chatting {}!",
+              username
+            )));
           }
           Event::PointsCustomRewardRedeem(reward) => {
             println!(
