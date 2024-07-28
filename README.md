@@ -42,15 +42,13 @@ fn main() {
      match event_sub_api.build() {
        Ok(api) => api,
        Err(EventSubError::TokenMissingScope) => {
-         panic!("Reauthorisation of toke is required for the token to have all the requested subscriptions.");
+         panic!("Reauthorisation of token is required for the token to have all the requested subscriptions.");
        }
        Err(EventSubError::NoSubscriptionsRequested) => {
-         panic!("No subsciptions passed into builder!");
+         panic!("No subscriptions passed into builder!");
        }
        Err(EventSubError::NoScopedOuthTokenProvided) => {
-         // Provide a Scoped Oauth key or get a new one
-
-         panic!("");
+         panic!("Provide a Scoped Oauth key or get a new one");
        }
        Err(e) => {
          // some other error
@@ -73,9 +71,12 @@ fn main() {
             let message = message_data.message;
             let username = message_data.username;
             println!("{} said: {}", username, message);
-            api.send_chat_message(MessageType::ChannelMessage(format!("Thank you for chatting {}!", username)));
+            api.send_chat_message(MessageType::ChannelMessage(format!(
+              "Thank you for chatting {}!",
+              username
+            )));
           }
-          Event::PointsCustomRewardRedeem(rewaard) => {
+          Event::PointsCustomRewardRedeem(reward) => {
             println!(
               "{} redeemed {} with {} Channel Points: {}",
               reward.chatter.name, reward.reward.title, reward.reward.cost, reward.user_input,
