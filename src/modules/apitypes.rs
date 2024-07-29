@@ -29,7 +29,7 @@ pub struct Pagination {
 
 #[derive(Serialise, Deserialise, Debug)]
 #[serde(crate = "self::serde")]
-pub struct ChatterInformation {
+pub struct GetChatters {
   pub data: Vec<User>,
   pub pagination: Pagination,
   pub total: i32,

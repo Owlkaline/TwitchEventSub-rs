@@ -8,8 +8,6 @@ use std::time::Duration;
 use std::sync::{Arc, Mutex};
 
 use crate::modules::consts::*;
-use modules::apitypes::AdSchedule;
-use modules::apitypes::ChatterInformation;
 use open;
 use std::io::{ErrorKind, Read};
 
@@ -31,6 +29,7 @@ use crate::modules::{errors::*, token::Token};
 pub use log::{error, info, warn};
 
 pub use crate::modules::{
+  apitypes::*,
   errors::EventSubError,
   //generic_message::{Badge, Cheer, Event, Reply, Reward, Transport},
   //messages::{
@@ -629,7 +628,7 @@ impl TwitchEventSubApi {
       .and_then(|x| serde_json::from_str(&x).map_err(|e| EventSubError::ParseError(e.to_string())))
   }
 
-  pub fn get_chatters(&mut self) -> Result<ChatterInformation, EventSubError> {
+  pub fn get_chatters(&mut self) -> Result<GetChatters, EventSubError> {
     let access_token = self
       .twitch_keys
       .access_token
@@ -645,10 +644,7 @@ impl TwitchEventSubApi {
       access_token,
       client_id,
     )
-    .and_then(|x| {
-      println!("{}", x);
-      serde_json::from_str(&x).map_err(|e| EventSubError::ParseError(e.to_string()))
-    })
+    .and_then(|x| serde_json::from_str(&x).map_err(|e| EventSubError::ParseError(e.to_string())))
   }
 
   pub fn send_chat_message<S: Into<String>>(
