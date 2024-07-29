@@ -1,10 +1,13 @@
 # TwitchEventSub-rs
+
 A simple rust library for dealing with that pesky twitch api, specifically event subs.
 
 ## Quick Start
+
 ### Setting up authentication keys.
 
 Create a .secrets.env or .example.env file in working directory with the following filled out:
+
 ```dotenv
 // Required
 TWITCH_CLIENT_ID = "CLIENT_ID from twitch console app"
@@ -13,6 +16,7 @@ TWITCH_BROADCASTER_ID = "Your broadcaster ID as numbers"
 ```
 
 ### Example Usage
+
 ```Rust
 use twitch_eventsub::*;
 
@@ -42,15 +46,14 @@ fn main() {
      match event_sub_api.build() {
        Ok(api) => api,
        Err(EventSubError::TokenMissingScope) => {
-         panic!("Reauthorisation of toke is required for the token to have all the requested subscriptions.");
+         panic!("Reauthorisation of token is required for the token to have all the requested subscriptions.");
        }
        Err(EventSubError::NoSubscriptionsRequested) => {
-         panic!("No subsciptions passed into builder!");
+         panic!("No subscriptions passed into builder!");
        }
        Err(EventSubError::NoScopedOuthTokenProvided) => {
-         // Provide a Scoped Oauth key or get a new one
-
-         panic!("");
+         // Provide a Scopeid Oauth key or get a new one
+         panic!("Provide a Scoped Oauth key or get a new one");
        }
        Err(e) => {
          // some other error
@@ -75,7 +78,7 @@ fn main() {
             println!("{} said: {}", username, message);
             api.send_chat_message(MessageType::ChannelMessage(format!("Thank you for chatting {}!", username)));
           }
-          Event::PointsCustomRewardRedeem(rewaard) => {
+          Event::PointsCustomRewardRedeem(reward) => {
             println!(
               "{} redeemed {} with {} Channel Points: {}",
               reward.chatter.name, reward.reward.title, reward.reward.cost, reward.user_input,
@@ -91,15 +94,18 @@ fn main() {
   }
 }
 ```
+
 ## Godot Example
+
 1. Grab the compiled binaries and .gdextension file from release or compile your own
 2. Paste them into the root directory of your project and click reload project
-3. Add a single TwitchEvent Object  to your scene
+3. Add a single TwitchEvent Object to your scene
 4. Select it, and on the right side of the editor, next to the inspector tab click the node tab
 5. In this tab you will see all avaiable twitch event signals
 6. Double click on the one you want and add it to a script!
 
 The result should look similar to the following:
+
 ```GDScript
 extends Sprite2D
 
@@ -125,12 +131,15 @@ func _on_twitch_event_custom_point_reward_redeem(reward: GReward):
 ```
 cargo build --release
 ```
+
 ## FAQ
 
-* Error redirect url does not match!
+- Error redirect url does not match!
+
 ```
  Parameter+redirect_uri+does+not+match+registered+URI error
 ```
+
 If you are recieving this error, you havve most likely forgotten to include the http:// prefix of your app redirect_url, as it has to match EXACTLY with what you have put as the OAuth Redirect URLs in the Twitch Console of your App.
 
 ## License
