@@ -10,7 +10,8 @@ use twitch_eventsub::*;
 
 mod modules;
 use crate::modules::{
-  adbreak::*, cheer::*, follow::*, messages::*, raid::*, redeems::*, subscription::*,
+  adbreak::*, cheer::*, follow::*, getchatters::*, messages::*, raid::*, redeems::*,
+  subscription::*,
 };
 
 struct TwitchApi;
@@ -88,11 +89,13 @@ struct TwitchEvent {
   #[export]
   shoutout_receive: bool,
   #[export]
-  ban_timeout_user: bool,
-  #[export]
-  delete_message: bool,
-  #[export]
   ad_break_begin: bool,
+  #[export]
+  permission_ban_timeout_user: bool,
+  #[export]
+  permission_delete_message: bool,
+  #[export]
+  permission_read_chatters: bool,
   twitch: Option<TwitchEventSubApi>,
   base: Base<Node>,
 }
@@ -160,6 +163,13 @@ pub struct GdCheerContainer {
   pub data: Gd<GCheerData>,
 }
 
+#[derive(GodotClass, Debug, GodotConvert)]
+#[godot(transparent)]
+#[class(init)]
+pub struct GdGetChattersContainer {
+  pub data: Gd<GGetChatters>,
+}
+
 #[godot_api]
 impl TwitchEvent {
   #[signal]
@@ -194,6 +204,13 @@ impl TwitchEvent {
 
   #[signal]
   fn cheer(cheer: GdCheerContainer);
+
+  #[func]
+  pub fn get_chatters(&mut self) -> Gd<GGetChatters> {
+    Gd::from_object(GGetChatters::from(
+      self.twitch.as_mut().unwrap().get_chatters().unwrap(),
+    ))
+  }
 }
 
 #[godot_api]
@@ -227,10 +244,11 @@ impl INode for TwitchEvent {
       hype_train_end: false,
       shoutout_create: false,
       shoutout_receive: false,
-      ban_timeout_user: false,
-      delete_message: false,
       ad_break_begin: true,
       chat_message: true,
+      permission_ban_timeout_user: false,
+      permission_delete_message: false,
+      permission_read_chatters: false,
       base,
     }
   }
@@ -324,17 +342,20 @@ impl INode for TwitchEvent {
     if self.shoutout_receive {
       twitch = twitch.add_subscription(Subscription::ChannelShoutoutReceive);
     }
-    if self.ban_timeout_user {
-      twitch = twitch.add_subscription(Subscription::BanTimeoutUser);
-    }
-    if self.delete_message {
-      twitch = twitch.add_subscription(Subscription::DeleteMessage);
-    }
     if self.ad_break_begin {
       twitch = twitch.add_subscription(Subscription::AdBreakBegin);
     }
     if self.chat_message {
       twitch = twitch.add_subscription(Subscription::ChatMessage);
+    }
+    if self.permission_ban_timeout_user {
+      twitch = twitch.add_subscription(Subscription::PermissionBanTimeoutUser);
+    }
+    if self.permission_delete_message {
+      twitch = twitch.add_subscription(Subscription::PermissionDeleteMessage);
+    }
+    if self.permission_read_chatters {
+      twitch = twitch.add_subscription(Subscription::PermissionReadChatters);
     }
 
     let twitch = twitch.build().unwrap();

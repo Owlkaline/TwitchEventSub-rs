@@ -2,6 +2,7 @@ pub mod adbreak;
 pub mod cheer;
 pub mod emote;
 pub mod follow;
+pub mod getchatters;
 pub mod messages;
 pub mod raid;
 pub mod redeems;
