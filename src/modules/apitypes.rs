@@ -2,6 +2,8 @@
 #[macro_use]
 use crate::serde::{self, Deserialize as Deserialise, Serialize as Serialise};
 
+use twitch_eventsub_structs::User;
+
 #[derive(Serialise, Deserialise, Debug)]
 #[serde(crate = "self::serde")]
 pub struct AdSchedule {
@@ -17,4 +19,18 @@ pub struct AdDetails {
   pub preroll_free_time: u32,
   pub snooze_count: u32,
   pub snooze_refresh_at: u32,
+}
+
+#[derive(Serialise, Deserialise, Debug)]
+#[serde(crate = "self::serde")]
+pub struct Pagination {
+  pub cursor: Option<String>,
+}
+
+#[derive(Serialise, Deserialise, Debug)]
+#[serde(crate = "self::serde")]
+pub struct ChatterInformation {
+  pub data: Vec<User>,
+  pub pagination: Pagination,
+  pub total: i32,
 }

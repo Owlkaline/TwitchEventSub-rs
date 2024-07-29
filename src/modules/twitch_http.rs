@@ -10,9 +10,28 @@ use crate::modules::{
 
 use twitch_eventsub_structs::*;
 
+use super::apitypes::ChatterInformation;
+
 pub struct TwitchApi;
 
 impl TwitchApi {
+  pub fn get_chatters<S: Into<String>, T: Into<String>, X: Into<String>, Z: Into<String>>(
+    broadcaster_id: S,
+    moderator_id: T,
+    access_token: X,
+    client_id: Z,
+  ) -> Result<String, EventSubError> {
+    let url = RequestBuilder::new()
+      .add_key_value("broadcaster_id", broadcaster_id.into())
+      .add_key_value("moderator_id", moderator_id)
+      .build(GET_CHATTERS_URL);
+
+    TwitchHttpRequest::new(url)
+      .header_authorisation(access_token.into(), AuthType::Bearer)
+      .header_client_id(client_id.into())
+      .run()
+  }
+
   pub fn get_ad_schedule<S: Into<String>, T: Into<String>, X: Into<String>>(
     broadcaster_id: X,
     access_token: S,

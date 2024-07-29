@@ -9,6 +9,7 @@ use std::sync::{Arc, Mutex};
 
 use crate::modules::consts::*;
 use modules::apitypes::AdSchedule;
+use modules::apitypes::ChatterInformation;
 use open;
 use std::io::{ErrorKind, Read};
 
@@ -626,6 +627,28 @@ impl TwitchEventSubApi {
 
     TwitchApi::get_ad_schedule(broadcaster_id, access_token, client_id)
       .and_then(|x| serde_json::from_str(&x).map_err(|e| EventSubError::ParseError(e.to_string())))
+  }
+
+  pub fn get_chatters(&mut self) -> Result<ChatterInformation, EventSubError> {
+    let access_token = self
+      .twitch_keys
+      .access_token
+      .clone()
+      .expect("Access token not set")
+      .get_token();
+    let broadcaster_id = self.twitch_keys.broadcaster_account_id.to_string();
+    let client_id = self.twitch_keys.client_id.to_string();
+
+    TwitchApi::get_chatters(
+      broadcaster_id.to_owned(),
+      broadcaster_id,
+      access_token,
+      client_id,
+    )
+    .and_then(|x| {
+      println!("{}", x);
+      serde_json::from_str(&x).map_err(|e| EventSubError::ParseError(e.to_string()))
+    })
   }
 
   pub fn send_chat_message<S: Into<String>>(
