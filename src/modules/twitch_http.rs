@@ -10,8 +10,6 @@ use crate::modules::{
 
 use twitch_eventsub_structs::*;
 
-use super::apitypes::ChatterInformation;
-
 pub struct TwitchApi;
 
 impl TwitchApi {
