@@ -1,3 +1,4 @@
+use std::borrow::Borrow;
 use std::fs;
 use std::iter;
 use std::net::TcpStream;
@@ -645,6 +646,31 @@ impl TwitchEventSubApi {
       client_id,
     )
     .and_then(|x| serde_json::from_str(&x).map_err(|e| EventSubError::ParseError(e.to_string())))
+  }
+
+  pub fn get_channel_emotes<S: Into<String>>(
+    &mut self,
+    broadcaster_id: S,
+  ) -> Result<ChannelEmotes, EventSubError> {
+    let access_token = self
+      .twitch_keys
+      .access_token
+      .clone()
+      .expect("Access token not set")
+      .get_token();
+    let client_id = self.twitch_keys.client_id.to_string();
+
+    let broadcaster_id: String = broadcaster_id.into();
+    if let Err(_) = broadcaster_id.parse::<u32>() {
+      return Err(EventSubError::UnhandledError(
+        "Broadcaster id must be numeric!".to_string(),
+      ));
+    }
+
+    TwitchApi::get_channel_emotes(access_token, client_id, broadcaster_id).and_then(|x| {
+      //println!("{:?}", x);
+      serde_json::from_str(&x).map_err(|e| EventSubError::ParseError(e.to_string()))
+    })
   }
 
   pub fn send_chat_message<S: Into<String>>(

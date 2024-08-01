@@ -241,6 +241,21 @@ impl TwitchApi {
       .is_post(post_data)
       .run()
   }
+
+  pub fn get_channel_emotes<T: Into<String>, S: Into<String>, X: Into<String>>(
+    access_token: T,
+    client_id: S,
+    broadcaster_id: X,
+  ) -> Result<String, EventSubError> {
+    let url = RequestBuilder::new()
+      .add_key_value("broadcaster_id", broadcaster_id.into())
+      .build(GET_CHANNEL_EMOTES_URL);
+
+    TwitchHttpRequest::new(url)
+      .header_authorisation(access_token.into(), AuthType::Bearer)
+      .header_client_id(client_id.into())
+      .run()
+  }
 }
 
 #[derive(PartialEq, Clone, Debug)]
