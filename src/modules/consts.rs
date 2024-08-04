@@ -10,3 +10,5 @@ pub const TWITCH_DELETE_MESSAGE_URL: &str = "https://api.twitch.tv/helix/moderat
 pub const GET_AD_SCHEDULE_URL: &str = "https://api.twitch.tv/helix/channels/ads";
 pub const GET_CHATTERS_URL: &str = "https://api.twitch.tv/helix/chat/chatters";
 pub const GET_CHANNEL_EMOTES_URL: &str = "https://api.twitch.tv/helix/chat/emotes";
+pub const GET_MODERATORS_URL: &str = "https://api.twitch.tv/helix/moderation/moderators";
+pub const GET_GLOBAL_EMOTES_URL: &str = "https://api.twitch.tv/helix/chat/emotes/global";

@@ -256,6 +256,33 @@ impl TwitchApi {
       .header_client_id(client_id.into())
       .run()
   }
+
+  pub fn get_global_emotes<T: Into<String>, S: Into<String>>(
+    access_token: T,
+    client_id: S,
+  ) -> Result<String, EventSubError> {
+    let url = RequestBuilder::new().build(GET_GLOBAL_EMOTES_URL);
+
+    TwitchHttpRequest::new(url)
+      .header_authorisation(access_token.into(), AuthType::Bearer)
+      .header_client_id(client_id.into())
+      .run()
+  }
+
+  pub fn get_moderators<T: Into<String>, S: Into<String>, X: Into<String>>(
+    access_token: T,
+    client_id: S,
+    broadcaster_id: X,
+  ) -> Result<String, EventSubError> {
+    let url = RequestBuilder::new()
+      .add_key_value("broadcaster_id", broadcaster_id.into())
+      .build(GET_MODERATORS_URL);
+
+    TwitchHttpRequest::new(url)
+      .header_authorisation(access_token.into(), AuthType::Bearer)
+      .header_client_id(client_id.into())
+      .run()
+  }
 }
 
 #[derive(PartialEq, Clone, Debug)]

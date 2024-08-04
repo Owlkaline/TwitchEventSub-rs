@@ -648,6 +648,20 @@ impl TwitchEventSubApi {
     .and_then(|x| serde_json::from_str(&x).map_err(|e| EventSubError::ParseError(e.to_string())))
   }
 
+  pub fn get_moderators(&mut self) -> Result<Moderators, EventSubError> {
+    let access_token = self
+      .twitch_keys
+      .access_token
+      .clone()
+      .expect("Access token not set")
+      .get_token();
+    let broadcaster_id = self.twitch_keys.broadcaster_account_id.to_string();
+    let client_id = self.twitch_keys.client_id.to_string();
+
+    TwitchApi::get_moderators(access_token, client_id, broadcaster_id)
+      .and_then(|x| serde_json::from_str(&x).map_err(|e| EventSubError::ParseError(e.to_string())))
+  }
+
   pub fn get_channel_emotes<S: Into<String>>(
     &mut self,
     broadcaster_id: S,
@@ -671,6 +685,19 @@ impl TwitchEventSubApi {
       //println!("{:?}", x);
       serde_json::from_str(&x).map_err(|e| EventSubError::ParseError(e.to_string()))
     })
+  }
+
+  pub fn get_global_emotes(&mut self) -> Result<GlobalEmotes, EventSubError> {
+    let access_token = self
+      .twitch_keys
+      .access_token
+      .clone()
+      .expect("Access token not set")
+      .get_token();
+    let client_id = self.twitch_keys.client_id.to_string();
+
+    TwitchApi::get_global_emotes(access_token, client_id)
+      .and_then(|x| serde_json::from_str(&x).map_err(|e| EventSubError::ParseError(e.to_string())))
   }
 
   pub fn send_chat_message<S: Into<String>>(
