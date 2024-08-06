@@ -625,8 +625,12 @@ impl TwitchEventSubApi {
     let client_id = self.twitch_keys.client_id.to_string();
     let broadcaster_id = self.twitch_keys.broadcaster_account_id.to_string();
 
-    TwitchApi::get_ad_schedule(broadcaster_id, access_token, client_id)
-      .and_then(|x| serde_json::from_str(&x).map_err(|e| EventSubError::ParseError(e.to_string())))
+    TwitchEventSubApi::regen_token_if_401(
+      TwitchApi::get_ad_schedule(broadcaster_id, access_token, client_id),
+      &mut self.twitch_keys,
+      &self.save_locations,
+    )
+    .and_then(|x| serde_json::from_str(&x).map_err(|e| EventSubError::ParseError(e.to_string())))
   }
 
   pub fn get_chatters(&mut self) -> Result<GetChatters, EventSubError> {
@@ -639,11 +643,15 @@ impl TwitchEventSubApi {
     let broadcaster_id = self.twitch_keys.broadcaster_account_id.to_string();
     let client_id = self.twitch_keys.client_id.to_string();
 
-    TwitchApi::get_chatters(
-      broadcaster_id.to_owned(),
-      broadcaster_id,
-      access_token,
-      client_id,
+    TwitchEventSubApi::regen_token_if_401(
+      TwitchApi::get_chatters(
+        broadcaster_id.to_owned(),
+        broadcaster_id,
+        access_token,
+        client_id,
+      ),
+      &mut self.twitch_keys,
+      &self.save_locations,
     )
     .and_then(|x| serde_json::from_str(&x).map_err(|e| EventSubError::ParseError(e.to_string())))
   }
@@ -658,8 +666,12 @@ impl TwitchEventSubApi {
     let broadcaster_id = self.twitch_keys.broadcaster_account_id.to_string();
     let client_id = self.twitch_keys.client_id.to_string();
 
-    TwitchApi::get_moderators(access_token, client_id, broadcaster_id)
-      .and_then(|x| serde_json::from_str(&x).map_err(|e| EventSubError::ParseError(e.to_string())))
+    TwitchEventSubApi::regen_token_if_401(
+      TwitchApi::get_moderators(access_token, client_id, broadcaster_id),
+      &mut self.twitch_keys,
+      &self.save_locations,
+    )
+    .and_then(|x| serde_json::from_str(&x).map_err(|e| EventSubError::ParseError(e.to_string())))
   }
 
   pub fn get_channel_emotes<S: Into<String>>(
@@ -681,7 +693,12 @@ impl TwitchEventSubApi {
       ));
     }
 
-    TwitchApi::get_channel_emotes(access_token, client_id, broadcaster_id).and_then(|x| {
+    TwitchEventSubApi::regen_token_if_401(
+      TwitchApi::get_channel_emotes(access_token, client_id, broadcaster_id),
+      &mut self.twitch_keys,
+      &self.save_locations,
+    )
+    .and_then(|x| {
       //println!("{:?}", x);
       serde_json::from_str(&x).map_err(|e| EventSubError::ParseError(e.to_string()))
     })
@@ -696,8 +713,12 @@ impl TwitchEventSubApi {
       .get_token();
     let client_id = self.twitch_keys.client_id.to_string();
 
-    TwitchApi::get_global_emotes(access_token, client_id)
-      .and_then(|x| serde_json::from_str(&x).map_err(|e| EventSubError::ParseError(e.to_string())))
+    TwitchEventSubApi::regen_token_if_401(
+      TwitchApi::get_global_emotes(access_token, client_id),
+      &mut self.twitch_keys,
+      &self.save_locations,
+    )
+    .and_then(|x| serde_json::from_str(&x).map_err(|e| EventSubError::ParseError(e.to_string())))
   }
 
   pub fn send_chat_message<S: Into<String>>(
