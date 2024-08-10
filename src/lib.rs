@@ -813,6 +813,18 @@ impl TwitchEventSubApi {
         Err(WebSocketError::IoError(e)) if e.kind() == ErrorKind::WouldBlock => {
           continue;
         }
+        Err(WebSocketError::IoError(e)) if e.kind() == ErrorKind::ConnectionReset => {
+          println!("The connection was reset!");
+          *client = ClientBuilder::new(CONNECTION_EVENTS)
+            .unwrap()
+            .add_protocol("rust-websocket-events")
+            .connect_secure(None)
+            .expect(
+              "Failed to reconnect to new url after receiving reconnect message from twitch.",
+            );
+          is_reconnecting = true;
+          continue;
+        }
         Err(e) => {
           error!("recv message error: {:?}", e);
           let _ = client.send_message(&OwnedMessage::Close(None));
