@@ -49,6 +49,7 @@ pub enum ResponseType {
   Error(EventSubError),
   RawResponse(String),
   Close,
+  Ready,
 }
 
 #[must_use]
@@ -57,6 +58,7 @@ pub struct TwitchEventSubApiBuilder {
   subscriptions: Vec<Subscription>,
   redirect_url: Option<String>,
 
+  bot_is_local: bool,
   generate_token_if_none: bool,
   generate_token_on_scope_error: bool,
   generate_access_token_on_expire: bool,
@@ -65,12 +67,14 @@ pub struct TwitchEventSubApiBuilder {
 }
 
 impl TwitchEventSubApiBuilder {
+  #[must_use]
   pub fn new(tk: TwitchKeys) -> TwitchEventSubApiBuilder {
     TwitchEventSubApiBuilder {
       twitch_keys: tk,
       subscriptions: Vec::new(),
       redirect_url: None,
 
+      bot_is_local: true,
       generate_token_if_none: false,
       generate_token_on_scope_error: false,
       generate_access_token_on_expire: false,
@@ -79,21 +83,31 @@ impl TwitchEventSubApiBuilder {
     }
   }
 
+  #[must_use]
+  pub fn is_run_remotely(mut self) -> TwitchEventSubApiBuilder {
+    self.bot_is_local = false;
+    self
+  }
+
+  #[must_use]
   pub fn add_subscription(mut self, sub: Subscription) -> TwitchEventSubApiBuilder {
     self.subscriptions.push(sub);
     self
   }
 
+  #[must_use]
   pub fn add_subscriptions(mut self, mut subs: Vec<Subscription>) -> TwitchEventSubApiBuilder {
     self.subscriptions.append(&mut subs);
     self
   }
 
+  #[must_use]
   pub fn set_redirect_url<S: Into<String>>(mut self, url: S) -> TwitchEventSubApiBuilder {
     self.redirect_url = Some(url.into());
     self
   }
 
+  #[must_use]
   pub fn generate_new_token_if_insufficent_scope(
     mut self,
     should_generate: bool,
@@ -102,11 +116,13 @@ impl TwitchEventSubApiBuilder {
     self
   }
 
+  #[must_use]
   pub fn generate_new_token_if_none(mut self, should_generate: bool) -> TwitchEventSubApiBuilder {
     self.generate_token_if_none = should_generate;
     self
   }
 
+  #[must_use]
   pub fn generate_access_token_on_expire(
     mut self,
     should_generate_access_token_on_expire: bool,
@@ -115,6 +131,7 @@ impl TwitchEventSubApiBuilder {
     self
   }
 
+  #[must_use]
   pub fn auto_save_load_created_tokens<S: Into<String>, T: Into<String>>(
     mut self,
     user_token_file: S,
@@ -136,6 +153,7 @@ impl TwitchEventSubApiBuilder {
     self.only_raw_responses = receive_raw_data;
   }
 
+  #[must_use]
   pub fn build(mut self) -> Result<TwitchEventSubApi, EventSubError> {
     log_builder();
     let mut newly_generated_token = None;
@@ -225,6 +243,7 @@ impl TwitchEventSubApiBuilder {
                 self.twitch_keys.client_id.to_owned(),
                 self.twitch_keys.client_secret.to_owned(),
                 self.redirect_url.clone().unwrap(),
+                self.bot_is_local,
                 &self.subscriptions,
               ) {
                 Ok(user_token) => {
@@ -260,6 +279,7 @@ impl TwitchEventSubApiBuilder {
               self.twitch_keys.client_id.to_owned(),
               self.twitch_keys.client_secret.to_owned(),
               self.redirect_url.clone().unwrap(),
+              self.bot_is_local,
               &self.subscriptions,
             ) {
               Ok(user_token) => {
@@ -421,10 +441,19 @@ impl TwitchEventSubApi {
   pub fn open_browser<S: Into<String>, T: Into<String>>(
     browser_url: S,
     redirect_url: T,
+    is_local: bool,
   ) -> Result<String, EventSubError> {
-    if let Err(e) = open::that(browser_url.into()) {
-      error!("Failed to open browser: {}", e);
-      return Err(EventSubError::UnhandledError(e.to_string()));
+    let browser_url = browser_url.into();
+    if is_local {
+      if let Err(e) = open::that(browser_url) {
+        error!("Failed to open browser: {}", e);
+        return Err(EventSubError::UnhandledError(e.to_string()));
+      }
+    } else {
+      println!(
+        "Please visit the following link to have your token be authorised and generated:\n{}",
+        browser_url
+      );
     }
 
     let mut redirect_url = redirect_url.into().to_ascii_lowercase();
@@ -561,6 +590,7 @@ impl TwitchEventSubApi {
     &mut self,
     message_id: S,
   ) -> Result<String, EventSubError> {
+    println!("Delete message called!");
     let broadcaster_account_id = self.twitch_keys.broadcaster_account_id.to_string();
     let moderator_account_id = broadcaster_account_id.to_owned();
     let access_token = self
@@ -896,7 +926,11 @@ impl TwitchEventSubApi {
                     )),
                   ));
                 }
+
                 twitch_keys = clone_twitch_keys;
+                message_sender
+                  .send(ResponseType::Ready)
+                  .expect("Failed to send ready back to main thread.");
               }
               is_reconnecting = false;
             }
@@ -925,8 +959,10 @@ impl TwitchEventSubApi {
                 );
             }
             EventMessageType::Notification => {
+              let message = message.payload.unwrap().event.unwrap();
+              //println!("{:?}", message);
               message_sender
-                .send(ResponseType::Event(message.payload.unwrap().event.unwrap()))
+                .send(ResponseType::Event(message)) //message.payload.unwrap().event.unwrap()))
                 .unwrap();
             }
             EventMessageType::Unknown => {
