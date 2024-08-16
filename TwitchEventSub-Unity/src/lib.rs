@@ -175,10 +175,10 @@ pub extern "C" fn create_twitch_events(subscriptions: *const c_char) -> *mut Twi
     twitch = twitch.add_subscription(Subscription::ChannelShoutoutReceive);
   }
   if subscriptions.ban_timeout_user {
-    twitch = twitch.add_subscription(Subscription::BanTimeoutUser);
+    twitch = twitch.add_subscription(Subscription::PermissionBanTimeoutUser);
   }
   if subscriptions.delete_message {
-    twitch = twitch.add_subscription(Subscription::DeleteMessage);
+    twitch = twitch.add_subscription(Subscription::PermissionDeleteMessage);
   }
   if subscriptions.ad_break_begin {
     twitch = twitch.add_subscription(Subscription::AdBreakBegin);

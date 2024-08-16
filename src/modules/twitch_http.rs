@@ -1,7 +1,11 @@
-use crate::{EventSubError, SendMessage, Subscription, Token, TwitchEventSubApi, Validation};
+use crate::{
+  CreateCustomReward, EventSubError, SendMessage, Subscription, Token, TwitchEventSubApi,
+  Validation,
+};
 use curl::easy::{Easy, List};
 
 use log::{error, info};
+use serde::Serialize;
 
 use crate::modules::{
   consts::*,
@@ -284,6 +288,24 @@ impl TwitchApi {
     TwitchHttpRequest::new(url)
       .header_authorisation(access_token.into(), AuthType::Bearer)
       .header_client_id(client_id.into())
+      .run()
+  }
+
+  pub fn create_custom_reward<T: Into<String>, S: Into<String>, X: Into<String>>(
+    access_token: T,
+    client_id: S,
+    broadcaster_id: X,
+    custom_reward_data: CreateCustomReward,
+  ) -> Result<String, EventSubError> {
+    let url = RequestBuilder::new()
+      .add_key_value("broadcaster_id", broadcaster_id.into())
+      .build(GET_CUSTOM_REWARDS_URL);
+    let data = serde_json::to_string(&custom_reward_data).unwrap();
+    TwitchHttpRequest::new(url)
+      .header_authorisation(access_token.into(), AuthType::Bearer)
+      .header_client_id(client_id.into())
+      .json_content()
+      .is_post(data)
       .run()
   }
 }

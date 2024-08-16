@@ -704,6 +704,30 @@ impl TwitchEventSubApi {
     .and_then(|x| serde_json::from_str(&x).map_err(|e| EventSubError::ParseError(e.to_string())))
   }
 
+  pub fn create_custom_reward(
+    &mut self,
+    custom_reward: CreateCustomReward,
+  ) -> Result<CustomRewardResponse, EventSubError> {
+    let access_token = self
+      .twitch_keys
+      .access_token
+      .clone()
+      .expect("Access token not set")
+      .get_token();
+    let broadcaster_id = self.twitch_keys.broadcaster_account_id.to_string();
+    let client_id = self.twitch_keys.client_id.to_string();
+
+    TwitchEventSubApi::regen_token_if_401(
+      TwitchApi::create_custom_reward(access_token, client_id, broadcaster_id, custom_reward),
+      &mut self.twitch_keys,
+      &self.save_locations,
+    )
+    .and_then(|x| {
+      println!("X: {}", x);
+      serde_json::from_str(&x).map_err(|e| EventSubError::ParseError(e.to_string()))
+    })
+  }
+
   pub fn get_channel_emotes<S: Into<String>>(
     &mut self,
     broadcaster_id: S,
@@ -833,6 +857,10 @@ impl TwitchEventSubApi {
     mut twitch_keys: TwitchKeys,
     save_locations: Option<(String, String)>,
   ) {
+    use std::time::Instant;
+
+    let mut last_message = Instant::now();
+
     let mut is_reconnecting = false;
 
     loop {
@@ -858,11 +886,35 @@ impl TwitchEventSubApi {
         Err(e) => {
           error!("recv message error: {:?}", e);
           let _ = client.send_message(&OwnedMessage::Close(None));
-          message_sender.send(ResponseType::Close).unwrap();
-
-          return;
+          //message_sender.send(ResponseType::Close).unwrap();
+          //return;
+          //OwnedMessage::Text(&serde_json::to_string(EventMessageType::Reconnect).unwrap())
+          println!("Unknown error so restarting websocket connection");
+          info!("Unknown error so restarting websocket connection");
+          *client = ClientBuilder::new(CONNECTION_EVENTS)
+            .unwrap()
+            .add_protocol("rust-websocket-events")
+            .connect_secure(None)
+            .expect(
+              "Failed to reconnect to new url after receiving reconnect message from twitch.",
+            );
+          is_reconnecting = true;
+          continue;
         }
       };
+
+      if last_message.elapsed().as_secs() > 30 {
+        let _ = client.send_message(&OwnedMessage::Close(None));
+        println!("Messages not sent within the keep alive timeout restarting websocket");
+        info!("Messages not sent within the keep alive timeout restarting websocket");
+        *client = ClientBuilder::new(CONNECTION_EVENTS)
+          .unwrap()
+          .add_protocol("rust-websocket-events")
+          .connect_secure(None)
+          .expect("Failed to reconnect to new url after receiving reconnect message from twitch.");
+        is_reconnecting = true;
+        continue;
+      }
 
       match message {
         OwnedMessage::Text(msg) => {
@@ -898,6 +950,7 @@ impl TwitchEventSubApi {
                     .iter()
                     .map(|sub_data| {
                       //println!("{:?}", sub_data);
+                      println!("subscribing");
                       TwitchHttpRequest::new(SUBSCRIBE_URL)
                         .full_auth(token.to_owned(), twitch_keys.client_id.to_string())
                         .json_content()
@@ -933,8 +986,11 @@ impl TwitchEventSubApi {
                   .expect("Failed to send ready back to main thread.");
               }
               is_reconnecting = false;
+              last_message = Instant::now();
             }
             EventMessageType::KeepAlive => {
+              info!("Keep alive: {}", last_message.elapsed().as_secs());
+              last_message = Instant::now();
               //println!("Keep alive receive message sent, !implemented");
             }
             EventMessageType::Reconnect => {
@@ -959,6 +1015,7 @@ impl TwitchEventSubApi {
                 );
             }
             EventMessageType::Notification => {
+              last_message = Instant::now();
               let message = message.payload.unwrap().event.unwrap();
               //println!("{:?}", message);
               message_sender
@@ -966,6 +1023,7 @@ impl TwitchEventSubApi {
                 .unwrap();
             }
             EventMessageType::Unknown => {
+              last_message = Instant::now();
               //if !custom_subscriptions.is_empty() {
               message_sender.send(ResponseType::RawResponse(msg)).unwrap();
               //}
@@ -976,7 +1034,16 @@ impl TwitchEventSubApi {
           warn!("Close message received: {:?}", a);
           // Got a close message, so send a close message and return
           let _ = client.send_message(&OwnedMessage::Close(None));
-          return;
+          println!("The close message was recieved, restarting websocket!");
+          *client = ClientBuilder::new(CONNECTION_EVENTS)
+            .unwrap()
+            .add_protocol("rust-websocket-events")
+            .connect_secure(None)
+            .expect(
+              "Failed to reconnect to new url after receiving reconnect message from twitch.",
+            );
+          is_reconnecting = true;
+          continue;
         }
         OwnedMessage::Ping(_) => {
           match client.send_message(&OwnedMessage::Pong(Vec::new())) {

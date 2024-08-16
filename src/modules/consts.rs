@@ -12,3 +12,5 @@ pub const GET_CHATTERS_URL: &str = "https://api.twitch.tv/helix/chat/chatters";
 pub const GET_CHANNEL_EMOTES_URL: &str = "https://api.twitch.tv/helix/chat/emotes";
 pub const GET_MODERATORS_URL: &str = "https://api.twitch.tv/helix/moderation/moderators";
 pub const GET_GLOBAL_EMOTES_URL: &str = "https://api.twitch.tv/helix/chat/emotes/global";
+pub const GET_CUSTOM_REWARDS_URL: &str =
+  "https://api.twitch.tv/helix/channel_points/custom_rewards";
