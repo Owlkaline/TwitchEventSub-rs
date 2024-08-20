@@ -22,10 +22,13 @@ only_raw_responses = []
 #godot = ["dep:godot"]
 
 [dependencies]
-websocket = "0.27.1"
+websocket = { version = "0.27.1", default-features = false, features = [
+  "sync",
+  "sync-ssl",
+] }
 enum_all_variants = "0.2.0"
 curl = "0.4.46"
-sysinfo = "0.30.12"
+#sysinfo = "0.30.12"
 open = "5.1.4"
 simple_env_load = "0.2.0"
 simple-logging = "2.0.2"
