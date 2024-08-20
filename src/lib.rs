@@ -341,6 +341,8 @@ pub struct TwitchEventSubApi {
   twitch_keys: TwitchKeys,
   _token: Arc<Mutex<Token>>,
   save_locations: Option<(String, String)>,
+  subscriptions: Vec<Subscription>,
+  subscription_data: Vec<String>,
 }
 
 impl TwitchEventSubApi {
@@ -381,12 +383,14 @@ impl TwitchEventSubApi {
     )));
 
     let keys_clone = twitch_keys.clone();
+    let subscriptions_clone = subscriptions.clone();
+    let custom_subscription_data_clone = custom_subscription_data.clone();
     let receive_thread = thread::spawn(move || {
       TwitchEventSubApi::event_sub_events(
         receiver,
         transmit_messages,
-        subscriptions,
-        custom_subscription_data,
+        subscriptions_clone,
+        custom_subscription_data_clone,
         keys_clone,
         None,
       )
@@ -398,7 +402,16 @@ impl TwitchEventSubApi {
       twitch_keys,
       _token: token,
       save_locations: None,
+      subscriptions,
+      subscription_data: custom_subscription_data,
     })
+  }
+
+  pub fn restart_websockets(&mut self) {
+    let keys_clone = self.twitch_keys.clone();
+    let subscriptions = self.subscriptions.clone();
+    let custom_subscription_data = self.subscription_data.clone();
+    *self = TwitchEventSubApi::new(keys_clone, subscriptions, custom_subscription_data).unwrap();
   }
 
   pub fn validate_token<S: Into<String>>(token: S) -> Result<Validation, EventSubError> {
@@ -871,34 +884,34 @@ impl TwitchEventSubApi {
         Err(WebSocketError::IoError(e)) if e.kind() == ErrorKind::WouldBlock => {
           continue;
         }
-        Err(WebSocketError::IoError(e)) if e.kind() == ErrorKind::ConnectionReset => {
-          println!("The connection was reset!");
-          *client = ClientBuilder::new(CONNECTION_EVENTS)
-            .unwrap()
-            .add_protocol("rust-websocket-events")
-            .connect_secure(None)
-            .expect(
-              "Failed to reconnect to new url after receiving reconnect message from twitch.",
-            );
-          is_reconnecting = true;
-          continue;
-        }
+        //Err(WebSocketError::IoError(e)) if e.kind() == ErrorKind::ConnectionReset => {
+        //  println!("The connection was reset!");
+        //  *client = ClientBuilder::new(CONNECTION_EVENTS)
+        //    .unwrap()
+        //    .add_protocol("rust-websocket-events")
+        //    .connect_secure(None)
+        //    .expect(
+        //      "Failed to reconnect to new url after receiving reconnect message from twitch.",
+        //    );
+        //  is_reconnecting = true;
+        //  continue;
+        //}
         Err(e) => {
           error!("recv message error: {:?}", e);
           let _ = client.send_message(&OwnedMessage::Close(None));
-          //message_sender.send(ResponseType::Close).unwrap();
+          message_sender.send(ResponseType::Close).unwrap();
           //return;
           //OwnedMessage::Text(&serde_json::to_string(EventMessageType::Reconnect).unwrap())
-          println!("Unknown error so restarting websocket connection");
-          info!("Unknown error so restarting websocket connection");
-          *client = ClientBuilder::new(CONNECTION_EVENTS)
-            .unwrap()
-            .add_protocol("rust-websocket-events")
-            .connect_secure(None)
-            .expect(
-              "Failed to reconnect to new url after receiving reconnect message from twitch.",
-            );
-          is_reconnecting = true;
+          //println!("Unknown error so restarting websocket connection");
+          //info!("Unknown error so restarting websocket connection");
+          //*client = ClientBuilder::new(CONNECTION_EVENTS)
+          //  .unwrap()
+          //  .add_protocol("rust-websocket-events")
+          //  .connect_secure(None)
+          //  .expect(
+          //    "Failed to reconnect to new url after receiving reconnect message from twitch.",
+          //  );
+          //is_reconnecting = true;
           continue;
         }
       };
@@ -1034,15 +1047,16 @@ impl TwitchEventSubApi {
           warn!("Close message received: {:?}", a);
           // Got a close message, so send a close message and return
           let _ = client.send_message(&OwnedMessage::Close(None));
-          println!("The close message was recieved, restarting websocket!");
-          *client = ClientBuilder::new(CONNECTION_EVENTS)
-            .unwrap()
-            .add_protocol("rust-websocket-events")
-            .connect_secure(None)
-            .expect(
-              "Failed to reconnect to new url after receiving reconnect message from twitch.",
-            );
-          is_reconnecting = true;
+          let _ = message_sender.send(ResponseType::Close);
+          //println!("The close message was recieved, restarting websocket!");
+          //*client = ClientBuilder::new(CONNECTION_EVENTS)
+          //  .unwrap()
+          //  .add_protocol("rust-websocket-events")
+          //  .connect_secure(None)
+          //  .expect(
+          //    "Failed to reconnect to new url after receiving reconnect message from twitch.",
+          //  );
+          //is_reconnecting = true;
           continue;
         }
         OwnedMessage::Ping(_) => {

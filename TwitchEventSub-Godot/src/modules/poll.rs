@@ -7,78 +7,111 @@ use crate::modules::GUser;
 #[derive(GodotClass, Debug)]
 #[class(init)]
 pub struct GChoices {
+  #[var]
   id: GString,
+  #[var]
   title: GString,
+  #[var]
   votes: u32,
+  #[var]
   channel_points_votes: u32,
+  #[var]
   bits_votes: u32,
 }
 
 #[derive(GodotClass, Debug)]
 #[class(init)]
 pub struct GBeginChoices {
+  #[var]
   id: GString,
+  #[var]
   title: GString,
 }
 
 #[derive(GodotClass, Debug, Default)]
 #[class(init)]
 pub struct GBitsVotingData {
+  #[var]
   is_enabled: bool,
+  #[var]
   amount_per_vote: u32,
 }
 
 #[derive(GodotClass, Debug, Default)]
 #[class(init)]
 pub struct GChannelPointsVoting {
+  #[var]
   is_enabled: bool,
+  #[var]
   amount_per_vote: u32,
 }
 
 #[derive(GodotClass, Debug)]
 #[class(init)]
-pub struct GPollBeginData {
+pub struct GPollBegin {
   #[var]
   id: GString,
+  #[var]
   broadcaster: Gd<GUser>,
+  #[var]
   title: GString,
+  #[var]
   choices: Array<Gd<GBeginChoices>>,
-  bits_voting: GBitsVotingData,
-  channel_points_voting: GChannelPointsVoting,
+  #[var]
+  bits_voting: Gd<GBitsVotingData>,
+  #[var]
+  channel_points_voting: Gd<GChannelPointsVoting>,
+  #[var]
   started_at: GString,
+  #[var]
   ends_at: GString,
 }
 
 #[derive(GodotClass, Debug)]
 #[class(init)]
-pub struct GPollProgressData {
+pub struct GPollProgress {
   #[var]
   id: GString,
+  #[var]
   broadcaster: Gd<GUser>,
+  #[var]
   title: GString,
+  #[var]
   choices: Array<Gd<GChoices>>,
-  bits_voting: GBitsVotingData,
-  channel_points_voting: GChannelPointsVoting,
+  #[var]
+  bits_voting: Gd<GBitsVotingData>,
+  #[var]
+  channel_points_voting: Gd<GChannelPointsVoting>,
+  #[var]
   started_at: GString,
+  #[var]
   ends_at: GString,
 }
 
 #[derive(GodotClass, Debug)]
 #[class(init)]
-pub struct GPollEndData {
+pub struct GPollEnd {
   #[var]
   id: GString,
+  #[var]
   broadcaster: Gd<GUser>,
+  #[var]
   title: GString,
+  #[var]
   choices: Array<Gd<GChoices>>,
-  bits_voting: GBitsVotingData,
-  channel_points_voting: GChannelPointsVoting,
+  #[var]
+  bits_voting: Gd<GBitsVotingData>,
+  #[var]
+  channel_points_voting: Gd<GChannelPointsVoting>,
+  #[var]
   started_at: GString,
+  #[var]
   ended_at: GString,
+  #[var]
   status: GString,
 }
 
-impl From<PollBeginData> for GPollBeginData {
+impl From<PollBeginData> for GPollBegin {
   fn from(poll: PollBeginData) -> Self {
     let mut choices = Array::new();
 
@@ -86,20 +119,22 @@ impl From<PollBeginData> for GPollBeginData {
       choices.push(Gd::from_object(GBeginChoices::from(choice)));
     }
 
-    GPollBeginData {
+    GPollBegin {
       id: poll.id.into(),
       broadcaster: Gd::from_object(GUser::from(poll.broadcaster)),
       title: poll.title.into(),
       choices,
-      bits_voting: GBitsVotingData::from(poll.bits_voting),
-      channel_points_voting: GChannelPointsVoting::from(poll.channel_points_voting),
+      bits_voting: Gd::from_object(GBitsVotingData::from(poll.bits_voting)),
+      channel_points_voting: Gd::from_object(GChannelPointsVoting::from(
+        poll.channel_points_voting,
+      )),
       started_at: poll.started_at.into(),
       ends_at: poll.ends_at.into(),
     }
   }
 }
 
-impl From<PollProgressData> for GPollProgressData {
+impl From<PollProgressData> for GPollProgress {
   fn from(poll: PollProgressData) -> Self {
     let mut choices = Array::new();
 
@@ -107,20 +142,22 @@ impl From<PollProgressData> for GPollProgressData {
       choices.push(Gd::from_object(GChoices::from(choice)));
     }
 
-    GPollProgressData {
+    GPollProgress {
       id: poll.id.into(),
       broadcaster: Gd::from_object(GUser::from(poll.broadcaster)),
       title: poll.title.into(),
       choices,
-      bits_voting: GBitsVotingData::from(poll.bits_voting),
-      channel_points_voting: GChannelPointsVoting::from(poll.channel_points_voting),
+      bits_voting: Gd::from_object(GBitsVotingData::from(poll.bits_voting)),
+      channel_points_voting: Gd::from_object(GChannelPointsVoting::from(
+        poll.channel_points_voting,
+      )),
       started_at: poll.started_at.into(),
       ends_at: poll.ends_at.into(),
     }
   }
 }
 
-impl From<PollEndData> for GPollEndData {
+impl From<PollEndData> for GPollEnd {
   fn from(poll: PollEndData) -> Self {
     let mut choices = Array::new();
 
@@ -128,13 +165,15 @@ impl From<PollEndData> for GPollEndData {
       choices.push(Gd::from_object(GChoices::from(choice)));
     }
 
-    GPollEndData {
+    GPollEnd {
       id: poll.id.into(),
       broadcaster: Gd::from_object(GUser::from(poll.broadcaster)),
       title: poll.title.into(),
       choices,
-      bits_voting: GBitsVotingData::from(poll.bits_voting),
-      channel_points_voting: GChannelPointsVoting::from(poll.channel_points_voting),
+      bits_voting: Gd::from_object(GBitsVotingData::from(poll.bits_voting)),
+      channel_points_voting: Gd::from_object(GChannelPointsVoting::from(
+        poll.channel_points_voting,
+      )),
       started_at: poll.started_at.into(),
       ended_at: poll.ended_at.into(),
       status: poll.status.into(),

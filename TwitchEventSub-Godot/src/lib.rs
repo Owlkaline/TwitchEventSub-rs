@@ -10,7 +10,7 @@ use twitch_eventsub::*;
 
 mod modules;
 use crate::modules::{
-  adbreak::*, cheer::*, follow::*, getchatters::*, messages::*, raid::*, redeems::*,
+  adbreak::*, cheer::*, follow::*, getchatters::*, messages::*, poll::*, raid::*, redeems::*,
   subscription::*,
 };
 
@@ -170,6 +170,27 @@ pub struct GdGetChattersContainer {
   pub data: Gd<GGetChatters>,
 }
 
+#[derive(GodotClass, Debug, GodotConvert)]
+#[godot(transparent)]
+#[class(init)]
+pub struct GdPollBeginContainer {
+  pub data: Gd<GPollBegin>,
+}
+
+#[derive(GodotClass, Debug, GodotConvert)]
+#[godot(transparent)]
+#[class(init)]
+pub struct GdPollProgressContainer {
+  pub data: Gd<GPollProgress>,
+}
+
+#[derive(GodotClass, Debug, GodotConvert)]
+#[godot(transparent)]
+#[class(init)]
+pub struct GdPollEndContainer {
+  pub data: Gd<GPollEnd>,
+}
+
 #[godot_api]
 impl TwitchEvent {
   #[signal]
@@ -204,6 +225,15 @@ impl TwitchEvent {
 
   #[signal]
   fn cheer(cheer: GdCheerContainer);
+
+  #[signal]
+  fn poll_begin(poll_begin: GdPollBeginContainer);
+
+  #[signal]
+  fn poll_progress(poll_progress: GdPollProgressContainer);
+
+  #[signal]
+  fn poll_end(poll_end: GdPollEndContainer);
 
   #[func]
   pub fn get_chatters(&mut self) -> Gd<GGetChatters> {
@@ -449,6 +479,33 @@ impl INode for TwitchEvent {
                 "cheer".into(),
                 &[GdCheerContainer {
                   data: Gd::from_object(GCheerData::from(cheer)),
+                }
+                .to_variant()],
+              );
+            }
+            Event::PollBegin(begin) => {
+              self.base_mut().emit_signal(
+                "poll_begin".into(),
+                &[GdPollBeginContainer {
+                  data: Gd::from_object(GPollBegin::from(begin)),
+                }
+                .to_variant()],
+              );
+            }
+            Event::PollProgress(progress) => {
+              self.base_mut().emit_signal(
+                "poll_progress".into(),
+                &[GdPollProgressContainer {
+                  data: Gd::from_object(GPollProgress::from(progress)),
+                }
+                .to_variant()],
+              );
+            }
+            Event::PollEnd(end) => {
+              self.base_mut().emit_signal(
+                "poll_end".into(),
+                &[GdPollEndContainer {
+                  data: Gd::from_object(GPollEnd::from(end)),
                 }
                 .to_variant()],
               );
