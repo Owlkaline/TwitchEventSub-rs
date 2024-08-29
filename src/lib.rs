@@ -9,6 +9,7 @@ use std::time::Duration;
 use std::sync::{Arc, Mutex};
 
 use crate::modules::consts::*;
+//use modules::irc_bot::IRCChat;
 use open;
 use std::io::{ErrorKind, Read};
 
@@ -155,7 +156,6 @@ impl TwitchEventSubApiBuilder {
 
   #[must_use]
   pub fn build(mut self) -> Result<TwitchEventSubApi, EventSubError> {
-    log_builder();
     let mut newly_generated_token = None;
 
     if self.subscriptions.is_empty() {
@@ -355,7 +355,13 @@ impl TwitchEventSubApi {
     subscriptions: Vec<Subscription>,
     custom_subscription_data: Vec<String>,
   ) -> Result<TwitchEventSubApi, WebSocketError> {
-    log_info();
+    // let mut irc = IRCChat::new(
+    //   "Owlkalinevt",
+    //   //  twitch_keys.access_token.clone().unwrap().get_token(),
+    //   twitch_keys.client_secret.to_owned(),
+    // );
+    // irc.send_message("Test message from irc");
+
     info!("Starting websocket client.");
     let client = match ClientBuilder::new(CONNECTION_EVENTS)
       .unwrap()
@@ -735,11 +741,30 @@ impl TwitchEventSubApi {
       &mut self.twitch_keys,
       &self.save_locations,
     )
-    .and_then(|x| {
-      println!("X: {}", x);
-      serde_json::from_str(&x).map_err(|e| EventSubError::ParseError(e.to_string()))
-    })
+    .and_then(|x| serde_json::from_str(&x).map_err(|e| EventSubError::ParseError(e.to_string())))
   }
+
+  // come back later
+  //pub fn delete_custom_reward<T: Into<String>>(
+  //  &mut self,
+  //  id: T,
+  //) -> Result<CustomRewardResponse, EventSubError> {
+  //  let access_token = self
+  //    .twitch_keys
+  //    .access_token
+  //    .clone()
+  //    .expect("Access token not set")
+  //    .get_token();
+  //  let broadcaster_id = self.twitch_keys.broadcaster_account_id.to_string();
+  //  let client_id = self.twitch_keys.client_id.to_string();
+
+  //  TwitchEventSubApi::regen_token_if_401(
+  //    TwitchApi::delete_custom_reward(access_token, client_id, broadcaster_id, id),
+  //    &mut self.twitch_keys,
+  //    &self.save_locations,
+  //  )
+  //  .and_then(|x| serde_json::from_str(&x).map_err(|e| EventSubError::ParseError(e.to_string())))
+  //}
 
   pub fn get_channel_emotes<S: Into<String>>(
     &mut self,
@@ -765,10 +790,7 @@ impl TwitchEventSubApi {
       &mut self.twitch_keys,
       &self.save_locations,
     )
-    .and_then(|x| {
-      //println!("{:?}", x);
-      serde_json::from_str(&x).map_err(|e| EventSubError::ParseError(e.to_string()))
-    })
+    .and_then(|x| serde_json::from_str(&x).map_err(|e| EventSubError::ParseError(e.to_string())))
   }
 
   pub fn get_global_emotes(&mut self) -> Result<GlobalEmotes, EventSubError> {
@@ -823,6 +845,40 @@ impl TwitchEventSubApi {
         broadcaster_account_id,
         Some(sender_id),
         reply_message_parent_id,
+      ),
+      &mut self.twitch_keys,
+      &self.save_locations,
+    )
+  }
+
+  pub fn send_announcement<S: Into<String>, T: Into<String>>(
+    &mut self,
+    message: S,
+    colour: Option<T>,
+  ) -> Result<String, EventSubError> {
+    let message: String = message.into();
+    let access_token = self
+      .twitch_keys
+      .access_token
+      .clone()
+      .expect("No Access Token set")
+      .get_token();
+    let client_id = self.twitch_keys.client_id.to_string();
+    let broadcaster_account_id = self.twitch_keys.broadcaster_account_id.to_string();
+    let sender_id = self
+      .twitch_keys
+      .sender_account_id
+      .clone()
+      .unwrap_or(self.twitch_keys.broadcaster_account_id.to_string());
+
+    TwitchEventSubApi::regen_token_if_401(
+      TwitchApi::send_announcement(
+        message,
+        access_token,
+        client_id,
+        broadcaster_account_id,
+        sender_id,
+        colour,
       ),
       &mut self.twitch_keys,
       &self.save_locations,
@@ -918,6 +974,7 @@ impl TwitchEventSubApi {
 
       if last_message.elapsed().as_secs() > 30 {
         let _ = client.send_message(&OwnedMessage::Close(None));
+        thread::sleep(Duration::from_secs(1));
         println!("Messages not sent within the keep alive timeout restarting websocket");
         info!("Messages not sent within the keep alive timeout restarting websocket");
         *client = ClientBuilder::new(CONNECTION_EVENTS)
@@ -962,8 +1019,6 @@ impl TwitchEventSubApi {
                   sub_data
                     .iter()
                     .map(|sub_data| {
-                      //println!("{:?}", sub_data);
-                      println!("subscribing");
                       TwitchHttpRequest::new(SUBSCRIBE_URL)
                         .full_auth(token.to_owned(), twitch_keys.client_id.to_string())
                         .json_content()
@@ -1004,7 +1059,6 @@ impl TwitchEventSubApi {
             EventMessageType::KeepAlive => {
               info!("Keep alive: {}", last_message.elapsed().as_secs());
               last_message = Instant::now();
-              //println!("Keep alive receive message sent, !implemented");
             }
             EventMessageType::Reconnect => {
               println!("Reconnecting to Twitch!");
@@ -1019,6 +1073,7 @@ impl TwitchEventSubApi {
                 .unwrap();
 
               is_reconnecting = true;
+              let _ = client.send_message(&OwnedMessage::Close(None));
               *client = ClientBuilder::new(&url)
                 .unwrap()
                 .add_protocol("rust-websocket-events")
@@ -1030,7 +1085,6 @@ impl TwitchEventSubApi {
             EventMessageType::Notification => {
               last_message = Instant::now();
               let message = message.payload.unwrap().event.unwrap();
-              //println!("{:?}", message);
               message_sender
                 .send(ResponseType::Event(message)) //message.payload.unwrap().event.unwrap()))
                 .unwrap();

@@ -1,6 +1,6 @@
 use crate::{
-  CreateCustomReward, EventSubError, SendMessage, Subscription, Token, TwitchEventSubApi,
-  Validation,
+  AnnouncementMessage, CreateCustomReward, EventSubError, SendMessage, Subscription, Token,
+  TwitchEventSubApi, Validation,
 };
 use curl::easy::{Easy, List};
 
@@ -75,6 +75,46 @@ impl TwitchApi {
             .unwrap(),
           message: message.into(),
           reply_parent_message_id: is_reply_parent_message_id,
+        })
+        .unwrap(),
+      )
+      .run()
+  }
+
+  pub fn send_announcement<
+    S: Into<String>,
+    T: Into<String>,
+    V: Into<String>,
+    X: Into<String>,
+    Z: Into<String>,
+    P: Into<String>,
+  >(
+    message: S,
+    access_token: T,
+    client_id: V,
+    broadcaster_account_id: X,
+    sender_account_id: Z,
+    colour: Option<P>,
+  ) -> Result<String, EventSubError> {
+    let message = message.into();
+    if message.len() > 500 {
+      return Err(EventSubError::MessageTooLong);
+    }
+
+    let broadcaster_account_id = broadcaster_account_id.into();
+    let sender_account_id: String = sender_account_id.into();
+    let url = RequestBuilder::new()
+      .add_key_value("broadcaster_id", broadcaster_account_id)
+      .add_key_value("moderator_id", sender_account_id)
+      .build(SEND_ANNOUNCEMENT_URL);
+
+    TwitchHttpRequest::new(url)
+      .json_content()
+      .full_auth(access_token, client_id)
+      .is_post(
+        serde_json::to_string(&AnnouncementMessage {
+          message,
+          colour: colour.and_then(|c| Some(c.into())),
         })
         .unwrap(),
       )
@@ -309,23 +349,28 @@ impl TwitchApi {
       .run()
   }
 
-  //  pub fn delete_custom_reward<T: Into<String>, S: Into<String>, X: Into<String>>(
-  //    access_token: T,
-  //    client_id: S,
-  //    broadcaster_id: X,
-  //    custom_reward_data: CreateCustomReward,
-  //  ) -> Result<String, EventSubError> {
-  //    let url = RequestBuilder::new()
-  //      .add_key_value("broadcaster_id", broadcaster_id.into())
-  //      .build(GET_CUSTOM_REWARDS_URL);
-  //    let data = serde_json::to_string(&custom_reward_data).unwrap();
-  //    TwitchHttpRequest::new(url)
-  //      .header_authorisation(access_token.into(), AuthType::Bearer)
-  //      .header_client_id(client_id.into())
-  //      .json_content()
-  //      .is_post(data)
-  //      .run()
-  //  }
+  pub fn delete_custom_reward<
+    T: Into<String>,
+    S: Into<String>,
+    X: Into<String>,
+    Z: Into<String>,
+  >(
+    access_token: T,
+    client_id: S,
+    broadcaster_id: X,
+    reward_id: Z,
+  ) -> Result<String, EventSubError> {
+    let url = RequestBuilder::new()
+      .add_key_value("broadcaster_id", broadcaster_id.into())
+      .add_key_value("id", reward_id.into())
+      .build(GET_CUSTOM_REWARDS_URL);
+
+    TwitchHttpRequest::new(url)
+      .header_authorisation(access_token.into(), AuthType::Bearer)
+      .header_client_id(client_id.into())
+      .is_delete()
+      .run()
+  }
 }
 
 #[derive(PartialEq, Clone, Debug)]
@@ -572,7 +617,7 @@ impl TwitchHttpRequest {
           }
         }
         error!("Unhandled error: {}, {}", self.url, error.error_msg());
-        println!("Unhandled error: {}, {}", self.url, error.error_msg());
+        //println!("Unhandled error: {}, {}", self.url, error.error_msg());
         return Err(EventSubError::InvalidOauthToken(error.error_msg()));
       }
     }

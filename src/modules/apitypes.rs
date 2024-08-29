@@ -7,6 +7,13 @@ use twitch_eventsub_structs::User;
 
 #[derive(Serialise, Deserialise, Debug)]
 #[serde(crate = "self::serde")]
+pub struct AnnouncementMessage {
+  pub message: String,
+  pub colour: Option<String>,
+}
+
+#[derive(Serialise, Deserialise, Debug)]
+#[serde(crate = "self::serde")]
 pub struct CreateCustomReward {
   pub title: String,
   pub cost: i64,
@@ -56,7 +63,7 @@ pub struct GlobalCooldownSetting {
 #[derive(Serialise, Deserialise, Debug)]
 #[serde(crate = "self::serde")]
 pub struct CustomRewardResponse {
-  data: Vec<CustomReward>,
+  pub data: Vec<CustomReward>,
 }
 
 #[derive(Serialise, Deserialise, Debug)]
