@@ -1,6 +1,6 @@
 [package]
 name = "twitch_eventsub"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2021"
 description = "A library that handles everything with Twitch EventSub helix api for you."
 repository = "https://github.com/lilith645/TwitchEventSub-rs.git"

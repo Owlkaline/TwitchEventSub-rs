@@ -7,6 +7,11 @@ edition = "2021"
 crate-type = ["cdylib"]
 
 [dependencies]
-godot = "0.1.1"
+#godot = "0.1.1"
 #twitch_eventsub = { path = "../../../Git/TwitchEventSub-rs/", features=["godot"] }
 twitch_eventsub = { git = "https://github.com/lilith645/TwitchEventSub-rs.git" }
+
+[dependencies.godot]
+git = "https://github.com/godot-rust/gdext"
+branch = "master"
+features = ["experimental-wasm", "lazy-function-tables"]

@@ -193,6 +193,13 @@ pub struct GdPollEndContainer {
 
 #[godot_api]
 impl TwitchEvent {
+  #[func]
+  fn send_chat_message(&mut self, message: GString) {
+    if let Some(twitch) = &mut self.twitch {
+      let _ = twitch.send_chat_message(message);
+    }
+  }
+
   #[signal]
   fn chat_message(message_data: GdMessageContainer);
 
