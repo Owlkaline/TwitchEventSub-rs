@@ -34,4 +34,4 @@ simple_env_load = "0.2.0"
 #simple-logging = "2.0.2"
 log = "0.4"
 #twitch_eventsub_structs = { path = "../TwitchEventSubStructs" }
-twitch_eventsub_structs = { version = "0.1.2", git = "https://github.com/Owlkaline/TwitchEventSubStructs.git" }
+twitch_eventsub_structs = "0.1.2"
