@@ -1,4 +1,3 @@
-use std::borrow::Borrow;
 use std::fs;
 use std::iter;
 use std::net::TcpStream;
@@ -22,11 +21,12 @@ use std::net::TcpListener;
 
 #[macro_use]
 extern crate twitch_eventsub_structs;
+pub use modules::errors::LOG_FILE;
 pub use twitch_eventsub_structs::*;
 
 mod modules;
 
-use crate::modules::{errors::*, token::Token};
+use crate::modules::token::Token;
 
 pub use log::{error, info, warn};
 

@@ -1,5 +1,3 @@
-//use twitch_eventsub_structs::serde::{Deserialize as Deserialise, Serialize as Serialise};
-#[macro_use]
 use crate::serde::{self, Deserialize as Deserialise, Serialize as Serialise};
 
 use twitch_eventsub_structs::prefix_broadcaster;

@@ -4,7 +4,7 @@ use log::LevelFilter;
 use crate::{modules::twitch_http::TwitchHttpRequest, Subscription};
 
 pub const LOG_FILE: &str = "twitch_events.log";
-pub const LOG_FILE_BUILDER: &str = "twitch_event_builder.log";
+//pub const LOG_FILE_BUILDER: &str = "twitch_event_builder.log";
 
 //pub fn log_info() {
 //  let _ = simple_logging::log_to_file(LOG_FILE, LevelFilter::Info);
