@@ -11,7 +11,7 @@ categories = [
   "authentication",
   "network-programming",
 ]
-keywords = ["Twitch", "EventSub", "oauth", "api", "websocket"]
+keywords = ["Twitch", "EventSub", "oauth", "api", "websocket", "Godot", "Unity"]
 resolver = "2"
 license = "MIT"
 exclude = ["examples"]
