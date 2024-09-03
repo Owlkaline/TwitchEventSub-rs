@@ -464,7 +464,7 @@ impl TwitchEventSubApi {
   ) -> Result<String, EventSubError> {
     let browser_url = browser_url.into();
     if is_local {
-      if let Err(e) = open::that(browser_url) {
+      if let Err(e) = open::that_detached(browser_url) {
         error!("Failed to open browser: {}", e);
         return Err(EventSubError::UnhandledError(e.to_string()));
       }
