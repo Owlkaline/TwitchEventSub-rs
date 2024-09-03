@@ -61,11 +61,11 @@ jobs:
           cp ${{ matrix.rust_package_dir }}/target/x86_64-unknown-linux-gnu/release/lib${{ matrix.rust_package_name }}.so packing/
           cp ${{ matrix.rust_package_dir }}/target/x86_64-pc-windows-gnu/release/${{ matrix.rust_package_name }}.dll packing/
           cp ${{ matrix.packing_extra_files }} packing/
-          tar -c -f Release-${{ github.ref }}-${{ matrix.engine_name }}.zip -C packing .
+          tar -c -f Release-${{ matrix.engine_name }}.zip -C packing .
 
       - name: Upload to release
         uses: svenstaro/upload-release-action@v2
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: Release-${{ github.ref }}-${{ matrix.engine_name }}.zip
+          file: Release-${{ matrix.engine_name }}.zip
           tag: ${{ github.ref }}
