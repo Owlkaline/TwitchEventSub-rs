@@ -12,4 +12,5 @@ rand = "*"
 serde = "*"
 serde_json = "*"
 serde_derive = "*"
-twitch_eventsub = { git = "https://github.com/lilith645/TwitchEventSub-rs.git" }
+#twitch_eventsub = { git = "https://github.com/lilith645/TwitchEventSub-rs.git" }
+twitch_eventsub = { path = "../" }
