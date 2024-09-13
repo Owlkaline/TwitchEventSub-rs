@@ -9,7 +9,6 @@ A simple rust library for dealing with that pesky twitch api, specifically event
 Create a .secrets.env or .example.env file in working directory with the following filled out:
 
 ```dotenv
-// Required
 TWITCH_CLIENT_ID = "CLIENT_ID from twitch console app"
 TWITCH_CLIENT_SECRET = "CLIENT_SECRET from twitch console app"
 TWITCH_BROADCASTER_ID = "Your broadcaster ID as numbers"
@@ -17,7 +16,7 @@ TWITCH_BROADCASTER_ID = "Your broadcaster ID as numbers"
 
 ### Example Usage
 
-```Rust
+```rust
 use std::time::Duration;
 use twitch_eventsub::*;
 
@@ -42,7 +41,6 @@ fn main() {
             Subscription::ChannelPointsCustomRewardRedeem,
             Subscription::ChannelPointsAutoRewardRedeem,
             Subscription::ChatMessage,
-            Subscription::DeleteMessage,
             Subscription::AdBreakBegin,
         ]);
 
@@ -69,7 +67,7 @@ fn main() {
         // Recommended for most setups
         // If you are not running this inside a game and just byitself
         // Such as a chat bot, setting this to 1 millis seems to be good
-        let responses = api.receive_messages(Duration::from_millis(1));
+        let responses = api.receive_all_messages(Some(Duration::from_millis(1)));
         for response in responses {
             match response {
                 ResponseType::Event(event) => {
@@ -100,8 +98,6 @@ fn main() {
                 _ => {}
             }
         }
-    }
-
     }
 }
 ```
@@ -139,7 +135,7 @@ func _on_twitch_event_custom_point_reward_redeem(reward: GReward):
 
 ## Building
 
-```
+```doc
 cargo build --release
 ```
 
@@ -147,7 +143,7 @@ cargo build --release
 
 - Error redirect url does not match!
 
-```
+```doc
  Parameter+redirect_uri+does+not+match+registered+URI error
 ```
 
