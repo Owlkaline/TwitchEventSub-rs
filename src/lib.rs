@@ -810,6 +810,31 @@ impl TwitchEventSubApi {
     .and_then(|x| serde_json::from_str(&x).map_err(|e| EventSubError::ParseError(e.to_string())))
   }
 
+  pub fn get_image_data_from_url<S: Into<String>>(emote_url: S) -> Vec<u8> {
+    let new_image_data = attohttpc::get(emote_url.into()).send().unwrap();
+    new_image_data.bytes().unwrap()
+  }
+
+  pub fn get_emote_sets<S: Into<String>>(
+    &mut self,
+    emote_set_id: S,
+  ) -> Result<GlobalEmotes, EventSubError> {
+    let access_token = self
+      .twitch_keys
+      .access_token
+      .clone()
+      .expect("Access token not set")
+      .get_token();
+    let client_id = self.twitch_keys.client_id.to_string();
+
+    TwitchEventSubApi::regen_token_if_401(
+      TwitchApi::get_emote_set(emote_set_id.into(), access_token, client_id),
+      &mut self.twitch_keys,
+      &self.save_locations,
+    )
+    .and_then(|x| serde_json::from_str(&x).map_err(|e| EventSubError::ParseError(e.to_string())))
+  }
+
   pub fn send_chat_message<S: Into<String>>(
     &mut self,
     message: S,

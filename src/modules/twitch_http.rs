@@ -316,6 +316,21 @@ impl TwitchApi {
       .run()
   }
 
+  pub fn get_emote_set<X: Into<String>, T: Into<String>, S: Into<String>>(
+    emote_set_id: X,
+    access_token: T,
+    client_id: S,
+  ) -> Result<String, EventSubError> {
+    let url = RequestBuilder::new()
+      .add_key_value("emote_set_id", emote_set_id.into())
+      .build(GET_EMOTE_SETS_URL);
+
+    TwitchHttpRequest::new(url)
+      .header_authorisation(access_token.into(), AuthType::Bearer)
+      .header_client_id(client_id.into())
+      .run()
+  }
+
   pub fn get_moderators<T: Into<String>, S: Into<String>, X: Into<String>>(
     access_token: T,
     client_id: S,
