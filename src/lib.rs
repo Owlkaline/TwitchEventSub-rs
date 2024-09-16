@@ -17,9 +17,10 @@ use websocket::stream::sync::TlsStream;
 pub use websocket::WebSocketError;
 use websocket::{sync::Client, OwnedMessage};
 
+use serde_json;
+
 use std::net::TcpListener;
 
-#[macro_use]
 extern crate twitch_eventsub_structs;
 pub use modules::errors::LOG_FILE;
 pub use twitch_eventsub_structs::*;

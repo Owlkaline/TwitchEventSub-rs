@@ -1,18 +1,16 @@
-use crate::serde::{self, Deserialize as Deserialise, Serialize as Serialise};
 use crate::TwitchEventSubApi;
+use serde_derive::{Deserialize as Deserialise, Serialize as Serialise};
 
 use twitch_eventsub_structs::User;
 use twitch_eventsub_structs::{prefix_broadcaster, Emote};
 
 #[derive(Serialise, Deserialise, Debug)]
-#[serde(crate = "self::serde")]
 pub struct AnnouncementMessage {
   pub message: String,
   pub colour: Option<String>,
 }
 
 #[derive(Serialise, Deserialise, Debug)]
-#[serde(crate = "self::serde")]
 pub struct CreateCustomReward {
   pub title: String,
   pub cost: i64,
@@ -46,27 +44,23 @@ impl Default for CreateCustomReward {
 }
 
 #[derive(Serialise, Deserialise, Debug)]
-#[serde(crate = "self::serde")]
 pub struct MaxPerStreamSetting {
   pub is_enabled: bool,
   pub max_per_stream: i64,
 }
 
 #[derive(Serialise, Deserialise, Debug)]
-#[serde(crate = "self::serde")]
 pub struct GlobalCooldownSetting {
   pub is_enabled: bool,
   pub global_cooldown_seconds: i64,
 }
 
 #[derive(Serialise, Deserialise, Debug)]
-#[serde(crate = "self::serde")]
 pub struct CustomRewardResponse {
   pub data: Vec<CustomReward>,
 }
 
 #[derive(Serialise, Deserialise, Debug)]
-#[serde(crate = "self::serde")]
 pub struct CustomReward {
   #[serde(flatten, with = "prefix_broadcaster")]
   pub broadcaster: User,
@@ -90,13 +84,11 @@ pub struct CustomReward {
 }
 
 #[derive(Serialise, Deserialise, Debug)]
-#[serde(crate = "self::serde")]
 pub struct AdSchedule {
   pub data: Vec<AdDetails>,
 }
 
 #[derive(Serialise, Deserialise, Debug)]
-#[serde(crate = "self::serde")]
 pub struct AdDetails {
   pub next_ad_at: u32,
   pub last_ad_at: u32,
@@ -107,13 +99,11 @@ pub struct AdDetails {
 }
 
 #[derive(Serialise, Deserialise, Debug)]
-#[serde(crate = "self::serde")]
 pub struct Pagination {
   pub cursor: Option<String>,
 }
 
 #[derive(Serialise, Deserialise, Debug)]
-#[serde(crate = "self::serde")]
 pub struct GetChatters {
   pub data: Vec<User>,
   pub pagination: Pagination,
@@ -121,7 +111,6 @@ pub struct GetChatters {
 }
 
 #[derive(Serialise, Deserialise, Debug, Clone)]
-#[serde(crate = "self::serde")]
 pub struct EmoteStaticImages {
   pub url_1x: String,
   pub url_2x: String,
@@ -129,7 +118,6 @@ pub struct EmoteStaticImages {
 }
 
 #[derive(Serialise, Deserialise, Debug, Clone)]
-#[serde(crate = "self::serde")]
 pub enum EmoteType {
   #[serde(rename = "bitstier")]
   BitsTier,
@@ -162,7 +150,6 @@ pub enum EmoteType {
 }
 
 #[derive(Serialise, Deserialise, Debug, PartialEq, Clone)]
-#[serde(crate = "self::serde")]
 pub enum EmoteFormat {
   #[serde(rename = "static")]
   Static,
@@ -181,7 +168,6 @@ impl EmoteFormat {
 }
 
 #[derive(Serialise, Deserialise, Debug, Clone)]
-#[serde(crate = "self::serde")]
 pub enum ThemeMode {
   #[serde(rename = "light")]
   Light,
@@ -214,7 +200,6 @@ pub struct EmoteData {
 }
 
 #[derive(Serialise, Deserialise, Debug, Clone)]
-#[serde(crate = "self::serde")]
 pub struct ChannelEmoteData {
   pub id: String,
   pub name: String,
@@ -228,7 +213,6 @@ pub struct ChannelEmoteData {
 }
 
 #[derive(Serialise, Deserialise, Debug, Clone)]
-#[serde(crate = "self::serde")]
 pub struct GlobalEmoteData {
   pub id: String,
   pub name: String,
@@ -239,21 +223,18 @@ pub struct GlobalEmoteData {
 }
 
 #[derive(Serialise, Deserialise, Debug)]
-#[serde(crate = "self::serde")]
 pub struct ChannelEmotes {
   pub data: Vec<ChannelEmoteData>,
   pub template: String,
 }
 
 #[derive(Serialise, Deserialise, Debug)]
-#[serde(crate = "self::serde")]
 pub struct GlobalEmotes {
   pub data: Vec<GlobalEmoteData>,
   pub template: String,
 }
 
 #[derive(Serialise, Deserialise, Debug)]
-#[serde(crate = "self::serde")]
 pub struct Moderators {
   pub data: Vec<User>,
   pub pagination: Pagination,
@@ -292,7 +273,6 @@ impl Into<EmoteData> for GlobalEmoteData {
 }
 
 #[derive(Serialise, Deserialise, Debug)]
-#[serde(crate = "self::serde")]
 pub enum EmoteScale {
   #[serde(rename = "1.0")]
   Size1,
