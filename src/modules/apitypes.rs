@@ -5,14 +5,12 @@ use twitch_eventsub_structs::User;
 use twitch_eventsub_structs::{prefix_broadcaster, Emote};
 
 #[derive(Serialise, Deserialise, Debug)]
-#[serde(crate = "self::serde")]
 pub struct AnnouncementMessage {
   pub message: String,
   pub colour: Option<String>,
 }
 
 #[derive(Serialise, Deserialise, Debug)]
-#[serde(crate = "self::serde")]
 pub struct CreateCustomReward {
   pub title: String,
   pub cost: i64,
@@ -86,13 +84,11 @@ pub struct CustomReward {
 }
 
 #[derive(Serialise, Deserialise, Debug)]
-#[serde(crate = "self::serde")]
 pub struct AdSchedule {
   pub data: Vec<AdDetails>,
 }
 
 #[derive(Serialise, Deserialise, Debug)]
-#[serde(crate = "self::serde")]
 pub struct AdDetails {
   pub next_ad_at: u32,
   pub last_ad_at: u32,
@@ -172,7 +168,6 @@ impl EmoteFormat {
 }
 
 #[derive(Serialise, Deserialise, Debug, Clone)]
-#[serde(crate = "self::serde")]
 pub enum ThemeMode {
   #[serde(rename = "light")]
   Light,
@@ -278,7 +273,6 @@ impl Into<EmoteData> for GlobalEmoteData {
 }
 
 #[derive(Serialise, Deserialise, Debug)]
-#[serde(crate = "self::serde")]
 pub enum EmoteScale {
   #[serde(rename = "1.0")]
   Size1,

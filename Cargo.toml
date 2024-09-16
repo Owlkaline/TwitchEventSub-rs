@@ -32,4 +32,8 @@ attohttpc = "0.28.0"
 tungstenite = { version = "0.24.0", features = ["native-tls"] }
 serde = { version = "1.0.210", features = ["derive"] }
 #twitch_eventsub_structs = "0.1.2"
-twitch_eventsub_structs = { git = "https://github.com/Owlkaline/TwitchEventSubStructs.git" }
+#twitch_eventsub_structs = { git = "https://github.com/Owlkaline/TwitchEventSubStructs.git" }
+twitch_eventsub_structs = { path = "../TwitchEventSubStructs/" }
+serde = "*"
+serde_derive = "*"
+serde_json = "*"

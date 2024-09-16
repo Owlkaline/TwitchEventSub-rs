@@ -19,6 +19,8 @@ use tungstenite::{
   stream::MaybeTlsStream,
 };
 
+use serde_json;
+
 use std::net::TcpListener;
 
 pub use modules::errors::LOG_FILE;
