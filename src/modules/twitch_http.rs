@@ -5,7 +5,6 @@ use crate::{
 use curl::easy::{Easy, List};
 
 use log::{error, info};
-use serde::Serialize;
 
 use crate::modules::{
   consts::*,

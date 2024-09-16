@@ -1,4 +1,3 @@
-use log::LevelFilter;
 //use simple_logging;
 
 use crate::{modules::twitch_http::TwitchHttpRequest, Subscription};

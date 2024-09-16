@@ -23,15 +23,13 @@ only_raw_responses = []
 bevy = ["twitch_eventsub_structs/bevy"]
 
 [dependencies]
-websocket = { version = "0.27.1", default-features = false, features = [
-  "sync",
-  "sync-ssl",
-] }
 enum_all_variants = "0.2.0"
 curl = "0.4.46"
 open = "5.1.4"
 simple_env_load = "0.2.0"
 log = "0.4"
 attohttpc = "0.28.0"
+tungstenite = { version = "0.24.0", features = ["native-tls"] }
+serde = { version = "1.0.210", features = ["derive"] }
 #twitch_eventsub_structs = "0.1.2"
 twitch_eventsub_structs = { git = "https://github.com/Owlkaline/TwitchEventSubStructs.git" }
