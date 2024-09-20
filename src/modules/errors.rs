@@ -1,6 +1,3 @@
-use log::LevelFilter;
-//use simple_logging;
-
 use crate::{modules::twitch_http::TwitchHttpRequest, Subscription};
 
 pub const LOG_FILE: &str = "twitch_events.log";
@@ -16,6 +13,7 @@ pub const LOG_FILE: &str = "twitch_events.log";
 
 #[derive(Debug, PartialEq)]
 pub enum EventSubError {
+  WebsocketRestartFailed(String),
   TokenMissingScope,
   TokenMissingSubscription(Subscription),
   TokenMissingUnimplementedSubscription(String),
@@ -30,6 +28,7 @@ pub enum EventSubError {
   InvalidAccessToken(String),
   InvalidOauthToken(String),
   CurlFailed(curl::Error),
+  HttpFailed(String),
   ParseError(String),
   TokenRequiresRefreshing(TwitchHttpRequest),
   MaximumWebsocketTransmissionsExceeded(String),
@@ -37,6 +36,6 @@ pub enum EventSubError {
 
 #[derive(Debug)]
 pub enum TwitchKeysError {
-  ClientIdNotFound,
-  ClientSecretNotFound,
+  ClientIdNotFound(String),
+  ClientSecretNotFound(String),
 }

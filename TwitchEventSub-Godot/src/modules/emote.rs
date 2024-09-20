@@ -4,6 +4,19 @@ use twitch_eventsub::*;
 
 #[derive(GodotClass)]
 #[class(init)]
+pub struct GEmote {
+  #[var]
+  pub id: GString,
+  #[var]
+  pub emote_set_id: GString,
+  #[var]
+  pub owner_id: GString,
+  #[var]
+  pub format: Array<GString>,
+}
+
+#[derive(GodotClass)]
+#[class(init)]
 pub struct GRewardEmote {
   #[var]
   id: GString,
@@ -19,6 +32,52 @@ impl From<RewardEmote> for GRewardEmote {
       id: value.id.into(),
       begin: value.begin,
       end: value.end,
+    }
+  }
+}
+
+#[godot_api]
+impl GEmote {
+  #[func]
+  pub fn has_animation(&self) -> bool {
+    self.format.contains(&"animated".into())
+  }
+
+  pub fn convert_to_rust(&self) -> Emote {
+    Emote {
+      id: self.id.to_owned().into(),
+      emote_set_id: self.emote_set_id.to_owned().into(),
+      owner_id: if self.owner_id.is_empty() {
+        None
+      } else {
+        Some(self.owner_id.to_owned().into())
+      },
+      format: Some(
+        self
+          .format
+          .iter_shared()
+          .map(|a| a.into())
+          .collect::<Vec<_>>(),
+      ),
+    }
+  }
+}
+
+impl From<Emote> for GEmote {
+  fn from(value: Emote) -> Self {
+    let mut format = Array::new();
+
+    if let Some(some_format) = value.format {
+      for value_format in some_format {
+        format.push(value_format.into());
+      }
+    }
+
+    GEmote {
+      id: value.id.into(),
+      emote_set_id: value.emote_set_id.into(),
+      owner_id: value.owner_id.unwrap_or("".to_string()).into(),
+      format,
     }
   }
 }

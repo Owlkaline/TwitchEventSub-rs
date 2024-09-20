@@ -1,18 +1,23 @@
 use std::time::Duration;
 
-use godot::classes::{INode, Node};
+use godot::classes::{self, INode, Image, ImageTexture, Node, SpriteFrames};
 
 use godot::init::EditorRunBehavior;
 use godot::prelude::*;
+use image::{EncodableLayout, ImageDecoder};
+use std::io::Read;
 
 use std::panic;
 use twitch_eventsub::*;
 
 mod modules;
 use crate::modules::{
-  adbreak::*, cheer::*, follow::*, getchatters::*, messages::*, poll::*, raid::*, redeems::*,
-  subscription::*,
+  adbreak::*, cheer::*, emote::*, follow::*, getchatters::*, messages::*, poll::*, raid::*,
+  redeems::*, subscription::*, GUser,
 };
+use std::io::Cursor;
+
+use image::{codecs::gif::GifDecoder, AnimationDecoder};
 
 struct TwitchApi;
 
@@ -194,9 +199,157 @@ pub struct GdPollEndContainer {
 #[godot_api]
 impl TwitchEvent {
   #[func]
+  fn get_animated_texture_from_url(
+    &mut self,
+    url: GString,
+    mut animated_sprite: Gd<classes::AnimatedSprite2D>,
+    mut sprite_frames: Gd<SpriteFrames>,
+  ) {
+    //    let mut sprite_frames = classes::SpriteFrames::new_gd();
+    let animation_name = StringName::from("emote");
+    sprite_frames.add_animation(animation_name.clone());
+    sprite_frames.set_animation_loop(animation_name.clone(), true);
+
+    let mut data = twitch_eventsub::TwitchEventSubApi::get_image_data_from_url(url);
+    let mut delay_ms = 0.0;
+    if let Ok(gif) = GifDecoder::new(Cursor::new(data)) {
+      let (width, height) = gif.dimensions();
+      let frames = gif.into_frames().collect_frames().unwrap();
+      let number_of_frames = frames.len();
+      for frame in frames {
+        let (n, d) = frame.delay().numer_denom_ms();
+        let delay = n as f32 / d as f32;
+        delay_ms += delay;
+        let data = frame
+          .buffer()
+          .bytes()
+          .map(|a| a.unwrap())
+          .collect::<Vec<_>>();
+        godot_print!("{}x{}", width, height);
+        let image = Image::create_from_data(
+          width as i32,
+          height as i32,
+          false,
+          classes::image::Format::RGBA8,
+          PackedByteArray::from(data.as_bytes()),
+        );
+
+        let texture = ImageTexture::create_from_image(image).unwrap();
+        sprite_frames.add_frame(animation_name.clone(), texture);
+      }
+      delay_ms /= number_of_frames as f32;
+      sprite_frames.set_animation_speed(animation_name, (1000.0 / delay_ms) as f64);
+    }
+
+    animated_sprite.set_sprite_frames(sprite_frames);
+    //animated_sprite.play_ex();
+    // animated_sprite.play();
+  }
+
+  #[func]
+  fn get_static_texture_from_url(&mut self, url: GString) -> Gd<ImageTexture> {
+    let mut data = twitch_eventsub::TwitchEventSubApi::get_image_data_from_url(url);
+    let image = image::ImageReader::new(Cursor::new(data))
+      .with_guessed_format()
+      .unwrap()
+      .decode()
+      .unwrap()
+      .to_rgba8();
+
+    let image = Image::create_from_data(
+      image.width() as i32,
+      image.height() as i32,
+      false,
+      classes::image::Format::RGBA8,
+      PackedByteArray::from(image.as_bytes()),
+    );
+
+    let texture = ImageTexture::create_from_image(image);
+
+    return texture.unwrap();
+  }
+
+  #[func]
+  fn get_emote_url_1x(&mut self, emote: Gd<GEmote>) -> GString {
+    self.get_emote_url(emote, EmoteScale::Size1)
+  }
+
+  #[func]
+  fn get_emote_url_2x(&mut self, emote: Gd<GEmote>) -> GString {
+    self.get_emote_url(emote, EmoteScale::Size2)
+  }
+
+  #[func]
+  fn get_emote_url_3x(&mut self, emote: Gd<GEmote>) -> GString {
+    self.get_emote_url(emote, EmoteScale::Size3)
+  }
+
+  fn get_emote_url(&mut self, emote: Gd<GEmote>, scale: EmoteScale) -> GString {
+    let mut url = String::new();
+
+    if let Some(twitch) = &mut self.twitch {
+      let mut builder = EmoteBuilder::builder().animate_or_fallback_on_static();
+      match scale {
+        EmoteScale::Size1 => {
+          builder = builder.scale1();
+        }
+        EmoteScale::Size2 => {
+          builder = builder.scale2();
+        }
+        EmoteScale::Size3 => {
+          builder = builder.scale3();
+        }
+      }
+
+      if let Some(emote_url) = builder.build(twitch, &emote.bind().convert_to_rust()) {
+        url = emote_url.url;
+      }
+    }
+
+    url.into()
+  }
+
+  #[func]
   fn send_chat_message(&mut self, message: GString) {
     if let Some(twitch) = &mut self.twitch {
       let _ = twitch.send_chat_message(message);
+    }
+  }
+
+  #[func]
+  fn send_chat_message_with_reply(&mut self, message: GString, message_id: GString) {
+    if let Some(twitch) = &mut self.twitch {
+      let message: String = message.into();
+      let _ = twitch.send_chat_message_with_reply(message, Some(message_id.into()));
+    }
+  }
+
+  #[func]
+  fn delete_message(&mut self, message_id: GString) {
+    if let Some(twitch) = &mut self.twitch {
+      let _ = twitch.delete_message(message_id.to_string());
+    }
+  }
+
+  #[func]
+  fn get_moderators(&mut self) -> Array<Gd<GUser>> {
+    let mut moderators = Array::new();
+
+    if let Some(twitch) = &mut self.twitch {
+      if let Ok(mods) = twitch.get_moderators() {
+        for user in mods.data {
+          moderators.push(Gd::from_object(GUser::from(user)));
+        }
+      }
+    }
+
+    moderators
+  }
+
+  #[func]
+  fn send_announcement(&mut self, message: GString, hex_colour: GString) {
+    if let Some(twitch) = &mut self.twitch {
+      let _ = twitch.send_announcement(message.to_string(), hex_colour.into());
     }
   }
 
@@ -405,6 +558,7 @@ impl INode for TwitchEvent {
         match message {
           ResponseType::Event(event) => match event {
             Event::ChatMessage(message_data) => {
+              godot_print!("message recieved");
               self.base_mut().emit_signal(
                 match message_data.message_type {
                   MessageType::PowerUpsGigantifiedEmote => "chat_message_powerup_gigantified_emote",

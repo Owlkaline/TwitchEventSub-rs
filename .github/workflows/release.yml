@@ -1,0 +1,71 @@
+
+name: Publish
+
+on:
+  push:
+    tags:
+      - '*'
+
+jobs:
+  build:
+    name: Release
+    permissions: write-all
+    runs-on: ubuntu-latest
+
+    # Because we need to upload both the linux .so file & the windows .dll file in a single archive, We need to compile both of them in the same runner.
+    # We can still use a matrix for the different game engines though.
+    # Also, modifying this to work on macOS is probably impossible, as it has very weird build stuff & cross-compilation is hard on macOS.
+    strategy:
+      fail-fast: false
+      matrix:
+        engine: [ godot, unity ]
+        include:
+          - engine: godot
+            engine_name: Godot
+            rust_package_dir: TwitchEventSub-Godot
+            rust_package_name: twitchevents_godot
+            packing_extra_files: TwitchEventSub-Godot/twitchapi.gdextension
+          - engine: unity
+            engine_name: Unity
+            rust_package_dir: TwitchEventSub-Unity
+            rust_package_name: rust_unity
+            packing_extra_files: TwitchEventSub-Unity/src/TwitchEvents.cs TwitchEventSub-Unity/src/TwitchEventsFFI.cs
+
+    steps:
+
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      # TODO: Cache
+
+
+
+      - name: Build for Linux
+        run: |
+          rustup toolchain install stable --profile minimal --target x86_64-unknown-linux-gnu --no-self-update
+          cd ${{ matrix.rust_package_dir }}
+          cargo build --release --target x86_64-unknown-linux-gnu
+
+      - name: Build for Windows
+        run: |
+          rustup toolchain install stable --profile minimal --target x86_64-pc-windows-gnu --no-self-update
+          sudo apt-get install -y gcc-mingw-w64-x86-64
+          cd ${{ matrix.rust_package_dir }}
+          cargo build --release --target x86_64-pc-windows-gnu
+
+
+
+      - name: Package to archive
+        run: | 
+          mkdir -p packing
+          cp ${{ matrix.rust_package_dir }}/target/x86_64-unknown-linux-gnu/release/lib${{ matrix.rust_package_name }}.so packing/
+          cp ${{ matrix.rust_package_dir }}/target/x86_64-pc-windows-gnu/release/${{ matrix.rust_package_name }}.dll packing/
+          cp ${{ matrix.packing_extra_files }} packing/
+          tar -c -f Release-${{ matrix.engine_name }}.zip -C packing .
+
+      - name: Upload to release
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: Release-${{ matrix.engine_name }}.zip
+          tag: ${{ github.ref }}

@@ -1,17 +1,16 @@
-use crate::serde::{self, Deserialize as Deserialise, Serialize as Serialise};
+use crate::TwitchEventSubApi;
+use serde_derive::{Deserialize as Deserialise, Serialize as Serialise};
 
-use twitch_eventsub_structs::prefix_broadcaster;
 use twitch_eventsub_structs::User;
+use twitch_eventsub_structs::{prefix_broadcaster, Emote};
 
 #[derive(Serialise, Deserialise, Debug)]
-#[serde(crate = "self::serde")]
 pub struct AnnouncementMessage {
   pub message: String,
   pub colour: Option<String>,
 }
 
 #[derive(Serialise, Deserialise, Debug)]
-#[serde(crate = "self::serde")]
 pub struct CreateCustomReward {
   pub title: String,
   pub cost: i64,
@@ -45,27 +44,23 @@ impl Default for CreateCustomReward {
 }
 
 #[derive(Serialise, Deserialise, Debug)]
-#[serde(crate = "self::serde")]
 pub struct MaxPerStreamSetting {
   pub is_enabled: bool,
   pub max_per_stream: i64,
 }
 
 #[derive(Serialise, Deserialise, Debug)]
-#[serde(crate = "self::serde")]
 pub struct GlobalCooldownSetting {
   pub is_enabled: bool,
   pub global_cooldown_seconds: i64,
 }
 
 #[derive(Serialise, Deserialise, Debug)]
-#[serde(crate = "self::serde")]
 pub struct CustomRewardResponse {
   pub data: Vec<CustomReward>,
 }
 
 #[derive(Serialise, Deserialise, Debug)]
-#[serde(crate = "self::serde")]
 pub struct CustomReward {
   #[serde(flatten, with = "prefix_broadcaster")]
   pub broadcaster: User,
@@ -89,13 +84,11 @@ pub struct CustomReward {
 }
 
 #[derive(Serialise, Deserialise, Debug)]
-#[serde(crate = "self::serde")]
 pub struct AdSchedule {
   pub data: Vec<AdDetails>,
 }
 
 #[derive(Serialise, Deserialise, Debug)]
-#[serde(crate = "self::serde")]
 pub struct AdDetails {
   pub next_ad_at: u32,
   pub last_ad_at: u32,
@@ -106,13 +99,11 @@ pub struct AdDetails {
 }
 
 #[derive(Serialise, Deserialise, Debug)]
-#[serde(crate = "self::serde")]
 pub struct Pagination {
   pub cursor: Option<String>,
 }
 
 #[derive(Serialise, Deserialise, Debug)]
-#[serde(crate = "self::serde")]
 pub struct GetChatters {
   pub data: Vec<User>,
   pub pagination: Pagination,
@@ -120,7 +111,6 @@ pub struct GetChatters {
 }
 
 #[derive(Serialise, Deserialise, Debug, Clone)]
-#[serde(crate = "self::serde")]
 pub struct EmoteStaticImages {
   pub url_1x: String,
   pub url_2x: String,
@@ -128,7 +118,6 @@ pub struct EmoteStaticImages {
 }
 
 #[derive(Serialise, Deserialise, Debug, Clone)]
-#[serde(crate = "self::serde")]
 pub enum EmoteType {
   #[serde(rename = "bitstier")]
   BitsTier,
@@ -161,7 +150,6 @@ pub enum EmoteType {
 }
 
 #[derive(Serialise, Deserialise, Debug, PartialEq, Clone)]
-#[serde(crate = "self::serde")]
 pub enum EmoteFormat {
   #[serde(rename = "static")]
   Static,
@@ -180,7 +168,6 @@ impl EmoteFormat {
 }
 
 #[derive(Serialise, Deserialise, Debug, Clone)]
-#[serde(crate = "self::serde")]
 pub enum ThemeMode {
   #[serde(rename = "light")]
   Light,
@@ -198,6 +185,7 @@ impl ThemeMode {
   }
 }
 
+#[derive(Debug)]
 pub struct EmoteData {
   pub id: String,
   pub name: String,
@@ -212,7 +200,6 @@ pub struct EmoteData {
 }
 
 #[derive(Serialise, Deserialise, Debug, Clone)]
-#[serde(crate = "self::serde")]
 pub struct ChannelEmoteData {
   pub id: String,
   pub name: String,
@@ -226,7 +213,6 @@ pub struct ChannelEmoteData {
 }
 
 #[derive(Serialise, Deserialise, Debug, Clone)]
-#[serde(crate = "self::serde")]
 pub struct GlobalEmoteData {
   pub id: String,
   pub name: String,
@@ -237,21 +223,18 @@ pub struct GlobalEmoteData {
 }
 
 #[derive(Serialise, Deserialise, Debug)]
-#[serde(crate = "self::serde")]
 pub struct ChannelEmotes {
   pub data: Vec<ChannelEmoteData>,
   pub template: String,
 }
 
 #[derive(Serialise, Deserialise, Debug)]
-#[serde(crate = "self::serde")]
 pub struct GlobalEmotes {
   pub data: Vec<GlobalEmoteData>,
   pub template: String,
 }
 
 #[derive(Serialise, Deserialise, Debug)]
-#[serde(crate = "self::serde")]
 pub struct Moderators {
   pub data: Vec<User>,
   pub pagination: Pagination,
@@ -289,99 +272,174 @@ impl Into<EmoteData> for GlobalEmoteData {
   }
 }
 
-pub trait EmoteTemplateBuilder {
-  fn from_id<S: Into<String>>(&self, id: S) -> EmoteData;
-  fn from_idx(&self, idx: usize, animated: bool) -> String;
-  fn from_emote(&self, emote: &EmoteData, animated: bool) -> String;
-  fn get_emote<S: Into<String>, T: Into<String>, X: Into<String>, Z: Into<String>>(
-    &self,
-    id: S,
-    format: T,
-    theme_mode: X,
-    scale: Z,
-  ) -> String;
+#[derive(Serialise, Deserialise, Debug)]
+pub enum EmoteScale {
+  #[serde(rename = "1.0")]
+  Size1,
+  #[serde(rename = "2.0")]
+  Size2,
+  #[serde(rename = "3.0")]
+  Size3,
 }
 
-impl EmoteTemplateBuilder for ChannelEmotes {
-  fn from_id<S: Into<String>>(&self, id: S) -> EmoteData {
-    let id = id.into();
-    self
-      .data
-      .iter()
-      .filter(|emote| id == emote.id)
-      .nth(0)
-      .unwrap()
-      .clone()
-      .into()
-  }
-
-  fn from_idx(&self, idx: usize, animated: bool) -> String {
-    self.from_emote(&self.data[idx].clone().into(), animated)
-  }
-
-  fn from_emote(&self, emote: &EmoteData, animated: bool) -> String {
-    self.get_emote(
-      &emote.id,
-      emote.format[if animated { 1 } else { 0 }].string(),
-      emote.theme_mode[0].string(),
-      &emote.scale[0],
-    )
-  }
-
-  fn get_emote<S: Into<String>, T: Into<String>, X: Into<String>, Z: Into<String>>(
-    &self,
-    id: S,
-    format: T,
-    theme_mode: X,
-    scale: Z,
-  ) -> String {
-    self
-      .template
-      .replace("{{id}}", &id.into())
-      .replace("{{format}}", &format.into())
-      .replace("{{theme_mode}}", &theme_mode.into())
-      .replace("{{scale}}", &scale.into())
+impl EmoteScale {
+  pub fn idx(&self) -> usize {
+    match self {
+      EmoteScale::Size1 => 0,
+      EmoteScale::Size2 => 1,
+      EmoteScale::Size3 => 2,
+    }
   }
 }
 
-impl EmoteTemplateBuilder for GlobalEmotes {
-  fn from_id<S: Into<String>>(&self, id: S) -> EmoteData {
-    let id = id.into();
+pub struct EmoteUrl {
+  pub url: String,
+  pub animated: bool,
+}
+
+pub struct EmoteBuilder {
+  scale: EmoteScale,
+  theme: ThemeMode,
+  format: EmoteFormat,
+  fallback_on_format_missing: bool,
+}
+
+impl EmoteBuilder {
+  pub fn builder() -> EmoteBuilder {
+    EmoteBuilder {
+      scale: EmoteScale::Size1,
+      theme: ThemeMode::Light,
+      format: EmoteFormat::Static,
+      fallback_on_format_missing: false,
+    }
+  }
+
+  pub fn animate_or_fallback_on_static(mut self) -> EmoteBuilder {
+    self.fallback_on_format_missing = true;
+    self.animated()
+  }
+
+  pub fn format_static(mut self) -> EmoteBuilder {
+    self.format = EmoteFormat::Static;
     self
-      .data
-      .iter()
-      .filter(|emote| id == emote.id)
-      .nth(0)
-      .unwrap()
-      .clone()
-      .into()
   }
 
-  fn from_idx(&self, idx: usize, animated: bool) -> String {
-    self.from_emote(&self.data[idx].clone().into(), animated)
-  }
-
-  fn from_emote(&self, emote: &EmoteData, animated: bool) -> String {
-    self.get_emote(
-      &emote.id,
-      emote.format[if animated { 1 } else { 0 }].string(),
-      emote.theme_mode[0].string(),
-      &emote.scale[0],
-    )
-  }
-
-  fn get_emote<S: Into<String>, T: Into<String>, X: Into<String>, Z: Into<String>>(
-    &self,
-    id: S,
-    format: T,
-    theme_mode: X,
-    scale: Z,
-  ) -> String {
+  pub fn animated(mut self) -> EmoteBuilder {
+    self.format = EmoteFormat::Animated;
     self
-      .template
-      .replace("{{id}}", &id.into())
-      .replace("{{format}}", &format.into())
-      .replace("{{theme_mode}}", &theme_mode.into())
-      .replace("{{scale}}", &scale.into())
+  }
+
+  pub fn light(mut self) -> EmoteBuilder {
+    self.theme = ThemeMode::Light;
+    self
+  }
+
+  pub fn dark(mut self) -> EmoteBuilder {
+    self.theme = ThemeMode::Dark;
+    self
+  }
+
+  pub fn scale1(mut self) -> EmoteBuilder {
+    self.scale = EmoteScale::Size1;
+    self
+  }
+
+  pub fn scale2(mut self) -> EmoteBuilder {
+    self.scale = EmoteScale::Size2;
+    self
+  }
+
+  pub fn scale3(mut self) -> EmoteBuilder {
+    self.scale = EmoteScale::Size3;
+    self
+  }
+
+  pub fn build(&mut self, twitch: &mut TwitchEventSubApi, emote: &Emote) -> Option<EmoteUrl> {
+    let channel_id: String = emote.owner_id.to_owned().unwrap_or("".to_string());
+    let mut template = String::new();
+
+    let mut emote_data: Option<EmoteData> = None;
+
+    let mut suffix = String::new();
+    let id_array = emote.id.split('_').collect::<Vec<_>>();
+
+    let mut real_id = id_array[0].to_string();
+
+    if id_array.len() > 1 {
+      real_id = format!("{}_{}", id_array[0], id_array[1]);
+      if id_array.len() > 2 {
+        suffix = id_array[2].to_string();
+      }
+    }
+
+    if let Ok(channel_emotes) = twitch.get_channel_emotes(channel_id) {
+      template = channel_emotes.template;
+
+      let mut valid_emotes = channel_emotes
+        .data
+        .into_iter()
+        .filter_map(|d| if d.id == real_id { Some(d) } else { None })
+        .collect::<Vec<_>>();
+
+      if valid_emotes.len() > 0 {
+        emote_data = Some(valid_emotes.remove(0).into());
+      }
+    }
+
+    if emote_data.is_none() {
+      if let Ok(emote_sets) = twitch.get_emote_sets(emote.emote_set_id.to_owned()) {
+        template = emote_sets.template;
+
+        let mut valid_emotes = emote_sets
+          .data
+          .into_iter()
+          .filter_map(|d| if d.id == real_id { Some(d) } else { None })
+          .collect::<Vec<_>>();
+        if valid_emotes.len() > 0 {
+          emote_data = Some(valid_emotes.remove(0).into());
+        }
+      }
+
+      if emote_data.is_none() {
+        if let Ok(global_emotes) = twitch.get_global_emotes() {
+          template = global_emotes.template;
+          let mut valid_emotes = global_emotes
+            .data
+            .into_iter()
+            .filter_map(|d| if d.id == real_id { Some(d) } else { None })
+            .collect::<Vec<_>>();
+          if valid_emotes.len() > 0 {
+            emote_data = Some(valid_emotes.remove(0).into());
+          }
+        }
+      }
+    }
+
+    if let Some(mut emote_data) = emote_data {
+      if !suffix.is_empty() {
+        emote_data.id = format!("{}_{}", real_id, suffix);
+      }
+
+      if !emote_data.format.contains(&self.format) {
+        if self.fallback_on_format_missing {
+          self.format = EmoteFormat::Static;
+        } else {
+          return None;
+        }
+      }
+
+      let url = template
+        .replace("{{id}}", &emote_data.id)
+        .replace("{{format}}", &self.format.string())
+        .replace("{{theme_mode}}", &self.theme.string())
+        .replace("{{scale}}", &emote_data.scale[self.scale.idx()]);
+
+      Some(EmoteUrl {
+        url,
+        animated: self.format == EmoteFormat::Animated,
+      })
+    } else {
+      None
+    }
   }
 }

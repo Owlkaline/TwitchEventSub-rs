@@ -10,17 +10,22 @@ use std::time::Duration;
 use std::sync::{Arc, Mutex};
 
 use crate::modules::consts::*;
-use std::io::{ErrorKind, Read};
 
-use websocket::client::ClientBuilder;
-use websocket::stream::sync::TlsStream;
-pub use websocket::WebSocketError;
-use websocket::{sync::Client, OwnedMessage};
+use modules::irc_bot::IRCChat;
+//use modules::irc_bot::IRCChat;
+use open;
+
+use std::io::{ErrorKind, Read};
+use tungstenite::connect;
+use tungstenite::WebSocket;
+use tungstenite::{stream::MaybeTlsStream, Error, Message as NetworkMessage};
+
+use std::time::Instant;
+
+use serde_json;
 
 use std::net::TcpListener;
 
-#[macro_use]
-extern crate twitch_eventsub_structs;
 pub use modules::errors::LOG_FILE;
 pub use twitch_eventsub_structs::*;
 
@@ -336,25 +341,21 @@ impl TwitchEventSubApi {
     twitch_keys: TwitchKeys,
     subscriptions: Vec<Subscription>,
     custom_subscription_data: Vec<String>,
-  ) -> Result<TwitchEventSubApi, WebSocketError> {
-    // let mut irc = IRCChat::new(
-    //   "Owlkalinevt",
-    //   //  twitch_keys.access_token.clone().unwrap().get_token(),
-    //   twitch_keys.client_secret.to_owned(),
-    // );
-    // irc.send_message("Test message from irc");
+  ) -> Result<TwitchEventSubApi, Error> {
+    //let mut irc = IRCChat::new(
+    //  "owlkalinevt",
+    //  twitch_keys.access_token.clone().unwrap().get_token(),
+    //  //twitch_keys.acc.to_owned(),
+    //);
+    //irc.send_message("Test message from irc");
 
     info!("Starting websocket client.");
-    let client = match ClientBuilder::new(CONNECTION_EVENTS)
-      .unwrap()
-      .add_protocol("rust-websocket-events")
-      .connect_secure(None)
-    {
-      Ok(c) => c,
+    let (client, _) = match connect(CONNECTION_EVENTS) {
+      Ok(a) => a,
       Err(e) => return Err(e),
     };
 
-    let receiver = Arc::new(Mutex::new(client));
+    let receiver = client;
 
     let (transmit_messages, receive_message) = channel();
 
@@ -395,11 +396,17 @@ impl TwitchEventSubApi {
     })
   }
 
-  pub fn restart_websockets(&mut self) {
+  pub fn restart_websockets(&mut self) -> Result<(), EventSubError> {
     let keys_clone = self.twitch_keys.clone();
     let subscriptions = self.subscriptions.clone();
     let custom_subscription_data = self.subscription_data.clone();
-    *self = TwitchEventSubApi::new(keys_clone, subscriptions, custom_subscription_data).unwrap();
+    match TwitchEventSubApi::new(keys_clone, subscriptions, custom_subscription_data) {
+      Ok(t) => {
+        *self = t;
+        Ok(())
+      }
+      Err(e) => Err(EventSubError::WebsocketRestartFailed(e.to_string())),
+    }
   }
 
   pub fn validate_token<S: Into<String>>(token: S) -> Result<Validation, EventSubError> {
@@ -407,6 +414,7 @@ impl TwitchEventSubApi {
       .header_authorisation(token.into(), AuthType::OAuth)
       .run()
       .and_then(|data| {
+        println!("{}", data);
         serde_json::from_str::<Validation>(&data)
           .map_err(|e| EventSubError::ParseError(e.to_string()))
       })
@@ -459,7 +467,7 @@ impl TwitchEventSubApi {
 
     let mut redirect_url = redirect_url.into().to_ascii_lowercase();
 
-    if redirect_url.contains("http") {
+    if redirect_url.contains("http") && redirect_url.contains("/") {
       redirect_url = redirect_url
         .split('/')
         .collect::<Vec<_>>()
@@ -792,6 +800,33 @@ impl TwitchEventSubApi {
     .and_then(|x| serde_json::from_str(&x).map_err(|e| EventSubError::ParseError(e.to_string())))
   }
 
+  pub fn get_image_data_from_url<S: Into<String>>(emote_url: S) -> Result<Vec<u8>, EventSubError> {
+    match attohttpc::get(emote_url.into()).send() {
+      Ok(new_image_data) => Ok(new_image_data.bytes().unwrap()),
+      Err(e) => Err(EventSubError::HttpFailed(e.to_string())),
+    }
+  }
+
+  pub fn get_emote_sets<S: Into<String>>(
+    &mut self,
+    emote_set_id: S,
+  ) -> Result<GlobalEmotes, EventSubError> {
+    let access_token = self
+      .twitch_keys
+      .access_token
+      .clone()
+      .expect("Access token not set")
+      .get_token();
+    let client_id = self.twitch_keys.client_id.to_string();
+
+    TwitchEventSubApi::regen_token_if_401(
+      TwitchApi::get_emote_set(emote_set_id.into(), access_token, client_id),
+      &mut self.twitch_keys,
+      &self.save_locations,
+    )
+    .and_then(|x| serde_json::from_str(&x).map_err(|e| EventSubError::ParseError(e.to_string())))
+  }
+
   pub fn send_chat_message<S: Into<String>>(
     &mut self,
     message: S,
@@ -869,31 +904,29 @@ impl TwitchEventSubApi {
 
   #[cfg(feature = "only_raw_responses")]
   fn event_sub_events(
-    client: Arc<Mutex<Client<TlsStream<TcpStream>>>>,
+    client: WebSocket<MaybeTlsStream<TcpStream>>,
     message_sender: SyncSender<ResponseType>,
     subscriptions: Vec<Subscription>,
     mut custom_subscriptions: Vec<String>,
     twitch_keys: TwitchKeys,
   ) {
     loop {
-      let client = client.clone();
-      let mut client = client.lock().unwrap();
-      let message = match client.recv_message() {
+      let message = match client.read() {
         Ok(m) => m,
-        Err(WebSocketError::IoError(e)) if e.kind() == ErrorKind::WouldBlock => {
+        Err(Error::Io(e)) if e.kind() == ErrorKind::WouldBlock => {
           continue;
         }
         Err(e) => {
           error!("recv message error: {:?}", e);
-          let _ = client.send_message(&OwnedMessage::Close(None));
-          message_sender.send(ResponseType::Close).unwrap();
+          let _ = client.send(NetworkMessage::Close(None));
+          let _ = message_sender.send(ResponseType::Close);
 
           return;
         }
       };
 
-      if let OwnedMessage::Text(msg) = message.clone() {
-        message_sender.send(ResponseType::RawResponse(msg)).unwrap();
+      if let NetworkMessage::Text(msg) = message.clone() {
+        let _ = message_sender.send(ResponseType::RawResponse(msg));
         continue;
       }
     }
@@ -901,81 +934,50 @@ impl TwitchEventSubApi {
 
   #[cfg(not(feature = "only_raw_responses"))]
   fn event_sub_events(
-    client: Arc<Mutex<Client<TlsStream<TcpStream>>>>,
+    mut client: WebSocket<MaybeTlsStream<TcpStream>>, //Client<TlsStream<TcpStream>>>>,
     message_sender: SyncSender<ResponseType>,
     subscriptions: Vec<Subscription>,
     mut custom_subscriptions: Vec<String>,
     mut twitch_keys: TwitchKeys,
     save_locations: Option<(String, String)>,
   ) {
-    use std::time::Instant;
-
     let mut last_message = Instant::now();
 
     let mut is_reconnecting = false;
 
     loop {
-      let client = client.clone();
-      let mut client = client.lock().unwrap();
-      let message = match client.recv_message() {
+      let message = match client.read() {
         Ok(m) => m,
-        Err(WebSocketError::IoError(e)) if e.kind() == ErrorKind::WouldBlock => {
+        Err(Error::Io(e)) if e.kind() == ErrorKind::WouldBlock => {
           continue;
         }
-        //Err(WebSocketError::IoError(e)) if e.kind() == ErrorKind::ConnectionReset => {
-        //  println!("The connection was reset!");
-        //  *client = ClientBuilder::new(CONNECTION_EVENTS)
-        //    .unwrap()
-        //    .add_protocol("rust-websocket-events")
-        //    .connect_secure(None)
-        //    .expect(
-        //      "Failed to reconnect to new url after receiving reconnect message from twitch.",
-        //    );
-        //  is_reconnecting = true;
-        //  continue;
-        //}
         Err(e) => {
           error!("recv message error: {:?}", e);
-          let _ = client.send_message(&OwnedMessage::Close(None));
-          message_sender.send(ResponseType::Close).unwrap();
-          //return;
-          //OwnedMessage::Text(&serde_json::to_string(EventMessageType::Reconnect).unwrap())
-          //println!("Unknown error so restarting websocket connection");
-          //info!("Unknown error so restarting websocket connection");
-          //*client = ClientBuilder::new(CONNECTION_EVENTS)
-          //  .unwrap()
-          //  .add_protocol("rust-websocket-events")
-          //  .connect_secure(None)
-          //  .expect(
-          //    "Failed to reconnect to new url after receiving reconnect message from twitch.",
-          //  );
-          //is_reconnecting = true;
+          let _ = client.send(NetworkMessage::Close(None));
+          let _ = message_sender.send(ResponseType::Close);
           continue;
         }
       };
 
       if last_message.elapsed().as_secs() > 30 {
-        let _ = client.send_message(&OwnedMessage::Close(None));
+        let _ = client.send(NetworkMessage::Close(None));
         thread::sleep(Duration::from_secs(1));
         println!("Messages not sent within the keep alive timeout restarting websocket");
         info!("Messages not sent within the keep alive timeout restarting websocket");
-        *client = ClientBuilder::new(CONNECTION_EVENTS)
-          .unwrap()
-          .add_protocol("rust-websocket-events")
-          .connect_secure(None)
-          .expect("Failed to reconnect to new url after receiving reconnect message from twitch.");
+        let (new_client, _) = connect(CONNECTION_EVENTS)
+          .expect("Failed to reconnect to new url after receiving reconnect message from twitch");
+        client = new_client;
         is_reconnecting = true;
         continue;
       }
 
       match message {
-        OwnedMessage::Text(msg) => {
-          //  println!("RAW MESSAGE: {}", msg);
+        NetworkMessage::Text(msg) => {
           let message = serde_json::from_str(&msg);
 
           if let Err(e) = message {
             error!("Unimplemented twitch response: {}\n{}", msg, e);
-            message_sender.send(ResponseType::RawResponse(msg)).unwrap();
+            let _ = message_sender.send(ResponseType::RawResponse(msg));
             continue;
           }
 
@@ -1055,48 +1057,36 @@ impl TwitchEventSubApi {
                 .unwrap();
 
               is_reconnecting = true;
-              let _ = client.send_message(&OwnedMessage::Close(None));
-              *client = ClientBuilder::new(&url)
-                .unwrap()
-                .add_protocol("rust-websocket-events")
-                .connect_secure(None)
-                .expect(
-                  "Failed to reconnect to new url after recieving reocnnect message from twitch.",
-                );
+              let _ = client.send(NetworkMessage::Close(None));
+              let (new_client, _) = connect(&url).expect(
+                "Failed to reconnect to new url after recieving reocnnect message from twitch.",
+              );
+              client = new_client;
             }
             EventMessageType::Notification => {
               last_message = Instant::now();
               let message = message.payload.unwrap().event.unwrap();
-              message_sender
+              let _ = message_sender
                 .send(ResponseType::Event(message)) //message.payload.unwrap().event.unwrap()))
-                .unwrap();
+                ;
             }
             EventMessageType::Unknown => {
               last_message = Instant::now();
               //if !custom_subscriptions.is_empty() {
-              message_sender.send(ResponseType::RawResponse(msg)).unwrap();
+              let _ = message_sender.send(ResponseType::RawResponse(msg));
               //}
             }
           }
         }
-        OwnedMessage::Close(a) => {
+        NetworkMessage::Close(a) => {
           warn!("Close message received: {:?}", a);
           // Got a close message, so send a close message and return
-          let _ = client.send_message(&OwnedMessage::Close(None));
+          let _ = client.send(NetworkMessage::Close(None));
           let _ = message_sender.send(ResponseType::Close);
-          //println!("The close message was recieved, restarting websocket!");
-          //*client = ClientBuilder::new(CONNECTION_EVENTS)
-          //  .unwrap()
-          //  .add_protocol("rust-websocket-events")
-          //  .connect_secure(None)
-          //  .expect(
-          //    "Failed to reconnect to new url after receiving reconnect message from twitch.",
-          //  );
-          //is_reconnecting = true;
           continue;
         }
-        OwnedMessage::Ping(_) => {
-          match client.send_message(&OwnedMessage::Pong(Vec::new())) {
+        NetworkMessage::Ping(_) => {
+          match client.send(NetworkMessage::Pong(Vec::new())) {
             // Send a pong in response
             Ok(()) => {}
             Err(e) => {
