@@ -1,6 +1,3 @@
-use log::LevelFilter;
-//use simple_logging;
-
 use crate::{modules::twitch_http::TwitchHttpRequest, Subscription};
 
 pub const LOG_FILE: &str = "twitch_events.log";
