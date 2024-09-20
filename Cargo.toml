@@ -23,10 +23,11 @@ only_raw_responses = []
 bevy = ["twitch_eventsub_structs/bevy"]
 
 [dependencies]
-websocket = { version = "0.27.1", default-features = false, features = [
-  "sync",
-  "sync-ssl",
-] }
+tungstenite = { version = "0.24.0", features = ["native-tls"] }
+#websocket = { version = "0.27.1", default-features = false, features = [
+#  "sync",
+#  "sync-ssl",
+#] }
 enum_all_variants = "0.2.0"
 curl = "0.4.46"
 open = "5.1.4"
