@@ -1,3 +1,5 @@
+#![doc = include_str!("../README.md")]
+
 use std::fs;
 use std::iter;
 use std::net::TcpStream;
@@ -8,9 +10,11 @@ use std::time::Duration;
 use std::sync::{Arc, Mutex};
 
 use crate::modules::consts::*;
+
 use modules::irc_bot::IRCChat;
 //use modules::irc_bot::IRCChat;
 use open;
+
 use std::io::{ErrorKind, Read};
 use tungstenite::connect;
 use tungstenite::WebSocket;
@@ -62,7 +66,6 @@ pub struct TwitchEventSubApiBuilder {
 }
 
 impl TwitchEventSubApiBuilder {
-  #[must_use]
   pub fn new(tk: TwitchKeys) -> TwitchEventSubApiBuilder {
     TwitchEventSubApiBuilder {
       twitch_keys: tk,
@@ -78,31 +81,26 @@ impl TwitchEventSubApiBuilder {
     }
   }
 
-  #[must_use]
   pub fn is_run_remotely(mut self) -> TwitchEventSubApiBuilder {
     self.bot_is_local = false;
     self
   }
 
-  #[must_use]
   pub fn add_subscription(mut self, sub: Subscription) -> TwitchEventSubApiBuilder {
     self.subscriptions.push(sub);
     self
   }
 
-  #[must_use]
   pub fn add_subscriptions(mut self, mut subs: Vec<Subscription>) -> TwitchEventSubApiBuilder {
     self.subscriptions.append(&mut subs);
     self
   }
 
-  #[must_use]
   pub fn set_redirect_url<S: Into<String>>(mut self, url: S) -> TwitchEventSubApiBuilder {
     self.redirect_url = Some(url.into());
     self
   }
 
-  #[must_use]
   pub fn generate_new_token_if_insufficent_scope(
     mut self,
     should_generate: bool,
@@ -111,13 +109,11 @@ impl TwitchEventSubApiBuilder {
     self
   }
 
-  #[must_use]
   pub fn generate_new_token_if_none(mut self, should_generate: bool) -> TwitchEventSubApiBuilder {
     self.generate_token_if_none = should_generate;
     self
   }
 
-  #[must_use]
   pub fn generate_access_token_on_expire(
     mut self,
     should_generate_access_token_on_expire: bool,
@@ -126,7 +122,6 @@ impl TwitchEventSubApiBuilder {
     self
   }
 
-  #[must_use]
   pub fn auto_save_load_created_tokens<S: Into<String>, T: Into<String>>(
     mut self,
     user_token_file: S,
@@ -148,7 +143,6 @@ impl TwitchEventSubApiBuilder {
     self.only_raw_responses = receive_raw_data;
   }
 
-  #[must_use]
   pub fn build(mut self) -> Result<TwitchEventSubApi, EventSubError> {
     let mut newly_generated_token = None;
 
@@ -296,13 +290,12 @@ impl TwitchEventSubApiBuilder {
       }
       Err(EventSubError::TokenRequiresRefreshing(http)) => {
         warn!("Checking validation failed as token needs refreshing");
-        if let Err(error) = TwitchEventSubApi::regen_token_if_401(
+
+        TwitchEventSubApi::regen_token_if_401(
           Err(EventSubError::TokenRequiresRefreshing(http)),
           &mut self.twitch_keys,
           &self.auto_save_load_created_tokens,
-        ) {
-          return Err(error);
-        }
+        )?;
       }
       Err(e) => {
         error!("Failed parsing validation response: {:?}", e);
@@ -429,7 +422,7 @@ impl TwitchEventSubApi {
 
   pub fn check_token_meets_requirements(
     access_token: TokenAccess,
-    subs: &Vec<Subscription>,
+    subs: &[Subscription],
   ) -> Result<bool, EventSubError> {
     TwitchEventSubApi::validate_token(access_token.get_token()).map(|validation| {
       if validation.is_error() {
