@@ -29,6 +29,7 @@ curl = "0.4.46"
 open = "5.1.4"
 simple_env_load = "0.2.0"
 log = "0.4"
+
 attohttpc = "0.28.0"
 twitch_eventsub_structs = "0.1.2"
 #twitch_eventsub_structs = { git = "https://github.com/Owlkaline/TwitchEventSubStructs.git" }

@@ -8,9 +8,11 @@ crate-type = ["cdylib"]
 
 [dependencies]
 #godot = "0.1.1"
-twitch_eventsub = { path = "../../../Git/TwitchEventSub-rs/" }
 image = "*"
 #twitch_eventsub = { git = "https://github.com/lilith645/TwitchEventSub-rs.git" }
+#twitch_eventsub = { path = "../../../Git/TwitchEventSub-rs/", features=["godot"] }
+#twitch_eventsub = { git = "https://github.com/lilith645/TwitchEventSub-rs.git" }
+twitch_eventsub = { path = "../" }
 
 [dependencies.godot]
 git = "https://github.com/godot-rust/gdext"
