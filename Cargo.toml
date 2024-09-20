@@ -20,7 +20,7 @@ exclude = ["examples"]
 [features]
 only_raw_responses = []
 #godot = ["dep:godot"]
-#bevy = ["twitch_eventsub_structs/bevy"]
+bevy = ["twitch_eventsub_structs/bevy"]
 
 [dependencies]
 tungstenite = { version = "0.24.0", features = ["native-tls"] }

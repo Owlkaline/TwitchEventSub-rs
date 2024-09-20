@@ -1,8 +1,9 @@
 use godot::prelude::*;
 
+use serde::Serialize;
 use twitch_eventsub::*;
 
-use crate::modules::GUser;
+use crate::modules::{cheer::GCheerMote, emote::GEmote, GUser};
 
 #[derive(GodotClass, Debug)]
 #[class(init)]
@@ -37,6 +38,41 @@ pub struct GReply {
   thread_message_id: GString,
 }
 
+#[derive(GodotClass)]
+#[class(init)]
+pub struct GMention {
+  #[var]
+  pub user_id: GString,
+  #[var]
+  pub user_login: GString,
+  #[var]
+  pub user_name: GString,
+}
+
+#[derive(GodotClass, Debug)]
+#[class(init)]
+pub struct GFragments {
+  #[var]
+  pub kind: GString,
+  #[var]
+  pub text: GString,
+  #[var]
+  pub cheermote: Array<Gd<GCheerMote>>,
+  #[var]
+  pub emote: Array<Gd<GEmote>>,
+  #[var]
+  pub mention: Array<Gd<GMention>>,
+}
+
+#[derive(GodotClass, Debug)]
+#[class(init)]
+pub struct GMessage {
+  #[var]
+  text: GString,
+  #[var]
+  fragments: Array<Gd<GFragments>>,
+}
+
 #[derive(GodotClass, Debug)]
 #[class(init)]
 pub struct GMessageData {
@@ -47,7 +83,7 @@ pub struct GMessageData {
   #[var]
   pub message_id: GString,
   #[var]
-  pub message: GString,
+  pub message: Gd<GMessage>,
   #[var]
   colour: GString,
   #[var]
@@ -115,7 +151,7 @@ impl From<MessageData> for GMessageData {
       broadcaster: Gd::from_object(GUser::from(msg.broadcaster)),
       chatter: Gd::from_object(GUser::from(msg.chatter)),
       message_id: msg.message_id.to_owned().into(),
-      message: msg.message.text.to_owned().into(),
+      message: Gd::from_object(GMessage::from(msg.message)),
       colour: msg.colour.to_owned().into(),
       channel_points_custom_reward_id: msg
         .channel_points_custom_reward_id
@@ -130,6 +166,60 @@ impl From<MessageData> for GMessageData {
       cheer,
       reply,
       badges,
+    }
+  }
+}
+
+impl From<Fragments> for GFragments {
+  fn from(value: Fragments) -> Self {
+    let mut cheermote = Array::new();
+    let mut emote = Array::new();
+    let mut mention = Array::new();
+
+    if let Some(frag_cheermote) = value.cheermote {
+      cheermote.push(Gd::from_object(GCheerMote::from(frag_cheermote)));
+    }
+
+    if let Some(frag_emote) = value.emote {
+      emote.push(Gd::from_object(GEmote::from(frag_emote)));
+    }
+
+    if let Some(frag_mention) = value.mention {
+      mention.push(Gd::from_object(GMention::from(frag_mention)));
+    }
+
+    let value_kind: String = value.kind.into();
+    GFragments {
+      kind: value_kind.into(),
+      text: value.text.into(),
+      cheermote,
+      emote,
+      mention,
+    }
+  }
+}
+
+impl From<Message> for GMessage {
+  fn from(value: Message) -> Self {
+    let mut fragments = Array::new();
+
+    for frag in value.fragments {
+      fragments.push(Gd::from_object(GFragments::from(frag)));
+    }
+
+    GMessage {
+      text: value.text.into(),
+      fragments,
+    }
+  }
+}
+
+impl From<Mention> for GMention {
+  fn from(value: Mention) -> Self {
+    GMention {
+      user_id: value.user_id.into(),
+      user_login: value.user_login.into(),
+      user_name: value.user_name.into(),
     }
   }
 }

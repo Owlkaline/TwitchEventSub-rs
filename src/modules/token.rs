@@ -117,7 +117,7 @@ impl TwitchKeys {
       Ok(s) => s,
       Err(e) => {
         error!("{}", e);
-        return Err(TwitchKeysError::ClientIdNotFound);
+        return Err(TwitchKeysError::ClientIdNotFound(e));
       }
     };
 
@@ -125,7 +125,7 @@ impl TwitchKeys {
       Ok(s) => s,
       Err(e) => {
         error!("{}", e);
-        return Err(TwitchKeysError::ClientSecretNotFound);
+        return Err(TwitchKeysError::ClientSecretNotFound(e));
       }
     };
 
@@ -133,7 +133,7 @@ impl TwitchKeys {
       Ok(s) => s,
       Err(e) => {
         error!("{}", e);
-        return Err(TwitchKeysError::ClientSecretNotFound);
+        return Err(TwitchKeysError::ClientSecretNotFound(e));
       }
     };
 
