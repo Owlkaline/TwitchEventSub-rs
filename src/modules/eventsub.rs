@@ -88,9 +88,16 @@ pub fn events(
         continue;
       }
       Err(e) => {
-        error!("recv message error: {:?}", e);
+        error!("EventSub: recv message error: {:?}", e);
         let _ = client.send(NetworkMessage::Close(None));
         let _ = message_sender.send(ResponseType::Close);
+        thread::sleep(Duration::from_secs(30));
+        warn!("EventSub: Attempting reconnect.");
+        let (new_client, _) = connect(CONNECTION_EVENTS)
+          .expect("Failed to reconnect to new url after receiving reconnect message from twitch");
+        client = new_client;
+        last_message = Instant::now();
+        is_reconnecting = true;
         continue;
       }
     };
@@ -106,7 +113,7 @@ pub fn events(
 
     if last_message.elapsed().as_secs() > 60 {
       let _ = client.send(NetworkMessage::Close(None));
-      thread::sleep(Duration::from_secs(1));
+      thread::sleep(Duration::from_secs(5));
       println!("Messages not sent within the keep alive timeout restarting websocket");
       info!("Messages not sent within the keep alive timeout restarting websocket");
       let (new_client, _) = connect(CONNECTION_EVENTS)
@@ -250,7 +257,7 @@ pub fn events(
         }
       }
       NetworkMessage::Close(a) => {
-        warn!("Close message received: {:?}", a);
+        warn!("EventSub: Close message received: {:?}", a);
         // Got a close message, so send a close message and return
         let _ = client.send(NetworkMessage::Close(None));
         let _ = message_sender.send(ResponseType::Close);
@@ -261,7 +268,10 @@ pub fn events(
           // Send a pong in response
           Ok(()) => {}
           Err(e) => {
-            error!("Received an Error from Server: {:?}", e);
+            error!(
+              "EventSub: sending Pong Received an Error from Server: {:?}",
+              e
+            );
             return;
           }
         }

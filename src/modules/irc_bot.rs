@@ -1,12 +1,12 @@
-use std::net::TcpStream;
+use std::{net::TcpStream, thread, time::Duration};
 
-use log::{error, info};
-use tungstenite::{connect, stream::MaybeTlsStream, Message as NetworkMessage, WebSocket};
-use twitch_eventsub_structs::Event;
+use log::{error, info, warn};
+use tungstenite::{
+  connect, error::ProtocolError, protocol::CloseFrame, stream::MaybeTlsStream, Error,
+  Message as NetworkMessage, WebSocket,
+};
 
 use std::sync::mpsc::Sender as SyncSender;
-
-use crate::ResponseType;
 
 pub const PRIV_MESSAGE: &str = "PRIVMSG";
 pub const PASS: &str = "PASS";
@@ -23,6 +23,8 @@ pub enum IRCResponse {
 pub struct IRCChat {
   pub client: WebSocket<MaybeTlsStream<TcpStream>>,
   pub joined_channel: Option<String>,
+  pub oauth: String,
+  pub bot_name: String,
 }
 
 #[derive(Default)]
@@ -76,6 +78,9 @@ impl From<String> for IRCMessage {
 
 impl IRCChat {
   pub fn new<T: Into<String>, S: Into<String>>(bot_name: T, oauth_token: S) -> IRCChat {
+    let bot_name = bot_name.into();
+    let oauth_token = oauth_token.into();
+
     let (mut irc_client, _) = connect(IRC_URL).unwrap();
 
     let _ = irc_client.send(NetworkMessage::text(
@@ -85,12 +90,12 @@ impl IRCChat {
     let _ = irc_client.send(NetworkMessage::text(format!(
       "{} oauth:{}",
       PASS,
-      oauth_token.into()
+      oauth_token.to_owned()
     )));
     let _ = irc_client.send(NetworkMessage::text(format!(
       "{} {}",
       NICK,
-      bot_name.into()
+      bot_name.to_owned()
     )));
 
     let mut welcome_recieved = false;
@@ -105,6 +110,8 @@ impl IRCChat {
     IRCChat {
       client: irc_client,
       joined_channel: None,
+      oauth: oauth_token,
+      bot_name,
     }
   }
 
@@ -123,7 +130,19 @@ impl IRCChat {
     match self.client.read() {
       Ok(message) => match message {
         NetworkMessage::Text(text) => {
-          return Some(IRCMessage::from(text));
+          if text.contains("PING :tmi.twitch.tv") {
+            info!("IRC: ping recieved, sending pong back");
+            let _ = self
+              .client
+              .send(NetworkMessage::Pong(Vec::with_capacity(0)));
+            let _ = self
+              .client
+              .send(NetworkMessage::Text("PONG :tmi.twitch.tv".to_owned()));
+            let _ = self.client.send(NetworkMessage::Text("PONG".to_owned()));
+            None
+          } else {
+            return Some(IRCMessage::from(text));
+          }
         }
         NetworkMessage::Ping(data) => {
           println!("IRC: ping recieved, sending pong back");
@@ -138,6 +157,18 @@ impl IRCChat {
         }
         _ => None,
       },
+      Err(Error::Protocol(ProtocolError::ResetWithoutClosingHandshake)) => {
+        error!("Protocol error: Reset without closing handshake");
+        warn!("Restarting IRC connection");
+        self.client.close(None);
+
+        warn!("Close connection requested");
+        thread::sleep(Duration::from_secs(5));
+
+        warn!("Attempting reconnect with IRC");
+        *self = IRCChat::new(self.bot_name.to_owned(), self.oauth.to_owned());
+        None
+      }
       Err(e) => {
         println!("IRC: Error: {:?}", e);
         error!("IRC: Error: {:?}", e);
@@ -160,6 +191,10 @@ impl IRCChat {
 pub fn irc_thread(mut irc: IRCChat, message_sender: SyncSender<IRCResponse>) {
   loop {
     if let Some(irc_msg) = irc.recv_message() {
+      info!(
+        "IRC MSG: {}",
+        irc_msg.message.split("#owlkalinevt").last().unwrap()
+      );
       let _ = message_sender.send(IRCResponse::IRCMessage(irc_msg));
     }
   }
