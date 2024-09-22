@@ -1,0 +1,21 @@
+[package]
+name = "twitchevents_godot"
+version = "0.1.0"
+edition = { workspace = true }
+categories = { workspace = true }
+keywords = { workspace = true }
+license = { workspace = true }
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+image.workspace = true
+serde = { workspace = true, features = ["derive"] }
+twitcheventsub.workspace = true
+godot.workspace = true
+
+#[dependencies.godot]
+#git = "https://github.com/godot-rust/gdext"
+#branch = "master"
+#features = ["experimental-wasm", "lazy-function-tables"]

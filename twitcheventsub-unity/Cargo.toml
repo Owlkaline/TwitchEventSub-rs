@@ -1,0 +1,20 @@
+[package]
+name = "rust_unity"
+version = "0.1.0"
+edition = { workspace = true }
+categories = { workspace = true }
+keywords = { workspace = true }
+license = { workspace = true }
+authors.workspace = true
+repository.workspace = true
+description.workspace = true
+
+[lib]
+name = "rust_unity"
+crate-type = ["dylib"]
+
+[dependencies]
+rand.workspace = true
+serde = { workspace = true, feautures = ["derive"] }
+serde_json.workspace = true
+twitcheventsub.workspace = true
