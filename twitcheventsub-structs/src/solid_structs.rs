@@ -37,7 +37,7 @@ pub struct HypeTrainEndData {
   pub broadcaster: User,
   pub level: u32,
   pub total: u32,
-  pub top_contributions: TopContributions,
+  pub top_contributions: Vec<TopContributions>,
   pub started_at: String,
   pub ended_at: String,
   pub cooldown_ends_at: String,
@@ -52,14 +52,11 @@ pub struct HypeTrainProgressData {
   pub total: u32,
   pub progress: u32,
   pub goal: u32,
-  pub top_contributions: TopContributions,
+  pub top_contributions: Vec<TopContributions>,
   pub last_contribution: LastContribution,
   pub started_at: String,
   pub expires_at: String,
 }
-//RAW response: {"metadata":{"message_id":"bSxSXPGSqWJeZKQCFi5U1pU9idS1xzkV7ijsoNE6CEU=","message_type":"notification","message_timestamp":"2024-09-12T15:10:17.454792032Z","subscription_type":"channel.hype_train.progress","subscription_version":"1"},"payload":{"subscription":{"id":"a3a8087b-1796-428f-803c-efc6345c62a7","status":"enabled","type":"channel.hype_train.progress","version":"1","condition":{"broadcaster_user_id":"122297321"},"transport":{"method":"websocket","session_id":"AgoQpICHjI14T5i7mniZfQpuEhIGY2VsbC1h"},"created_at":"2024-09-12T07:48:13.157489194Z","cost":0},"event":{"id":"57c43e5a-a90d-4e0e-956f-8d8fa1190a3f","broadcaster_user_id":"122297321","broadcaster_user_login":"owlkalinevt","broadcaster_user_name":"OwlkalineVT","total":3000,"top_contributions":[{"user_id":"613487069","user_login":"hiimneil9000","user_name":"hiimNeil9000","type":"subscription","total":2500}],"started_at":"2024-09-12T15:09:08.800986839Z","last_contribution":{"user_id":"37104029","user_login":"daagr","user_name":"Daagr","type":"subscription","total":500},"level":2,"goal":1800,"progress":1400,"expires_at":"2024-09-12T15:14:08.800986839Z"}}}
-
-//RAW response: {"metadata":{"message_id":"hdGW3Cg1S2rJ7SBKm0Hv8T7FXGKDQoH2cVypZNXeApk=","message_type":"notification","message_timestamp":"2024-09-12T15:16:20.192135738Z","subscription_type":"channel.hype_train.end","subscription_version":"1"},"payload":{"subscription":{"id":"5e39932f-85d6-484c-981a-b00100fec4a6","status":"enabled","type":"channel.hype_train.end","version":"1","condition":{"broadcaster_user_id":"122297321"},"transport":{"method":"websocket","session_id":"AgoQpICHjI14T5i7mniZfQpuEhIGY2VsbC1h"},"created_at":"2024-09-12T07:48:13.368718467Z","cost":0},"event":{"id":"57c43e5a-a90d-4e0e-956f-8d8fa1190a3f","broadcaster_user_id":"122297321","broadcaster_user_login":"owlkalinevt","broadcaster_user_name":"OwlkalineVT","total":3600,"top_contributions":[{"user_id":"613487069","user_login":"hiimneil9000","user_name":"hiimNeil9000","type":"subscription","total":2500},{"user_id":"189444487","user_login":"exia_quantavt","user_name":"Exia_QuantaVT","type":"bits","total":100}],"started_at":"2024-09-12T15:09:08.800986839Z","level":3,"ended_at":"2024-09-12T15:16:19.167649013Z","cooldown_ends_at":"2024-09-12T16:16:19.167649013Z"}}}
 
 #[derive(Serialise, Deserialise, Clone, Debug)]
 pub struct HypeTrainBeginData {
@@ -68,7 +65,7 @@ pub struct HypeTrainBeginData {
   pub broadcaster: User,
   pub total: u32,
   pub progress: u32,
-  pub top_contributions: TopContributions,
+  pub top_contributions: Vec<TopContributions>,
   pub last_contribution: LastContribution,
   pub level: u32,
   pub started_at: String,
