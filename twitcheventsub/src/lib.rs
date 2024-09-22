@@ -11,7 +11,6 @@ use std::sync::{Arc, Mutex};
 use crate::modules::consts::*;
 
 use modules::irc_bot::IRCChat;
-//use modules::irc_bot::IRCChat;
 use open;
 
 use std::io::Read;
@@ -60,7 +59,7 @@ pub struct TwitchEventSubApiBuilder {
   generate_access_token_on_expire: bool,
   auto_save_load_created_tokens: Option<(String, String)>,
   only_raw_responses: bool,
-  enable_irc: Option<String>,
+  enable_irc: Option<(String, String)>,
 }
 
 impl TwitchEventSubApiBuilder {
@@ -80,8 +79,12 @@ impl TwitchEventSubApiBuilder {
     }
   }
 
-  pub fn enable_irc<S: Into<String>>(mut self, channel: S) -> TwitchEventSubApiBuilder {
-    self.enable_irc = Some(channel.into());
+  pub fn enable_irc<S: Into<String>, T: Into<String>>(
+    mut self,
+    username: T,
+    channel: S,
+  ) -> TwitchEventSubApiBuilder {
+    self.enable_irc = Some((username.into(), channel.into()));
     self
   }
 
@@ -349,15 +352,14 @@ impl TwitchEventSubApi {
     twitch_keys: TwitchKeys,
     subscriptions: Vec<Subscription>,
     custom_subscription_data: Vec<String>,
-    irc_channel: Option<String>,
+    irc_channel: Option<(String, String)>,
   ) -> Result<TwitchEventSubApi, Error> {
     let mut irc = None;
 
-    if let Some(channel) = irc_channel {
+    if let Some((username, channel)) = irc_channel {
       let mut new_irc = IRCChat::new(
-        "owlkalinevt",
+        username,
         twitch_keys.access_token.clone().unwrap().get_token(),
-        //twitch_keys.acc.to_owned(),
       );
       new_irc.join_channel(channel);
 
@@ -512,7 +514,6 @@ impl TwitchEventSubApi {
     twitch_keys: &mut TwitchKeys,
     auto_save_load_created_tokens: &Option<(String, String)>,
   ) -> Result<String, EventSubError> {
-    //warn!("Token return 401!");
     if let Err(EventSubError::TokenRequiresRefreshing(mut http_request)) = result {
       warn!("Token requires refreshing return!");
       if let Ok(token) = TwitchApi::generate_token_from_refresh_token(
@@ -520,7 +521,6 @@ impl TwitchEventSubApi {
         twitch_keys.client_secret.to_owned(),
         twitch_keys.refresh_token.clone().unwrap().to_owned(),
       ) {
-        println!("Generated new keys as 401 was returned!");
         info!("Generated new keys as 401 was returned!");
         twitch_keys.access_token = Some(token.access);
         twitch_keys.refresh_token = Some(token.refresh.to_owned());
@@ -546,7 +546,6 @@ impl TwitchEventSubApi {
           "regen 401 called with result being an error, but wasnt token refresh required: {:?}",
           result
         );
-        println!("BIG ERROR!");
       }
       result
     }
@@ -614,7 +613,6 @@ impl TwitchEventSubApi {
     &mut self,
     message_id: S,
   ) -> Result<String, EventSubError> {
-    println!("Delete message called!");
     let broadcaster_account_id = self.twitch_keys.broadcaster_account_id.to_string();
     let moderator_account_id = broadcaster_account_id.to_owned();
     let access_token = self

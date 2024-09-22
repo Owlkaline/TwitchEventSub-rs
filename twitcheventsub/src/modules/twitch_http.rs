@@ -631,7 +631,6 @@ impl TwitchHttpRequest {
           }
         }
         error!("Unhandled error: {}, {}", self.url, error.error_msg());
-        //println!("Unhandled error: {}, {}", self.url, error.error_msg());
         return Err(EventSubError::InvalidOauthToken(error.error_msg()));
       }
     }

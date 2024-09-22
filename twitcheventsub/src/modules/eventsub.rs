@@ -56,7 +56,7 @@ pub fn events(
   mut custom_subscriptions: Vec<String>,
   mut twitch_keys: TwitchKeys,
   save_locations: Option<(String, String)>,
-  mut irc: Option<IRCChat>,
+  irc: Option<IRCChat>,
 ) {
   use std::sync::mpsc::channel;
 
@@ -72,7 +72,7 @@ pub fn events(
   if let Some(irc) = irc {
     let (transmit_messages, receive_message) = channel();
 
-    let receive_thread = thread::spawn(move || {
+    let _ = thread::spawn(move || {
       irc_bot::irc_thread(irc, transmit_messages);
     });
 
@@ -114,7 +114,6 @@ pub fn events(
     if last_message.elapsed().as_secs() > 60 {
       let _ = client.send(NetworkMessage::Close(None));
       thread::sleep(Duration::from_secs(5));
-      println!("Messages not sent within the keep alive timeout restarting websocket");
       info!("Messages not sent within the keep alive timeout restarting websocket");
       let (new_client, _) = connect(CONNECTION_EVENTS)
         .expect("Failed to reconnect to new url after receiving reconnect message from twitch");
@@ -122,6 +121,12 @@ pub fn events(
       last_message = Instant::now();
       is_reconnecting = true;
       continue;
+    }
+
+    for i in (0..irc_messages.len()).rev() {
+      if irc_messages[i].0.elapsed().as_secs() > 30 {
+        irc_messages.remove(i);
+      }
     }
 
     match message {
@@ -197,7 +202,6 @@ pub fn events(
             last_message = Instant::now();
           }
           EventMessageType::Reconnect => {
-            println!("Reconnecting to Twitch!");
             info!("Reconnecting to Twitch!");
             let url = message
               .clone()
@@ -221,10 +225,7 @@ pub fn events(
 
             match &mut message {
               Event::ChatMessage(ref mut msg) => {
-                let mut start = Instant::now();
-
-                let mut old_messages = Vec::new();
-                for (i, (time, irc_message)) in irc_messages.iter().enumerate() {
+                for (_, irc_message) in irc_messages.iter() {
                   if irc_message.display_name == msg.chatter.name
                     && irc_message.message.contains(&msg.message.text)
                   {
@@ -233,14 +234,6 @@ pub fn events(
                     msg.moderator = irc_message.moderator;
                     break;
                   }
-
-                  if time.elapsed().as_secs() > 3 {
-                    old_messages.push(i);
-                  }
-                }
-
-                for i in old_messages.drain(..).rev() {
-                  irc_messages.remove(i);
                 }
               }
               _ => {}

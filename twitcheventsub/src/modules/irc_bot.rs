@@ -145,13 +145,11 @@ impl IRCChat {
           }
         }
         NetworkMessage::Ping(data) => {
-          println!("IRC: ping recieved, sending pong back");
           info!("IRC: ping recieved, sending pong back");
           let _ = self.client.send(NetworkMessage::Pong(data));
           None
         }
         NetworkMessage::Close(_) => {
-          println!("IRC: connection Closed");
           error!("IRC: connection Closed");
           None
         }
@@ -160,7 +158,7 @@ impl IRCChat {
       Err(Error::Protocol(ProtocolError::ResetWithoutClosingHandshake)) => {
         error!("Protocol error: Reset without closing handshake");
         warn!("Restarting IRC connection");
-        self.client.close(None);
+        let _ = self.client.close(None);
 
         warn!("Close connection requested");
         thread::sleep(Duration::from_secs(5));
@@ -170,7 +168,6 @@ impl IRCChat {
         None
       }
       Err(e) => {
-        println!("IRC: Error: {:?}", e);
         error!("IRC: Error: {:?}", e);
         None
       }
@@ -191,10 +188,6 @@ impl IRCChat {
 pub fn irc_thread(mut irc: IRCChat, message_sender: SyncSender<IRCResponse>) {
   loop {
     if let Some(irc_msg) = irc.recv_message() {
-      info!(
-        "IRC MSG: {}",
-        irc_msg.message.split("#owlkalinevt").last().unwrap()
-      );
       let _ = message_sender.send(IRCResponse::IRCMessage(irc_msg));
     }
   }
