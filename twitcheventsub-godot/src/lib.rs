@@ -1,6 +1,6 @@
 use godot::{
-  classes::{self, INode, Image, ImageTexture, Node, SpriteFrames, Texture2D},
-  engine::{window::Flags, Button, GridContainer, Label, SubViewport, TextEdit, Viewport, Window},
+  classes::{self, INode, Image, ImageTexture, Node, SpriteFrames},
+  engine::{window::Flags, Button, GridContainer, Label,  TextEdit,  Window},
   obj::WithBaseField,
 };
 use log::LevelFilter;
