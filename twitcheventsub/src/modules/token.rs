@@ -95,6 +95,20 @@ pub struct TwitchKeys {
   pub sender_account_id: Option<String>,
 }
 
+impl Default for TwitchKeys {
+  fn default() -> Self {
+    TwitchKeys {
+      authorisation_code: None,
+      access_token: None,
+      refresh_token: None,
+      client_id: "".to_owned(),
+      client_secret: "".to_owned(),
+      broadcaster_account_id: "".to_owned(),
+      sender_account_id: None,
+    }
+  }
+}
+
 impl TwitchKeys {
   pub fn token(&self) -> Option<Token> {
     if let (Some(access), Some(refresh)) =

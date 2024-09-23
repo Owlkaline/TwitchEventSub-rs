@@ -16,7 +16,7 @@ only_raw_responses = []
 bevy = ["twitcheventsub-structs/bevy"]
 
 [dependencies]
-tungstenite.workspace = true
+tungstenite = { workspace = true, features = ["native-tls"] }
 enum_all_variants.workspace = true
 curl.workspace = true
 open.workspace = true
