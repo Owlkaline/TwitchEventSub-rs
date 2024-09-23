@@ -5,6 +5,7 @@ edition = { workspace = true }
 categories = { workspace = true }
 keywords = { workspace = true }
 license = { workspace = true }
+description = "The bindings to be able to have easy twitch intergration with godot made in rust using the twitcheventsub library"
 
 [lib]
 crate-type = ["cdylib"]
