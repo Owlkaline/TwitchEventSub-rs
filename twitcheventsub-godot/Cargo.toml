@@ -1,5 +1,5 @@
 [package]
-name = "twitchevents-godot"
+name = "twitcheventsub-godot"
 version = "0.1.4"
 edition = { workspace = true }
 categories = ["api-bindings", "authentication"]
