@@ -64,6 +64,9 @@ pub fn events(
 ) {
   use std::sync::mpsc::channel;
 
+  use curl::Protocols;
+  use tungstenite::error::TlsError;
+
   use crate::modules::irc_bot::{IRCMessage, IRCResponse};
 
   use super::irc_bot;
@@ -87,13 +90,20 @@ pub fn events(
 
   loop {
     let message = match client.read() {
-      Ok(m) => m,
+      Ok(m) => {
+        #[cfg(feature = "logging")]
+        info!("EventSub: Message recieved");
+        m
+      }
       Err(Error::Io(e)) if e.kind() == ErrorKind::WouldBlock => {
+        // shouldn't happen
+        #[cfg(feature = "logging")]
+        info!("EventSub: Would block");
         continue;
       }
-      Err(e) => {
+      Err(Error::ConnectionClosed) | Err(Error::AlreadyClosed) => {
         #[cfg(feature = "logging")]
-        error!("EventSub: recv message error: {:?}", e);
+        error!("EventSub: Connected closed or already closed");
         let _ = client.send(NetworkMessage::Close(None));
         let _ = message_sender.send(ResponseType::Close);
         thread::sleep(Duration::from_secs(30));
@@ -103,7 +113,13 @@ pub fn events(
           .expect("Failed to reconnect to new url after receiving reconnect message from twitch");
         client = new_client;
         last_message = Instant::now();
-        is_reconnecting = true;
+        is_reconnecting = false;
+        continue;
+      }
+      Err(e) => {
+        #[cfg(feature = "logging")]
+        error!("EventSub: Read error: {}", e);
+        thread::sleep(Duration::from_secs(5));
         continue;
       }
     };
@@ -126,7 +142,7 @@ pub fn events(
         .expect("Failed to reconnect to new url after receiving reconnect message from twitch");
       client = new_client;
       last_message = Instant::now();
-      is_reconnecting = true;
+      is_reconnecting = false;
       continue;
     }
 
@@ -210,12 +226,12 @@ pub fn events(
           }
           EventMessageType::KeepAlive => {
             #[cfg(feature = "logging")]
-            info!("Keep alive: {}", last_message.elapsed().as_secs());
+            info!("EventSub: Keep alive: {}", last_message.elapsed().as_secs());
             last_message = Instant::now();
           }
           EventMessageType::Reconnect => {
             #[cfg(feature = "logging")]
-            info!("Reconnecting to Twitch!");
+            info!("EventSub: Twitch requested reconnection");
             let url = message
               .clone()
               .payload
@@ -255,6 +271,8 @@ pub fn events(
             let _ = message_sender.send(ResponseType::Event(message));
           }
           EventMessageType::Unknown => {
+            #[cfg(feature = "logging")]
+            warn!("EventSub: Unknown message type: {}", msg);
             last_message = Instant::now();
             //if !custom_subscriptions.is_empty() {
             let _ = message_sender.send(ResponseType::RawResponse(msg));
@@ -271,6 +289,8 @@ pub fn events(
         continue;
       }
       NetworkMessage::Ping(_) => {
+        #[cfg(feature = "logging")]
+        info!("EventSub: ping recieved");
         match client.send(NetworkMessage::Pong(Vec::new())) {
           // Send a pong in response
           Ok(()) => {}
@@ -284,7 +304,10 @@ pub fn events(
           }
         }
       }
-      _ => {}
+      nm => {
+        #[cfg(feature = "logging")]
+        info!("EventSub: Other network message recieved: {}", nm);
+      }
     }
   }
 }
