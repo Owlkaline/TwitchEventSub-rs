@@ -8,6 +8,7 @@ license = { workspace = true }
 authors.workspace = true
 repository.workspace = true
 description.workspace = true
+exlude = ["examples/*"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [features]
