@@ -1,6 +1,10 @@
+use godot::{
+  classes::{self, INode, Image, ImageTexture, Node, SpriteFrames, Texture2D},
+  engine::{window::Flags, Button, GridContainer, Label, SubViewport, TextEdit, Viewport, Window},
+  obj::WithBaseField,
+};
+use log::LevelFilter;
 use std::time::Duration;
-
-use godot::classes::{self, INode, Image, ImageTexture, Node, SpriteFrames, Texture2D};
 
 use godot::init::EditorRunBehavior;
 use godot::prelude::*;
@@ -29,6 +33,7 @@ unsafe impl ExtensionLibrary for TwitchApi {
 
   fn on_level_init(level: InitLevel) {
     if level == InitLevel::Core {
+      let _ = simple_logging::log_to_file("twitch_events.log", LevelFilter::Info);
       panic::set_hook(Box::new(|p| {
         godot_print!("Twitch Api Panic: {}", p);
       }));
@@ -204,10 +209,7 @@ impl TwitchEvent {
     url: GString,
     mut animated_sprite: Gd<classes::AnimatedSprite2D>,
     mut sprite_frames: Gd<SpriteFrames>,
-  ) -> Array<Gd<ImageTexture>> {
-    //    let mut sprite_frames = classes::SpriteFrames::new_gd();
-    let mut animation_frames = Array::new();
-
+  ) {
     let animation_name = StringName::from("emote");
     sprite_frames.add_animation(animation_name.clone());
     sprite_frames.set_animation_loop(animation_name.clone(), true);
@@ -237,22 +239,16 @@ impl TwitchEvent {
         )
         .unwrap();
         let texture = ImageTexture::create_from_image(image).unwrap();
-        //let texture =
-        //Texture2D;
-        //let mut texture2d = Texture2D::new_gd();
 
         //texture2d
-        //sprite_frames.add_frame(animation_name.clone(), texture.into_godot());
-        animation_frames.push(texture);
+        sprite_frames.add_frame(animation_name.clone(), texture.upcast());
       }
       delay_ms /= number_of_frames as f32;
       sprite_frames.set_animation_speed(animation_name, (1000.0 / delay_ms) as f64);
     }
 
     animated_sprite.set_sprite_frames(sprite_frames);
-    //animated_sprite.play_ex();
-    // animated_sprite.play();
-    animation_frames
+    animated_sprite.play();
   }
 
   #[func]
@@ -454,7 +450,61 @@ impl INode for TwitchEvent {
   }
 
   fn ready(&mut self) {
-    let keys = TwitchKeys::from_secrets_env().unwrap();
+    let mut keys_window = Window::new_alloc();
+    keys_window.set_title("Secrest not set".into());
+    keys_window.move_to_center();
+    keys_window.move_to_foreground();
+    keys_window.set_flag(Flags::ALWAYS_ON_TOP, true);
+    keys_window.set_flag(Flags::POPUP, true);
+    keys_window.request_attention();
+    keys_window.grab_focus();
+    keys_window.popup_centered();
+    keys_window.set_size(Vector2i::new(400, 150));
+    keys_window.set_position(Vector2i::new(500, 500));
+
+    let mut grid_two_columns = GridContainer::new_alloc();
+    grid_two_columns.set_columns(2);
+
+    let mut redirect_url_label = Label::new_alloc();
+    let mut redirect_url_input = TextEdit::new_alloc();
+    redirect_url_label.set_text("Redirect url:".into());
+    redirect_url_input.set_custom_minimum_size(Vector2::new(200.0, 20.0));
+    redirect_url_input.set_text("http://localhost:3000".into());
+
+    let mut client_id_label = Label::new_alloc();
+    let mut client_id_input = TextEdit::new_alloc();
+    client_id_input.set_custom_minimum_size(Vector2::new(200.0, 20.0));
+    client_id_label.set_text("Client id:".into());
+
+    let mut client_secret_label = Label::new_alloc();
+    let mut client_secret_input = TextEdit::new_alloc();
+    client_secret_input.set_custom_minimum_size(Vector2::new(200.0, 20.0));
+    client_secret_label.set_text("Client secret:".into());
+
+    let mut button = Button::new_alloc();
+
+    button.set_text("Confirm".into());
+
+    grid_two_columns.add_child(redirect_url_label.upcast());
+    grid_two_columns.add_child(redirect_url_input.upcast());
+    grid_two_columns.add_child(client_id_label.upcast());
+    grid_two_columns.add_child(client_id_input.upcast());
+    grid_two_columns.add_child(client_secret_label.upcast());
+    grid_two_columns.add_child(client_secret_input.upcast());
+    grid_two_columns.add_child(button.upcast());
+
+    keys_window.add_child(grid_two_columns.upcast());
+
+    self.base_mut().add_child(keys_window.upcast());
+    //keys_window.free();
+
+    let keys = match TwitchKeys::from_secrets_env() {
+      Ok(keys) => keys,
+      Err(_) => {
+        return;
+      }
+    };
+
     let redirect_url = "http://localhost:3000";
 
     let mut twitch = TwitchEventSubApi::builder(keys)
