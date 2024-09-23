@@ -1,5 +1,5 @@
 [package]
-name = "rust_unity"
+name = "twitcheventsub-unity"
 version = "0.1.4"
 edition = { workspace = true }
 categories = { workspace = true }
