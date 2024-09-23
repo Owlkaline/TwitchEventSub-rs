@@ -1,3 +1,4 @@
+#[cfg(feature = "logging")]
 use log::{error, info};
 
 use crate::modules::errors::*;
@@ -30,11 +31,13 @@ impl Token {
     {
       Ok(mut writer) => {
         if let Err(e) = writer.write(format!("{}", self.access.get_token()).as_bytes()) {
+          #[cfg(feature = "logging")]
           info!("Saving token failed: {}", e);
           return Err(EventSubError::WriteError(e.to_string()));
         }
       }
       Err(e) => {
+        #[cfg(feature = "logging")]
         error!("Writing failed: {}", e);
       }
     }
@@ -47,6 +50,7 @@ impl Token {
       .open(refresh_file.into())
     {
       if let Err(e) = writer.write(format!("{}", self.refresh).as_bytes()) {
+        #[cfg(feature = "logging")]
         info!("Saving token failed: {}", e);
         return Err(EventSubError::WriteError(e.to_string()));
       }
@@ -130,6 +134,7 @@ impl TwitchKeys {
     let client_id = match get("TWITCH_CLIENT_ID") {
       Ok(s) => s,
       Err(e) => {
+        #[cfg(feature = "logging")]
         error!("{}", e);
         return Err(TwitchKeysError::ClientIdNotFound(e));
       }
@@ -138,6 +143,7 @@ impl TwitchKeys {
     let client_secret = match get("TWITCH_CLIENT_SECRET") {
       Ok(s) => s,
       Err(e) => {
+        #[cfg(feature = "logging")]
         error!("{}", e);
         return Err(TwitchKeysError::ClientSecretNotFound(e));
       }
@@ -146,6 +152,7 @@ impl TwitchKeys {
     let broadcaster_id = match get("TWITCH_BROADCASTER_ID") {
       Ok(s) => s,
       Err(e) => {
+        #[cfg(feature = "logging")]
         error!("{}", e);
         return Err(TwitchKeysError::ClientSecretNotFound(e));
       }

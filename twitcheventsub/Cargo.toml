@@ -15,14 +15,15 @@ exlude = ["examples/*"]
 only_raw_responses = []
 #godot = ["dep:godot"]
 bevy = ["twitcheventsub-structs/bevy"]
+logging = ["dep:log"]
 
 [dependencies]
+log = { workspace = true, optional = true }
 tungstenite = { workspace = true, features = ["native-tls"] }
 enum_all_variants.workspace = true
 curl.workspace = true
 open.workspace = true
 simple_env_load.workspace = true
-log.workspace = true
 attohttpc.workspace = true
 serde.workspace = true
 serde_json.workspace = true

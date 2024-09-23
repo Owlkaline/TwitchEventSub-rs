@@ -28,6 +28,7 @@ mod modules;
 
 use crate::modules::token::Token;
 
+#[cfg(feature = "logging")]
 pub use log::{error, info, warn};
 
 pub use crate::modules::{
@@ -154,6 +155,7 @@ impl TwitchEventSubApiBuilder {
     let mut newly_generated_token = None;
 
     if self.subscriptions.is_empty() {
+      #[cfg(feature = "logging")]
       error!("No Subscriptions selected.");
       return Err(EventSubError::NoSubscriptionsRequested);
     }
@@ -161,6 +163,7 @@ impl TwitchEventSubApiBuilder {
     if (self.generate_token_if_none || self.generate_token_on_scope_error)
       && self.redirect_url.is_none()
     {
+      #[cfg(feature = "logging")]
       error!("No redirect url given when generate token is enabled.");
       return Err(EventSubError::UnhandledError(
         "Redirect url was not set, when a generate token setting was enabled.".to_owned(),
@@ -195,10 +198,12 @@ impl TwitchEventSubApiBuilder {
         }
 
         if !new_token.is_empty() {
+          #[cfg(feature = "logging")]
           info!("Found user access token!");
           self.twitch_keys.access_token = Some(TokenAccess::User(new_token));
         }
         if !refresh_token.is_empty() {
+          #[cfg(feature = "logging")]
           info!("Found refresh token!");
           self.twitch_keys.refresh_token = Some(refresh_token);
         }
@@ -209,6 +214,7 @@ impl TwitchEventSubApiBuilder {
         if self.generate_token_if_none {
           if generate_token {
             if let Some(refresh_token) = &self.twitch_keys.refresh_token {
+              #[cfg(feature = "logging")]
               info!(
                 "No access token provided, attempting to generate access token from refresh token."
               );
@@ -218,6 +224,7 @@ impl TwitchEventSubApiBuilder {
                 self.twitch_keys.client_secret.to_owned(),
                 refresh_token,
               ) {
+                #[cfg(feature = "logging")]
                 info!("Generated user access token from refresh key.");
                 self.twitch_keys.access_token = Some(token.access.clone());
                 self.twitch_keys.refresh_token = Some(token.refresh.to_owned());
@@ -225,6 +232,7 @@ impl TwitchEventSubApiBuilder {
                 save_new_tokens = true;
                 generate_token = false;
               } else {
+                #[cfg(feature = "logging")]
                 warn!("Couldn't generate access token from refresh token.");
               }
             }
@@ -232,6 +240,7 @@ impl TwitchEventSubApiBuilder {
             // If there are no refresh tokens or refresh token could created
             // a new access token, then get a completely new user token
             if generate_token {
+              #[cfg(feature = "logging")]
               info!("Generating new user token.");
               // Returns app access token
               match TwitchApi::generate_user_token(
@@ -242,6 +251,7 @@ impl TwitchEventSubApiBuilder {
                 &self.subscriptions,
               ) {
                 Ok(user_token) => {
+                  #[cfg(feature = "logging")]
                   info!("Token created!");
                   self.twitch_keys.access_token = Some(user_token.access.clone());
                   self.twitch_keys.refresh_token = Some(user_token.refresh.to_owned());
@@ -249,6 +259,7 @@ impl TwitchEventSubApiBuilder {
                   save_new_tokens = true;
                 }
                 Err(e) => {
+                  #[cfg(feature = "logging")]
                   error!("Failed to generate token: {:?}", e);
                   return Err(e);
                 }
@@ -256,6 +267,7 @@ impl TwitchEventSubApiBuilder {
             }
           }
         } else {
+          #[cfg(feature = "logging")]
           error!("No access token provided");
           return Err(EventSubError::NoAccessTokenProvided);
         }
@@ -269,6 +281,7 @@ impl TwitchEventSubApiBuilder {
       Ok(token_meets_requirements) => {
         if !token_meets_requirements {
           if self.generate_token_on_scope_error {
+            #[cfg(feature = "logging")]
             info!("Generating new token because current token doesn't have correct scope.");
             match TwitchApi::generate_user_token(
               self.twitch_keys.client_id.to_owned(),
@@ -278,6 +291,7 @@ impl TwitchEventSubApiBuilder {
               &self.subscriptions,
             ) {
               Ok(user_token) => {
+                #[cfg(feature = "logging")]
                 info!("Token Generated!");
                 self.twitch_keys.refresh_token = Some(user_token.refresh.clone());
                 self.twitch_keys.access_token = Some(user_token.access.to_owned());
@@ -285,17 +299,20 @@ impl TwitchEventSubApiBuilder {
                 save_new_tokens = true;
               }
               Err(e) => {
+                #[cfg(feature = "logging")]
                 error!("Generating token failed: {:?}", e);
                 return Err(e);
               }
             }
           } else {
+            #[cfg(feature = "logging")]
             error!("Token missing required scope!");
             return Err(EventSubError::TokenMissingScope);
           }
         }
       }
       Err(EventSubError::TokenRequiresRefreshing(http)) => {
+        #[cfg(feature = "logging")]
         warn!("Checking validation failed as token needs refreshing");
 
         TwitchEventSubApi::regen_token_if_401(
@@ -305,6 +322,7 @@ impl TwitchEventSubApiBuilder {
         )?;
       }
       Err(e) => {
+        #[cfg(feature = "logging")]
         error!("Failed parsing validation response: {:?}", e);
         return Err(e);
       }
@@ -312,9 +330,11 @@ impl TwitchEventSubApiBuilder {
 
     if save_new_tokens {
       if let Some((token_file, refresh_file)) = self.auto_save_load_created_tokens {
+        #[cfg(feature = "logging")]
         info!("saving tokens");
         if let Some(new_token) = newly_generated_token {
           if let Err(e) = new_token.save_to_file(token_file, refresh_file) {
+            #[cfg(feature = "logging")]
             warn!("Failed to save tokens to file!");
             return Err(e);
           }
@@ -366,6 +386,7 @@ impl TwitchEventSubApi {
       irc = Some(new_irc);
     }
 
+    #[cfg(feature = "logging")]
     info!("Starting websocket client.");
     let (client, _) = match connect(CONNECTION_EVENTS) {
       Ok(a) => a,
@@ -472,6 +493,7 @@ impl TwitchEventSubApi {
     let browser_url = browser_url.into();
     if is_local {
       if let Err(e) = open::that_detached(browser_url) {
+        #[cfg(feature = "logging")]
         error!("Failed to open browser: {}", e);
         return Err(EventSubError::UnhandledError(e.to_string()));
       }
@@ -493,6 +515,7 @@ impl TwitchEventSubApi {
         .to_string();
     }
 
+    #[cfg(feature = "logging")]
     info!("Starting local tcp listener for token generation");
     let listener = TcpListener::bind(&redirect_url).expect("Failed to create tcp listener.");
 
@@ -515,12 +538,14 @@ impl TwitchEventSubApi {
     auto_save_load_created_tokens: &Option<(String, String)>,
   ) -> Result<String, EventSubError> {
     if let Err(EventSubError::TokenRequiresRefreshing(mut http_request)) = result {
+      #[cfg(feature = "logging")]
       warn!("Token requires refreshing return!");
       if let Ok(token) = TwitchApi::generate_token_from_refresh_token(
         twitch_keys.client_id.to_owned(),
         twitch_keys.client_secret.to_owned(),
         twitch_keys.refresh_token.clone().unwrap().to_owned(),
       ) {
+        #[cfg(feature = "logging")]
         info!("Generated new keys as 401 was returned!");
         twitch_keys.access_token = Some(token.access);
         twitch_keys.refresh_token = Some(token.refresh.to_owned());
@@ -528,9 +553,11 @@ impl TwitchEventSubApi {
 
       // TODO: SAVE
       if let Some((token_file, refresh_file)) = auto_save_load_created_tokens {
+        #[cfg(feature = "logging")]
         info!("saving tokens");
         if let Some(new_token) = twitch_keys.token() {
           if let Err(e) = new_token.save_to_file(token_file, refresh_file) {
+            #[cfg(feature = "logging")]
             warn!("Failed to save tokens to file!");
             return Err(e);
           }
@@ -542,6 +569,7 @@ impl TwitchEventSubApi {
       http_request.run()
     } else {
       if result.is_err() {
+        #[cfg(feature = "logging")]
         warn!(
           "regen 401 called with result being an error, but wasnt token refresh required: {:?}",
           result

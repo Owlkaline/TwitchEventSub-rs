@@ -1,9 +1,10 @@
 use std::{net::TcpStream, thread, time::Duration};
 
+#[cfg(feature = "logging")]
 use log::{error, info, warn};
 use tungstenite::{
-  connect, error::ProtocolError, stream::MaybeTlsStream, Error,
-  Message as NetworkMessage, WebSocket,
+  connect, error::ProtocolError, stream::MaybeTlsStream, Error, Message as NetworkMessage,
+  WebSocket,
 };
 
 use std::sync::mpsc::Sender as SyncSender;
@@ -17,7 +18,7 @@ pub const IRC_URL: &str = "ws://irc-ws.chat.twitch.tv:80";
 
 pub enum IRCResponse {
   IRCMessage(IRCMessage),
-//  Error(String),
+  //  Error(String),
 }
 
 pub struct IRCChat {
@@ -131,6 +132,7 @@ impl IRCChat {
       Ok(message) => match message {
         NetworkMessage::Text(text) => {
           if text.contains("PING :tmi.twitch.tv") {
+            #[cfg(feature = "logging")]
             info!("IRC: ping recieved, sending pong back");
             let _ = self
               .client
@@ -145,29 +147,36 @@ impl IRCChat {
           }
         }
         NetworkMessage::Ping(data) => {
+          #[cfg(feature = "logging")]
           info!("IRC: ping recieved, sending pong back");
           let _ = self.client.send(NetworkMessage::Pong(data));
           None
         }
         NetworkMessage::Close(_) => {
+          #[cfg(feature = "logging")]
           error!("IRC: connection Closed");
           None
         }
         _ => None,
       },
       Err(Error::Protocol(ProtocolError::ResetWithoutClosingHandshake)) => {
+        #[cfg(feature = "logging")]
         error!("Protocol error: Reset without closing handshake");
+        #[cfg(feature = "logging")]
         warn!("Restarting IRC connection");
         let _ = self.client.close(None);
 
+        #[cfg(feature = "logging")]
         warn!("Close connection requested");
         thread::sleep(Duration::from_secs(5));
 
+        #[cfg(feature = "logging")]
         warn!("Attempting reconnect with IRC");
         *self = IRCChat::new(self.bot_name.to_owned(), self.oauth.to_owned());
         None
       }
       Err(e) => {
+        #[cfg(feature = "logging")]
         error!("IRC: Error: {:?}", e);
         None
       }

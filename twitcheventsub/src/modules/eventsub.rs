@@ -1,4 +1,6 @@
+#[cfg(feature = "logging")]
 use log::warn;
+
 use std::{
   io::ErrorKind,
   net::TcpStream,
@@ -7,7 +9,9 @@ use std::{
   time::{Duration, Instant},
 };
 
+#[cfg(feature = "logging")]
 use log::{error, info};
+
 use tungstenite::{connect, stream::MaybeTlsStream, Error, Message as NetworkMessage, WebSocket};
 use twitcheventsub_structs::{Event, EventMessageType, GenericMessage, Subscription};
 
@@ -88,10 +92,12 @@ pub fn events(
         continue;
       }
       Err(e) => {
+        #[cfg(feature = "logging")]
         error!("EventSub: recv message error: {:?}", e);
         let _ = client.send(NetworkMessage::Close(None));
         let _ = message_sender.send(ResponseType::Close);
         thread::sleep(Duration::from_secs(30));
+        #[cfg(feature = "logging")]
         warn!("EventSub: Attempting reconnect.");
         let (new_client, _) = connect(CONNECTION_EVENTS)
           .expect("Failed to reconnect to new url after receiving reconnect message from twitch");
@@ -114,6 +120,7 @@ pub fn events(
     if last_message.elapsed().as_secs() > 60 {
       let _ = client.send(NetworkMessage::Close(None));
       thread::sleep(Duration::from_secs(5));
+      #[cfg(feature = "logging")]
       info!("Messages not sent within the keep alive timeout restarting websocket");
       let (new_client, _) = connect(CONNECTION_EVENTS)
         .expect("Failed to reconnect to new url after receiving reconnect message from twitch");
@@ -134,6 +141,7 @@ pub fn events(
         let message = serde_json::from_str(&msg);
 
         if let Err(e) = message {
+          #[cfg(feature = "logging")]
           error!("Unimplemented twitch response: {}\n{}", msg, e);
           let _ = message_sender.send(ResponseType::RawResponse(msg));
           continue;
@@ -143,6 +151,7 @@ pub fn events(
 
         match message.event_type() {
           EventMessageType::Welcome => {
+            #[cfg(feature = "logging")]
             info!("EventSub: Welcome message!");
             let session_id = message.clone().payload.unwrap().session.unwrap().id;
 
@@ -154,6 +163,7 @@ pub fn events(
                 .collect::<Vec<_>>();
               sub_data.append(&mut custom_subscriptions);
 
+              #[cfg(feature = "logging")]
               info!("Subscribing to events!");
               let mut clone_twitch_keys = twitch_keys.clone();
               if let Some(TokenAccess::User(ref token)) = twitch_keys.access_token {
@@ -175,6 +185,7 @@ pub fn events(
                   })
                   .filter_map(Result::err)
                   .for_each(|error| {
+                    #[cfg(feature = "logging")]
                     error!("{:?}", error);
                     message_sender
                       .send(ResponseType::Error(error))
@@ -198,10 +209,12 @@ pub fn events(
             last_message = Instant::now();
           }
           EventMessageType::KeepAlive => {
+            #[cfg(feature = "logging")]
             info!("Keep alive: {}", last_message.elapsed().as_secs());
             last_message = Instant::now();
           }
           EventMessageType::Reconnect => {
+            #[cfg(feature = "logging")]
             info!("Reconnecting to Twitch!");
             let url = message
               .clone()
@@ -250,6 +263,7 @@ pub fn events(
         }
       }
       NetworkMessage::Close(a) => {
+        #[cfg(feature = "logging")]
         warn!("EventSub: Close message received: {:?}", a);
         // Got a close message, so send a close message and return
         let _ = client.send(NetworkMessage::Close(None));
@@ -261,6 +275,7 @@ pub fn events(
           // Send a pong in response
           Ok(()) => {}
           Err(e) => {
+            #[cfg(feature = "logging")]
             error!(
               "EventSub: sending Pong Received an Error from Server: {:?}",
               e

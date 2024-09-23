@@ -4,6 +4,7 @@ use crate::{
 };
 use curl::easy::{Easy, List};
 
+#[cfg(feature = "logging")]
 use log::{error, info};
 
 use crate::modules::{
@@ -564,7 +565,9 @@ impl TwitchHttpRequest {
   pub fn run(&self) -> Result<String, EventSubError> {
     let mut data = Vec::new();
 
+    #[cfg(feature = "logging")]
     info!("Running curl command with:");
+    #[cfg(feature = "logging")]
     info!("    url: {}", self.url);
     let mut handle = Easy::new();
     {
@@ -591,6 +594,7 @@ impl TwitchHttpRequest {
       });
 
       if let Err(e) = handle.perform() {
+        #[cfg(feature = "logging")]
         error!("Curl error: {}", e);
         return Err(EventSubError::CurlFailed(e));
       }
@@ -612,6 +616,7 @@ impl TwitchHttpRequest {
           if error.contains("Missing scope") {
             let scope = error.split_whitespace().nth(2).unwrap();
             if let Some(missing_subscription) = Subscription::from_scope(&scope) {
+              #[cfg(feature = "logging")]
               error!(
                 "Token missing subscription: Subscription::{:?}",
                 missing_subscription
@@ -620,16 +625,19 @@ impl TwitchHttpRequest {
                 missing_subscription,
               ));
             } else {
+              #[cfg(feature = "logging")]
               error!("Token missing unimplemented subscription: {}", scope);
               return Err(EventSubError::TokenMissingUnimplementedSubscription(
                 scope.to_owned(),
               ));
             }
           } else {
+            #[cfg(feature = "logging")]
             info!("Token requires refresing, debug: {:?}", error);
             return Err(EventSubError::TokenRequiresRefreshing(self.to_owned()));
           }
         }
+        #[cfg(feature = "logging")]
         error!("Unhandled error: {}, {}", self.url, error.error_msg());
         return Err(EventSubError::InvalidOauthToken(error.error_msg()));
       }
