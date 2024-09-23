@@ -1,6 +1,6 @@
 [package]
 name = "twitchevents_godot"
-version = "0.1.3"
+version = "0.1.4"
 edition = { workspace = true }
 categories = { workspace = true }
 keywords = { workspace = true }
