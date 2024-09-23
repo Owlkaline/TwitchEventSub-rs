@@ -1,5 +1,5 @@
 [package]
-name = "twitchevents_godot"
+name = "twitchevents-godot"
 version = "0.1.4"
 edition = { workspace = true }
 categories = { workspace = true }
@@ -13,7 +13,7 @@ crate-type = ["cdylib"]
 [dependencies]
 image.workspace = true
 serde = { workspace = true, features = ["derive"] }
-twitcheventsub.workspace = true
+twitcheventsub = { workspace = true, features = ["logging"] }
 godot.workspace = true
 log = "0.4"
 simple-logging = "2.0.2"
