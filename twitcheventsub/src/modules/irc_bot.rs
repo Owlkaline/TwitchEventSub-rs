@@ -2,7 +2,7 @@ use std::{net::TcpStream, thread, time::Duration};
 
 use log::{error, info, warn};
 use tungstenite::{
-  connect, error::ProtocolError, protocol::CloseFrame, stream::MaybeTlsStream, Error,
+  connect, error::ProtocolError, stream::MaybeTlsStream, Error,
   Message as NetworkMessage, WebSocket,
 };
 
@@ -17,7 +17,7 @@ pub const IRC_URL: &str = "ws://irc-ws.chat.twitch.tv:80";
 
 pub enum IRCResponse {
   IRCMessage(IRCMessage),
-  Error(String),
+//  Error(String),
 }
 
 pub struct IRCChat {
