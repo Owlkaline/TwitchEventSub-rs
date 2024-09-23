@@ -32,7 +32,7 @@ use crate::modules::token::Token;
 pub use log::{error, info, warn};
 
 pub use crate::modules::{
-  apitypes::*,
+  emotebuilder::*,
   errors::EventSubError,
   eventsub,
   token::{TokenAccess, TwitchKeys},
@@ -754,10 +754,28 @@ impl TwitchEventSubApi {
     .and_then(|x| serde_json::from_str(&x).map_err(|e| EventSubError::ParseError(e.to_string())))
   }
 
+  pub fn get_custom_rewards(&mut self) -> Result<GetCustomRewards, EventSubError> {
+    let access_token = self
+      .twitch_keys
+      .access_token
+      .clone()
+      .expect("Access token not set")
+      .get_token();
+    let broadcaster_id = self.twitch_keys.broadcaster_account_id.to_string();
+    let client_id = self.twitch_keys.client_id.to_string();
+
+    TwitchEventSubApi::regen_token_if_401(
+      TwitchApi::get_custom_rewards(access_token, client_id, broadcaster_id),
+      &mut self.twitch_keys,
+      &self.save_locations,
+    )
+    .and_then(|x| serde_json::from_str(&x).map_err(|e| EventSubError::ParseError(e.to_string())))
+  }
+
   pub fn create_custom_reward(
     &mut self,
     custom_reward: CreateCustomReward,
-  ) -> Result<CustomRewardResponse, EventSubError> {
+  ) -> Result<CreatedCustomRewardResponse, EventSubError> {
     let access_token = self
       .twitch_keys
       .access_token
@@ -776,26 +794,23 @@ impl TwitchEventSubApi {
   }
 
   // come back later
-  //pub fn delete_custom_reward<T: Into<String>>(
-  //  &mut self,
-  //  id: T,
-  //) -> Result<CustomRewardResponse, EventSubError> {
-  //  let access_token = self
-  //    .twitch_keys
-  //    .access_token
-  //    .clone()
-  //    .expect("Access token not set")
-  //    .get_token();
-  //  let broadcaster_id = self.twitch_keys.broadcaster_account_id.to_string();
-  //  let client_id = self.twitch_keys.client_id.to_string();
+  pub fn delete_custom_reward<T: Into<String>>(&mut self, id: T) -> Result<(), EventSubError> {
+    let access_token = self
+      .twitch_keys
+      .access_token
+      .clone()
+      .expect("Access token not set")
+      .get_token();
+    let broadcaster_id = self.twitch_keys.broadcaster_account_id.to_string();
+    let client_id = self.twitch_keys.client_id.to_string();
 
-  //  TwitchEventSubApi::regen_token_if_401(
-  //    TwitchApi::delete_custom_reward(access_token, client_id, broadcaster_id, id),
-  //    &mut self.twitch_keys,
-  //    &self.save_locations,
-  //  )
-  //  .and_then(|x| serde_json::from_str(&x).map_err(|e| EventSubError::ParseError(e.to_string())))
-  //}
+    TwitchEventSubApi::regen_token_if_401(
+      TwitchApi::delete_custom_reward(access_token, client_id, broadcaster_id, id),
+      &mut self.twitch_keys,
+      &self.save_locations,
+    )
+    .and_then(|_| Ok(()))
+  }
 
   pub fn get_channel_emotes<S: Into<String>>(
     &mut self,

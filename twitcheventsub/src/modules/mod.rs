@@ -1,5 +1,5 @@
-pub mod apitypes;
 pub mod consts;
+pub mod emotebuilder;
 pub mod errors;
 pub mod eventsub;
 pub mod irc_bot;

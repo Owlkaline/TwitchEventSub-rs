@@ -1,6 +1,6 @@
 use godot::{
   classes::{self, INode, Image, ImageTexture, Node, SpriteFrames},
-  engine::{window::Flags, Button, GridContainer, Label,  TextEdit,  Window},
+  engine::{window::Flags, Button, GridContainer, Label, TextEdit, Window},
   obj::WithBaseField,
 };
 use log::LevelFilter;
@@ -450,52 +450,52 @@ impl INode for TwitchEvent {
   }
 
   fn ready(&mut self) {
-    let mut keys_window = Window::new_alloc();
-    keys_window.set_title("Secrest not set".into());
-    keys_window.move_to_center();
-    keys_window.move_to_foreground();
-    keys_window.set_flag(Flags::ALWAYS_ON_TOP, true);
-    keys_window.set_flag(Flags::POPUP, true);
-    keys_window.request_attention();
-    keys_window.grab_focus();
-    keys_window.popup_centered();
-    keys_window.set_size(Vector2i::new(400, 150));
-    keys_window.set_position(Vector2i::new(500, 500));
+    //let mut keys_window = Window::new_alloc();
+    //keys_window.set_title("Secrest not set".into());
+    //keys_window.move_to_center();
+    //keys_window.move_to_foreground();
+    //keys_window.set_flag(Flags::ALWAYS_ON_TOP, true);
+    //keys_window.set_flag(Flags::POPUP, true);
+    //keys_window.request_attention();
+    //keys_window.grab_focus();
+    //keys_window.popup_centered();
+    //keys_window.set_size(Vector2i::new(400, 150));
+    //keys_window.set_position(Vector2i::new(500, 500));
 
-    let mut grid_two_columns = GridContainer::new_alloc();
-    grid_two_columns.set_columns(2);
+    //let mut grid_two_columns = GridContainer::new_alloc();
+    //grid_two_columns.set_columns(2);
 
-    let mut redirect_url_label = Label::new_alloc();
-    let mut redirect_url_input = TextEdit::new_alloc();
-    redirect_url_label.set_text("Redirect url:".into());
-    redirect_url_input.set_custom_minimum_size(Vector2::new(200.0, 20.0));
-    redirect_url_input.set_text("http://localhost:3000".into());
+    //let mut redirect_url_label = Label::new_alloc();
+    //let mut redirect_url_input = TextEdit::new_alloc();
+    //redirect_url_label.set_text("Redirect url:".into());
+    //redirect_url_input.set_custom_minimum_size(Vector2::new(200.0, 20.0));
+    //redirect_url_input.set_text("http://localhost:3000".into());
 
-    let mut client_id_label = Label::new_alloc();
-    let mut client_id_input = TextEdit::new_alloc();
-    client_id_input.set_custom_minimum_size(Vector2::new(200.0, 20.0));
-    client_id_label.set_text("Client id:".into());
+    //let mut client_id_label = Label::new_alloc();
+    //let mut client_id_input = TextEdit::new_alloc();
+    //client_id_input.set_custom_minimum_size(Vector2::new(200.0, 20.0));
+    //client_id_label.set_text("Client id:".into());
 
-    let mut client_secret_label = Label::new_alloc();
-    let mut client_secret_input = TextEdit::new_alloc();
-    client_secret_input.set_custom_minimum_size(Vector2::new(200.0, 20.0));
-    client_secret_label.set_text("Client secret:".into());
+    //let mut client_secret_label = Label::new_alloc();
+    //let mut client_secret_input = TextEdit::new_alloc();
+    //client_secret_input.set_custom_minimum_size(Vector2::new(200.0, 20.0));
+    //client_secret_label.set_text("Client secret:".into());
 
-    let mut button = Button::new_alloc();
+    //let mut button = Button::new_alloc();
 
-    button.set_text("Confirm".into());
+    //button.set_text("Confirm".into());
 
-    grid_two_columns.add_child(redirect_url_label.upcast());
-    grid_two_columns.add_child(redirect_url_input.upcast());
-    grid_two_columns.add_child(client_id_label.upcast());
-    grid_two_columns.add_child(client_id_input.upcast());
-    grid_two_columns.add_child(client_secret_label.upcast());
-    grid_two_columns.add_child(client_secret_input.upcast());
-    grid_two_columns.add_child(button.upcast());
+    //grid_two_columns.add_child(redirect_url_label.upcast());
+    //grid_two_columns.add_child(redirect_url_input.upcast());
+    //grid_two_columns.add_child(client_id_label.upcast());
+    //grid_two_columns.add_child(client_id_input.upcast());
+    //grid_two_columns.add_child(client_secret_label.upcast());
+    //grid_two_columns.add_child(client_secret_input.upcast());
+    //grid_two_columns.add_child(button.upcast());
 
-    keys_window.add_child(grid_two_columns.upcast());
+    //keys_window.add_child(grid_two_columns.upcast());
 
-    self.base_mut().add_child(keys_window.upcast());
+    //self.base_mut().add_child(keys_window.upcast());
     //keys_window.free();
 
     let keys = match TwitchKeys::from_secrets_env() {

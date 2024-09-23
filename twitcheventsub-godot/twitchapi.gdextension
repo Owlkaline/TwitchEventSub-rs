@@ -4,8 +4,8 @@ compatibility_minimum = 4.1
 reloadable = true
 
 [libraries]
-linux.debug.x86_64 =     "res://libtwitchevents_godot.so"
-linux.release.x86_64 =   "res://libtwitchevents_godot.so"
+linux.debug.x86_64 =     "res://libtwitcheventsub_godot.so"
+linux.release.x86_64 =   "res://libtwitcheventsub_godot.so"
 windows.debug.x86_64 =   "res://twitchevents_godot.dll"
 windows.release.x86_64 = "res://twitchevents_godot.dll"
 macos.debug =            "res://librust_project.dylib"

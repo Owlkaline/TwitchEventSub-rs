@@ -16,5 +16,5 @@ image.workspace = true
 serde = { workspace = true, features = ["derive"] }
 twitcheventsub = { workspace = true }
 godot.workspace = true
-log = "0.4"
+log.workspace = true
 simple-logging = "2.0.2"

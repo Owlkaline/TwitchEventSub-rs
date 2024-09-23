@@ -15,5 +15,4 @@ pub const GET_MODERATORS_URL: &str = "https://api.twitch.tv/helix/moderation/mod
 pub const GET_GLOBAL_EMOTES_URL: &str = "https://api.twitch.tv/helix/chat/emotes/global";
 pub const GET_EMOTE_SETS_URL: &str = "https://api.twitch.tv/helix/chat/emotes/set";
 //pub const GET_USER_EMOTES_URL: &str = " https://api.twitch.tv/helix/chat/emotes/user";
-pub const GET_CUSTOM_REWARDS_URL: &str =
-  "https://api.twitch.tv/helix/channel_points/custom_rewards";
+pub const CUSTOM_REWARDS_URL: &str = "https://api.twitch.tv/helix/channel_points/custom_rewards";
