@@ -6,6 +6,7 @@ categories = ["api-bindings", "authentication"]
 keywords = ["twitch", "godot"]
 license = { workspace = true }
 description = "The bindings to be able to have easy twitch intergration with godot made in rust using the twitcheventsub library."
+repository.workspace = true
 
 [lib]
 crate-type = ["cdylib"]
