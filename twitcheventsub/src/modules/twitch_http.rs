@@ -201,7 +201,7 @@ impl TwitchApi {
       .join("+");
 
     let get_authorisation_code_request = format!(
-      "{}authorize?response_type=code&client_id={}&redirect_uri={}&scope={}",
+      "{}authorize?response_type=code&client_id={}&redirect_uri={}&scope={}&force_verify=true",
       TWITCH_AUTHORISE_URL,
       client_id.into(),
       redirect_url.to_owned(),
