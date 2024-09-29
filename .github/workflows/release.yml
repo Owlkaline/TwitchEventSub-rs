@@ -56,7 +56,7 @@ jobs:
       - name: Package to archive
         run: | 
           mkdir -p packing
-          cp target/x86_64-unknown-linux-gnu/release/lib${{ matrix.rust_lib_name }}.so packing/
+          cp target/x86_64-unknown-linux-gnu/release/${{ matrix.rust_lib_name }}.so packing/
           cp target/x86_64-pc-windows-gnu/release/${{ matrix.rust_lib_name }}.dll packing/
           cp ${{ matrix.packing_extra_files }} packing/
           tar -c -f Release-${{ matrix.engine_name }}.zip -C packing .
