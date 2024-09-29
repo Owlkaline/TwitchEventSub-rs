@@ -23,10 +23,12 @@ jobs:
           - engine: godot
             engine_name: Godot
             rust_package_name: twitcheventsub-godot
+            rust_lib_name: twitcheventsub_godot
             packing_extra_files: twitcheventsub-godot/twitchapi.gdextension
           - engine: unity
             engine_name: Unity
             rust_package_name: twitcheventsub-unity
+            rust_lib_name: librust_unity
             packing_extra_files: twitcheventsub-unity/src/TwitchEvents.cs twitcheventsub-unity/src/TwitchEventsFFI.cs
 
     steps:
@@ -54,8 +56,8 @@ jobs:
       - name: Package to archive
         run: | 
           mkdir -p packing
-          cp target/x86_64-unknown-linux-gnu/release/lib${{ matrix.rust_package_name }}.so packing/
-          cp target/x86_64-pc-windows-gnu/release/${{ matrix.rust_package_name }}.dll packing/
+          cp target/x86_64-unknown-linux-gnu/release/lib${{ matrix.rust_lib_name }}.so packing/
+          cp target/x86_64-pc-windows-gnu/release/${{ matrix.rust_lib_name }}.dll packing/
           cp ${{ matrix.packing_extra_files }} packing/
           tar -c -f Release-${{ matrix.engine_name }}.zip -C packing .
 
