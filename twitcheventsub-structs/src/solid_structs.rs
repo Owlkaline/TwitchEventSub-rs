@@ -1,6 +1,7 @@
+use serde_with::with_prefix;
+
 use crate::*;
 use crate::{Deserialise, Serialise};
-use serde_with::with_prefix;
 
 with_prefix!(pub prefix_broadcaster "broadcaster_");
 with_prefix!(pub prefix_from_broadcaster "from_broadcaster_");
@@ -309,7 +310,7 @@ pub enum BroadcasterType {
 
 #[repr(C)]
 #[derive(Serialise, Deserialise, Clone, Debug)]
-pub struct UsersUser {
+pub struct UserData {
   pub id: String,
   pub login: String,
   #[serde(rename = "display_name")]
