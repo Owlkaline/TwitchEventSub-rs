@@ -1,6 +1,6 @@
 use serde::{Deserialize as Deserialise, Serialize as Serialise};
 
-use crate::{prefix_broadcaster, User};
+use crate::{prefix_broadcaster, User, UsersUser};
 
 #[derive(Serialise, Deserialise, Debug)]
 pub struct GetCustomRewards {
@@ -266,6 +266,11 @@ pub struct ChannelEmotes {
 pub struct GlobalEmotes {
   pub data: Vec<GlobalEmoteData>,
   pub template: String,
+}
+
+#[derive(Serialise, Deserialise, Debug)]
+pub struct Users {
+  pub data: Vec<UsersUser>,
 }
 
 #[derive(Serialise, Deserialise, Debug)]

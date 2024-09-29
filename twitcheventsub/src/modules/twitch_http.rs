@@ -289,6 +289,27 @@ impl TwitchApi {
       .run()
   }
 
+  pub fn get_users<T: Into<String>, I: Into<String>, S: Into<String>, V: Into<String>>(
+    access_token: T,
+    id: Vec<I>,
+    login: Vec<S>,
+    client_id: V,
+  ) -> Result<String, EventSubError> {
+    let mut url = RequestBuilder::new();
+    if !id.is_empty() {
+      url = url.add_key_value("id", id.into_iter().map(|id| id.into()).collect::<Vec<String>>().join("&"));
+    }
+    if !login.is_empty() {
+      url = url.add_key_value("login", login.into_iter().map(|login| login.into()).collect::<Vec<String>>().join("&"));
+    }
+    let url = url.build(GET_USERS_URL);
+
+    TwitchHttpRequest::new(url)
+      .header_authorisation(access_token.into(), AuthType::Bearer)
+      .header_client_id(client_id.into())
+      .run()
+  }
+
   pub fn get_channel_emotes<T: Into<String>, S: Into<String>, X: Into<String>>(
     access_token: T,
     client_id: S,
