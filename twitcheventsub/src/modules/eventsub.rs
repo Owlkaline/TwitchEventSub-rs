@@ -170,8 +170,13 @@ pub fn events(
             if !is_reconnecting {
               let mut sub_data = subscriptions
                 .iter()
-                .filter_map(|s| s.construct_data(&session_id, &twitch_keys.broadcaster_account_id))
-                // .filter_map(|s| s.construct_data(&session_id, &twitch_keys.broadcaster_account_id, moderator_account_id_override.as_ref().unwrap_or(&twitch_keys.broadcaster_account_id)))
+                .filter_map(|s| {
+                  s.construct_data(
+                    &session_id,
+                    &twitch_keys.this_account_id,
+                    &twitch_keys.broadcaster_account_id,
+                  )
+                })
                 .filter_map(|s| serde_json::to_string(&s).ok())
                 .collect::<Vec<_>>();
               sub_data.append(&mut custom_subscriptions);

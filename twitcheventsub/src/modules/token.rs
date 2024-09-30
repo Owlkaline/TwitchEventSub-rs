@@ -160,7 +160,7 @@ impl TwitchKeys {
       }
     };
 
-    let bot_account_id = get("TWITCH_BOT_ID").unwrap_or(broadcaster_id.to_owned());
+    let bot_account_id = get("TWITCH_BOT_ID").ok();
 
     let user_access_token = get("TWITCH_USER_ACCESS_TOKEN").ok().map(TokenAccess::User);
     let user_refresh_token = get("TWITCH_USER_REFRESH_TOKEN").ok();
@@ -171,9 +171,9 @@ impl TwitchKeys {
       refresh_token: user_refresh_token,
       client_id,
       client_secret,
-      broadcaster_account_id: broadcaster_id,
-      this_account_id: "".to_owned(),
-      sender_account_id: Some(bot_account_id),
+      broadcaster_account_id: broadcaster_id.clone(),
+      this_account_id: broadcaster_id,
+      sender_account_id: bot_account_id,
     })
   }
 }

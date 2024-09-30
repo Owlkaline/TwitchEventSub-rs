@@ -390,12 +390,11 @@ impl TwitchEventSubApi {
       &mut twitch_keys,
       &None,
     )
-    .and_then(|x| serde_json::from_str::<Users>(&x).map_err(|e| EventSubError::ParseError(e.to_string())));
+    .and_then(|x| {
+      serde_json::from_str::<Users>(&x).map_err(|e| EventSubError::ParseError(e.to_string()))
+    });
     twitch_keys.this_account_id = match this_user {
-      Ok(users) => {
-        dbg!(&users);
-        users.data.into_iter().next().unwrap().id
-      }
+      Ok(users) => users.data.into_iter().next().unwrap().id,
       Err(err) => {
         #[cfg(feature = "logging")]
         error!("Failed to get account id: {:?}", err);
@@ -670,7 +669,7 @@ impl TwitchEventSubApi {
     message_id: S,
   ) -> Result<String, EventSubError> {
     let broadcaster_account_id = self.twitch_keys.broadcaster_account_id.to_string();
-    let moderator_account_id = broadcaster_account_id.to_owned();
+    let moderator_account_id = self.twitch_keys.this_account_id.to_string();
     let access_token = self
       .twitch_keys
       .access_token
@@ -699,7 +698,7 @@ impl TwitchEventSubApi {
     reason: T,
   ) {
     let broadcaster_account_id = self.twitch_keys.broadcaster_account_id.to_string();
-    let moderator_account_id = broadcaster_account_id.to_owned();
+    let moderator_account_id = self.twitch_keys.this_account_id.to_string();
 
     let access_token = self
       .twitch_keys
@@ -957,7 +956,7 @@ impl TwitchEventSubApi {
       .twitch_keys
       .sender_account_id
       .clone()
-      .unwrap_or(self.twitch_keys.broadcaster_account_id.to_string());
+      .unwrap_or(self.twitch_keys.this_account_id.to_string());
 
     TwitchEventSubApi::regen_token_if_401(
       TwitchApi::send_chat_message(
@@ -991,7 +990,7 @@ impl TwitchEventSubApi {
       .twitch_keys
       .sender_account_id
       .clone()
-      .unwrap_or(self.twitch_keys.broadcaster_account_id.to_string());
+      .unwrap_or(self.twitch_keys.this_account_id.to_string());
 
     TwitchEventSubApi::regen_token_if_401(
       TwitchApi::send_announcement(

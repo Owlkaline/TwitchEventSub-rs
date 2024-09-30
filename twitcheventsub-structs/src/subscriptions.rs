@@ -292,10 +292,11 @@ impl Subscription {
     self.details().2
   }
 
-  pub fn construct_data<S: Into<String>>(
+  pub fn construct_data<S: Into<String>, T: Into<String>>(
     &self,
     session_id: &str,
-    broadcaster_account_id: S,
+    this_account_id: S,
+    broadcaster_account_id: T,
   ) -> Option<EventSubscription> {
     let transport = Transport::new(session_id);
 
@@ -304,30 +305,31 @@ impl Subscription {
     }
 
     let broadcaster_account_id = broadcaster_account_id.into();
-    let moderator_account_id = broadcaster_account_id.clone();// moderator_account_id.into();
+    let this_account_id = this_account_id.into();
 
     let event_subscription = EventSubscription::new(self, transport);
     let condition = Condition::new().broadcaster_user_id(broadcaster_account_id.to_owned());
 
     Some(match self {
       Subscription::UserUpdate => {
-        event_subscription.condition(Condition::new().user_id(moderator_account_id.to_owned()))
+        event_subscription.condition(Condition::new().user_id(this_account_id.to_owned()))
       }
       Subscription::ChannelFollow => event_subscription.condition(
         condition
-          .moderator_user_id(moderator_account_id.to_owned())
-          .user_id(moderator_account_id.to_owned()),
+          .moderator_user_id(this_account_id.to_owned())
+          .user_id(this_account_id.to_owned()),
       ),
       Subscription::ChatMessage => {
-        event_subscription.condition(condition.user_id(moderator_account_id.to_owned()))
+        event_subscription.condition(condition.user_id(this_account_id.to_owned()))
       }
       Subscription::ChannelPointsCustomRewardRedeem => event_subscription.condition(condition),
       Subscription::AdBreakBegin => event_subscription.condition(condition),
-      Subscription::ChannelRaid => event_subscription
-        .condition(condition.to_broadcaster_user_id(moderator_account_id.clone())),
+      Subscription::ChannelRaid => {
+        event_subscription.condition(condition.to_broadcaster_user_id(this_account_id.clone()))
+      }
       Subscription::ChannelUpdate => event_subscription.condition(condition),
       Subscription::ModeratorDeletedMessage | Subscription::PermissionManageRewards => {
-        event_subscription.condition(condition.user_id(moderator_account_id.to_owned()))
+        event_subscription.condition(condition.user_id(this_account_id.to_owned()))
       }
       Subscription::ChannelNewSubscription
       | Subscription::ChannelSubscriptionEnd
