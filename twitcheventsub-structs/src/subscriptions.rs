@@ -304,29 +304,30 @@ impl Subscription {
     }
 
     let broadcaster_account_id = broadcaster_account_id.into();
+    let moderator_account_id = broadcaster_account_id.clone();// moderator_account_id.into();
 
     let event_subscription = EventSubscription::new(self, transport);
     let condition = Condition::new().broadcaster_user_id(broadcaster_account_id.to_owned());
 
     Some(match self {
       Subscription::UserUpdate => {
-        event_subscription.condition(Condition::new().user_id(broadcaster_account_id.to_owned()))
+        event_subscription.condition(Condition::new().user_id(moderator_account_id.to_owned()))
       }
       Subscription::ChannelFollow => event_subscription.condition(
         condition
-          .moderator_user_id(broadcaster_account_id.to_owned())
-          .user_id(broadcaster_account_id.to_owned()),
+          .moderator_user_id(moderator_account_id.to_owned())
+          .user_id(moderator_account_id.to_owned()),
       ),
       Subscription::ChatMessage => {
-        event_subscription.condition(condition.user_id(broadcaster_account_id.to_owned()))
+        event_subscription.condition(condition.user_id(moderator_account_id.to_owned()))
       }
       Subscription::ChannelPointsCustomRewardRedeem => event_subscription.condition(condition),
       Subscription::AdBreakBegin => event_subscription.condition(condition),
       Subscription::ChannelRaid => event_subscription
-        .condition(condition.to_broadcaster_user_id(broadcaster_account_id.clone())),
+        .condition(condition.to_broadcaster_user_id(moderator_account_id.clone())),
       Subscription::ChannelUpdate => event_subscription.condition(condition),
       Subscription::ModeratorDeletedMessage | Subscription::PermissionManageRewards => {
-        event_subscription.condition(condition.user_id(broadcaster_account_id.to_owned()))
+        event_subscription.condition(condition.user_id(moderator_account_id.to_owned()))
       }
       Subscription::ChannelNewSubscription
       | Subscription::ChannelSubscriptionEnd

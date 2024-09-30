@@ -369,12 +369,40 @@ impl TwitchEventSubApi {
   }
 
   pub fn new(
-    twitch_keys: TwitchKeys,
+    mut twitch_keys: TwitchKeys,
     subscriptions: Vec<Subscription>,
     custom_subscription_data: Vec<String>,
     irc_channel: Option<(String, String)>,
   ) -> Result<TwitchEventSubApi, Error> {
     let mut irc = None;
+
+    let this_user = TwitchEventSubApi::regen_token_if_401(
+      TwitchApi::get_users(
+        twitch_keys
+          .access_token
+          .clone()
+          .expect("Access token not set")
+          .get_token(),
+        Vec::<String>::new(),
+        Vec::<String>::new(),
+        twitch_keys.client_id.to_string(),
+      ),
+      &mut twitch_keys,
+      &None,
+    )
+    .and_then(|x| serde_json::from_str::<Users>(&x).map_err(|e| EventSubError::ParseError(e.to_string())));
+    twitch_keys.this_account_id = match this_user {
+      Ok(users) => {
+        dbg!(&users);
+        users.data.into_iter().next().unwrap().id
+      }
+      Err(err) => {
+        #[cfg(feature = "logging")]
+        error!("Failed to get account id: {:?}", err);
+        dbg!(&err);
+        twitch_keys.broadcaster_account_id.clone()
+      }
+    };
 
     if let Some((username, channel)) = irc_channel {
       let mut new_irc = IRCChat::new(
