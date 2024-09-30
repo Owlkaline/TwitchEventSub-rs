@@ -17,7 +17,7 @@ use twitcheventsub::*;
 mod modules;
 use crate::modules::{
   adbreak::*, cheer::*, emote::*, follow::*, getchatters::*, messages::*, poll::*, raid::*,
-  redeems::*, subscription::*, GUser,
+  redeems::*, subscription::*, GUser, GUserData,
 };
 use std::io::Cursor;
 
@@ -335,6 +335,23 @@ impl TwitchEvent {
     if let Some(twitch) = &mut self.twitch {
       let _ = twitch.delete_message(message_id.to_string());
     }
+  }
+
+  #[func]
+  /// Get user data by ids or logins. See https://dev.twitch.tv/docs/api/reference/#get-users
+  fn get_users(&mut self, id: Array<GString>, login: Array<GString>) -> Array<Gd<GUserData>> {
+    let mut gusers = Array::new();
+
+    if let Some(twitch) = &mut self.twitch {
+      if let Ok(users) = twitch.get_users(id.iter_shared().collect(), login.iter_shared().collect())
+      {
+        for user in users.data {
+          gusers.push(Gd::from_object(GUserData::from(user)));
+        }
+      }
+    }
+
+    gusers
   }
 
   #[func]
