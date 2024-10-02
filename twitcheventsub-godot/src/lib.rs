@@ -368,6 +368,21 @@ impl TwitchEvent {
   }
 
   #[func]
+  fn get_ad_schedule(&mut self) -> Array<Gd<GAdDetails>> {
+    let mut data = Array::new();
+
+    if let Some(twitch) = &mut self.twitch {
+      if let Ok(schedule) = twitch.get_ad_schedule() {
+        for details in schedule.data {
+          data.push(Gd::from_object(GAdDetails::from(details)));
+        }
+      }
+    }
+
+    data
+  }
+
+  #[func]
   /// Get user data by ids or logins. See https://dev.twitch.tv/docs/api/reference/#get-users
   fn get_users_from_self(&mut self) -> Array<Gd<GUserData>> {
     let mut gusers = Array::new();
