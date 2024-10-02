@@ -1,7 +1,7 @@
 use godot::prelude::*;
 use twitcheventsub::*;
 
-use crate::{modules::GUser, GEmoteStaticImages, GRewardMessage};
+use crate::{modules::GUser, GEmoteStaticImages};
 
 #[derive(GodotClass, Debug, Default)]
 #[class(init)]
