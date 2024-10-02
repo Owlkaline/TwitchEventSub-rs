@@ -414,6 +414,21 @@ impl TwitchEvent {
   }
 
   #[func]
+  fn get_custom_rewards(&mut self) -> Array<Gd<GGetCustomReward>> {
+    let mut rewards = Array::new();
+
+    if let Some(twitch) = &mut self.twitch {
+      if let Ok(custom_rewards) = twitch.get_custom_rewards() {
+        for reward in custom_rewards.data {
+          rewards.push(Gd::from_object(GGetCustomReward::from(reward)));
+        }
+      }
+    }
+
+    rewards
+  }
+
+  #[func]
   fn send_announcement(&mut self, message: GString, hex_colour: GString) {
     if let Some(twitch) = &mut self.twitch {
       let _ = twitch.send_announcement(message.to_string(), hex_colour.into());

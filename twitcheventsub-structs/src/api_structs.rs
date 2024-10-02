@@ -78,8 +78,8 @@ pub struct GetCustomReward {
 
 #[derive(Serialise, Deserialise, Debug)]
 pub struct MaxPerUserPerStreamSetting {
-  is_enabled: bool,
-  max_per_user_per_stream: u32,
+  pub is_enabled: bool,
+  pub max_per_user_per_stream: u32,
 }
 
 #[derive(Serialise, Deserialise, Debug)]

@@ -1,5 +1,4 @@
 use godot::prelude::*;
-
 use twitcheventsub::*;
 
 #[derive(GodotClass)]
@@ -24,6 +23,17 @@ pub struct GRewardEmote {
   begin: u32,
   #[var]
   end: u32,
+}
+
+#[derive(GodotClass)]
+#[class(init)]
+pub struct GEmoteStaticImages {
+  #[var]
+  url_1x: GString,
+  #[var]
+  url_2x: GString,
+  #[var]
+  url_4x: GString,
 }
 
 impl From<RewardEmote> for GRewardEmote {
@@ -78,6 +88,16 @@ impl From<Emote> for GEmote {
       emote_set_id: value.emote_set_id.into(),
       owner_id: value.owner_id.unwrap_or("".to_string()).into(),
       format,
+    }
+  }
+}
+
+impl From<EmoteStaticImages> for GEmoteStaticImages {
+  fn from(value: EmoteStaticImages) -> Self {
+    GEmoteStaticImages {
+      url_1x: value.url_1x.into(),
+      url_2x: value.url_2x.into(),
+      url_4x: value.url_4x.into(),
     }
   }
 }
