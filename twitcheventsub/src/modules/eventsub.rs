@@ -90,11 +90,7 @@ pub fn events(
 
   loop {
     let message = match client.read() {
-      Ok(m) => {
-        #[cfg(feature = "logging")]
-        info!("EventSub: Message recieved");
-        m
-      }
+      Ok(m) => m,
       Err(Error::Io(e)) if e.kind() == ErrorKind::WouldBlock => {
         // shouldn't happen
         #[cfg(feature = "logging")]
@@ -158,7 +154,7 @@ pub fn events(
 
         if let Err(e) = message {
           #[cfg(feature = "logging")]
-          error!("Unimplemented twitch response: {}\n{}", msg, e);
+          error!("EventSub: Unimplemented twitch response: {}\n{}", msg, e);
           let _ = message_sender.send(ResponseType::RawResponse(msg));
           continue;
         }
@@ -180,7 +176,7 @@ pub fn events(
               sub_data.append(&mut custom_subscriptions);
 
               #[cfg(feature = "logging")]
-              info!("Subscribing to events!");
+              info!("EventSub: Subscribing to events!");
               let mut clone_twitch_keys = twitch_keys.clone();
               if let Some(TokenAccess::User(ref token)) = twitch_keys.access_token {
                 sub_data
@@ -202,7 +198,7 @@ pub fn events(
                   .filter_map(Result::err)
                   .for_each(|error| {
                     #[cfg(feature = "logging")]
-                    error!("{:?}", error);
+                    error!("EventSub: {:?}", error);
                     message_sender
                       .send(ResponseType::Error(error))
                       .expect("Failed to send error Message back to main thread.");
