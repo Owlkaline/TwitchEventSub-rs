@@ -435,6 +435,13 @@ impl TwitchEvent {
     }
   }
 
+  #[func]
+  fn send_shoutout(&mut self, to_broadcaster_id: GString) {
+    if let Some(twitch) = &mut self.twitch {
+      let _ = twitch.send_shoutout(to_broadcaster_id);
+    }
+  }
+
   #[signal]
   fn chat_message(message_data: GdMessageContainer);
 

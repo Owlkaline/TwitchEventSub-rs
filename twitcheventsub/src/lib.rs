@@ -1012,4 +1012,28 @@ impl TwitchEventSubApi {
       &self.save_locations,
     )
   }
+
+  pub fn send_shoutout<S: Into<String>>(&mut self, to_broadcaster_id: S) {
+    let broadcaster_account_id = self.twitch_keys.broadcaster_account_id.to_string();
+    let moderator_account_id = self.twitch_keys.this_account_id.to_string();
+
+    let access_token = self
+      .twitch_keys
+      .access_token
+      .clone()
+      .expect("No Access Token set")
+      .get_token();
+    let client_id = self.twitch_keys.client_id.to_string();
+    let _ = TwitchEventSubApi::regen_token_if_401(
+      TwitchApi::send_shoutout(
+        access_token,
+        client_id,
+        broadcaster_account_id,
+        to_broadcaster_id,
+        moderator_account_id,
+      ),
+      &mut self.twitch_keys,
+      &self.save_locations,
+    );
+  }
 }
