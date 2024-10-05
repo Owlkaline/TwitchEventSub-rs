@@ -1,6 +1,7 @@
+use serde_with::with_prefix;
+
 use crate::*;
 use crate::{Deserialise, Serialise};
-use serde_with::with_prefix;
 
 with_prefix!(pub prefix_broadcaster "broadcaster_");
 with_prefix!(pub prefix_from_broadcaster "from_broadcaster_");

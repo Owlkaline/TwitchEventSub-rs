@@ -2,6 +2,50 @@ use serde::{Deserialize as Deserialise, Serialize as Serialise};
 
 use crate::{prefix_broadcaster, User};
 
+#[repr(C)]
+#[derive(Serialise, Deserialise, Clone, Debug, Default)]
+pub enum UserType {
+  #[serde(rename = "admin")]
+  Admin,
+  #[serde(rename = "global_mod")]
+  GlobalMod,
+  #[serde(rename = "staff")]
+  Staff,
+  #[serde(rename = "")]
+  #[default]
+  Normal,
+}
+
+#[repr(C)]
+#[derive(Serialise, Deserialise, Clone, Debug, Default)]
+pub enum BroadcasterType {
+  #[serde(rename = "affiliate")]
+  Affiliate,
+  #[serde(rename = "partner")]
+  Partner,
+  #[serde(rename = "")]
+  #[default]
+  Normal,
+}
+
+#[repr(C)]
+#[derive(Serialise, Deserialise, Clone, Debug)]
+pub struct UserData {
+  pub id: String,
+  pub login: String,
+  #[serde(rename = "display_name")]
+  pub name: String,
+  #[serde(rename = "type")]
+  pub user_type: UserType,
+  pub broadcaster_type: BroadcasterType,
+  pub description: String,
+  pub profile_image_url: String,
+  pub offline_image_url: String,
+  pub view_count: u32,
+  pub email: Option<String>,
+  pub created_at: String,
+}
+
 #[derive(Serialise, Deserialise, Debug)]
 pub struct GetCustomRewards {
   pub data: Vec<GetCustomReward>,
@@ -266,6 +310,11 @@ pub struct ChannelEmotes {
 pub struct GlobalEmotes {
   pub data: Vec<GlobalEmoteData>,
   pub template: String,
+}
+
+#[derive(Serialise, Deserialise, Debug)]
+pub struct Users {
+  pub data: Vec<UserData>,
 }
 
 #[derive(Serialise, Deserialise, Debug)]

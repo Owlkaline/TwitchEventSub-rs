@@ -1,12 +1,12 @@
 use serde::{Deserialize as Deserialise, Serialize as Serialise};
 use serde_with;
 
-mod api_types;
+mod api_structs;
+mod eventsub_structs;
 mod response_messages;
-mod solid_structs;
 mod subscriptions;
 
-pub use api_types::*;
+pub use api_structs::*;
+pub use eventsub_structs::*;
 pub use response_messages::*;
-pub use solid_structs::*;
 pub use subscriptions::*;
