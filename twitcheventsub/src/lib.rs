@@ -812,11 +812,45 @@ impl TwitchEventSubApi {
     .and_then(|_| Ok(()))
   }
 
-  pub fn get_users<I: Into<String>, S: Into<String>>(
+  pub fn get_users_from_ids<S: Into<String>>(
     &mut self,
-    id: Vec<I>,
-    login: Vec<S>,
+    ids: Vec<S>,
   ) -> Result<Users, EventSubError> {
+    self.get_users(
+      ids
+        .into_iter()
+        .map(|a| a.into())
+        .collect::<Vec<String>>()
+        .into(),
+      Vec::with_capacity(0),
+    )
+  }
+
+  pub fn get_users_from_logins<S: Into<String>>(
+    &mut self,
+    logins: Vec<S>,
+  ) -> Result<Users, EventSubError> {
+    self.get_users(
+      Vec::with_capacity(0),
+      logins
+        .into_iter()
+        .map(|a| a.into())
+        .collect::<Vec<String>>()
+        .into(),
+    )
+  }
+
+  pub fn get_users_self(&mut self) -> Result<Users, EventSubError> {
+    self.get_users(Vec::with_capacity(0), Vec::with_capacity(0))
+  }
+
+  ///
+  /// It is recommended to use the get_users_from_* methods instead.
+  ///
+  /// How ever if you wish to use it manuall please
+  /// Refer to https://dev.twitch.tv/docs/api/reference/#get-users for specifics how to use
+  ///
+  pub fn get_users(&mut self, id: Vec<String>, login: Vec<String>) -> Result<Users, EventSubError> {
     let access_token = self
       .twitch_keys
       .access_token

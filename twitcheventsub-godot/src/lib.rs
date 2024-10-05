@@ -338,13 +338,42 @@ impl TwitchEvent {
   }
 
   #[func]
-  /// Get user data by ids or logins. See https://dev.twitch.tv/docs/api/reference/#get-users
-  fn get_users(&mut self, id: Array<GString>, login: Array<GString>) -> Array<Gd<GUserData>> {
+  fn get_users_from_ids(&mut self, id: Array<GString>) -> Array<Gd<GUserData>> {
     let mut gusers = Array::new();
 
     if let Some(twitch) = &mut self.twitch {
-      if let Ok(users) = twitch.get_users(id.iter_shared().collect(), login.iter_shared().collect())
-      {
+      if let Ok(users) = twitch.get_users_from_ids(id.iter_shared().collect()) {
+        for user in users.data {
+          gusers.push(Gd::from_object(GUserData::from(user)));
+        }
+      }
+    }
+
+    gusers
+  }
+
+  #[func]
+  fn get_users_from_logins(&mut self, logins: Array<GString>) -> Array<Gd<GUserData>> {
+    let mut gusers = Array::new();
+
+    if let Some(twitch) = &mut self.twitch {
+      if let Ok(users) = twitch.get_users_from_logins(logins.iter_shared().collect()) {
+        for user in users.data {
+          gusers.push(Gd::from_object(GUserData::from(user)));
+        }
+      }
+    }
+
+    gusers
+  }
+
+  #[func]
+  /// Get user data by ids or logins. See https://dev.twitch.tv/docs/api/reference/#get-users
+  fn get_users_from_self(&mut self) -> Array<Gd<GUserData>> {
+    let mut gusers = Array::new();
+
+    if let Some(twitch) = &mut self.twitch {
+      if let Ok(users) = twitch.get_users_self() {
         for user in users.data {
           gusers.push(Gd::from_object(GUserData::from(user)));
         }
