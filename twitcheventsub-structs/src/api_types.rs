@@ -1,6 +1,6 @@
 use serde::{Deserialize as Deserialise, Serialize as Serialise};
 
-use crate::{prefix_broadcaster, User};
+use crate::{prefix_broadcaster, User, UserData};
 
 #[derive(Serialise, Deserialise, Debug)]
 pub struct GetCustomRewards {
@@ -34,8 +34,8 @@ pub struct GetCustomReward {
 
 #[derive(Serialise, Deserialise, Debug)]
 pub struct MaxPerUserPerStreamSetting {
-  is_enabled: bool,
-  max_per_user_per_stream: u32,
+  pub is_enabled: bool,
+  pub max_per_user_per_stream: u32,
 }
 
 #[derive(Serialise, Deserialise, Debug)]
@@ -266,6 +266,11 @@ pub struct ChannelEmotes {
 pub struct GlobalEmotes {
   pub data: Vec<GlobalEmoteData>,
   pub template: String,
+}
+
+#[derive(Serialise, Deserialise, Debug)]
+pub struct Users {
+  pub data: Vec<UserData>,
 }
 
 #[derive(Serialise, Deserialise, Debug)]

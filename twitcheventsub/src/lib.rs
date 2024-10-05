@@ -369,12 +369,39 @@ impl TwitchEventSubApi {
   }
 
   pub fn new(
-    twitch_keys: TwitchKeys,
+    mut twitch_keys: TwitchKeys,
     subscriptions: Vec<Subscription>,
     custom_subscription_data: Vec<String>,
     irc_channel: Option<(String, String)>,
   ) -> Result<TwitchEventSubApi, Error> {
     let mut irc = None;
+
+    let this_user = TwitchEventSubApi::regen_token_if_401(
+      TwitchApi::get_users(
+        twitch_keys
+          .access_token
+          .clone()
+          .expect("Access token not set")
+          .get_token(),
+        Vec::<String>::new(),
+        Vec::<String>::new(),
+        twitch_keys.client_id.to_string(),
+      ),
+      &mut twitch_keys,
+      &None,
+    )
+    .and_then(|x| {
+      serde_json::from_str::<Users>(&x).map_err(|e| EventSubError::ParseError(e.to_string()))
+    });
+    twitch_keys.this_account_id = match this_user {
+      Ok(users) => users.data.into_iter().next().unwrap().id,
+      Err(err) => {
+        #[cfg(feature = "logging")]
+        error!("Failed to get account id: {:?}", err);
+        dbg!(&err);
+        twitch_keys.broadcaster_account_id.clone()
+      }
+    };
 
     if let Some((username, channel)) = irc_channel {
       let mut new_irc = IRCChat::new(
@@ -642,7 +669,7 @@ impl TwitchEventSubApi {
     message_id: S,
   ) -> Result<String, EventSubError> {
     let broadcaster_account_id = self.twitch_keys.broadcaster_account_id.to_string();
-    let moderator_account_id = broadcaster_account_id.to_owned();
+    let moderator_account_id = self.twitch_keys.this_account_id.to_string();
     let access_token = self
       .twitch_keys
       .access_token
@@ -671,7 +698,7 @@ impl TwitchEventSubApi {
     reason: T,
   ) {
     let broadcaster_account_id = self.twitch_keys.broadcaster_account_id.to_string();
-    let moderator_account_id = broadcaster_account_id.to_owned();
+    let moderator_account_id = self.twitch_keys.this_account_id.to_string();
 
     let access_token = self
       .twitch_keys
@@ -812,6 +839,27 @@ impl TwitchEventSubApi {
     .and_then(|_| Ok(()))
   }
 
+  pub fn get_users<I: Into<String>, S: Into<String>>(
+    &mut self,
+    id: Vec<I>,
+    login: Vec<S>,
+  ) -> Result<Users, EventSubError> {
+    let access_token = self
+      .twitch_keys
+      .access_token
+      .clone()
+      .expect("Access token not set")
+      .get_token();
+    let client_id = self.twitch_keys.client_id.to_string();
+
+    TwitchEventSubApi::regen_token_if_401(
+      TwitchApi::get_users(access_token, id, login, client_id),
+      &mut self.twitch_keys,
+      &self.save_locations,
+    )
+    .and_then(|x| serde_json::from_str(&x).map_err(|e| EventSubError::ParseError(e.to_string())))
+  }
+
   pub fn get_channel_emotes<S: Into<String>>(
     &mut self,
     broadcaster_id: S,
@@ -908,7 +956,7 @@ impl TwitchEventSubApi {
       .twitch_keys
       .sender_account_id
       .clone()
-      .unwrap_or(self.twitch_keys.broadcaster_account_id.to_string());
+      .unwrap_or(self.twitch_keys.this_account_id.to_string());
 
     TwitchEventSubApi::regen_token_if_401(
       TwitchApi::send_chat_message(
@@ -942,7 +990,7 @@ impl TwitchEventSubApi {
       .twitch_keys
       .sender_account_id
       .clone()
-      .unwrap_or(self.twitch_keys.broadcaster_account_id.to_string());
+      .unwrap_or(self.twitch_keys.this_account_id.to_string());
 
     TwitchEventSubApi::regen_token_if_401(
       TwitchApi::send_announcement(
@@ -956,5 +1004,29 @@ impl TwitchEventSubApi {
       &mut self.twitch_keys,
       &self.save_locations,
     )
+  }
+
+  pub fn send_shoutout<S: Into<String>>(&mut self, to_broadcaster_id: S) {
+    let broadcaster_account_id = self.twitch_keys.broadcaster_account_id.to_string();
+    let moderator_account_id = self.twitch_keys.this_account_id.to_string();
+
+    let access_token = self
+      .twitch_keys
+      .access_token
+      .clone()
+      .expect("No Access Token set")
+      .get_token();
+    let client_id = self.twitch_keys.client_id.to_string();
+    let _ = TwitchEventSubApi::regen_token_if_401(
+      TwitchApi::send_shoutout(
+        access_token,
+        client_id,
+        broadcaster_account_id,
+        to_broadcaster_id,
+        moderator_account_id,
+      ),
+      &mut self.twitch_keys,
+      &self.save_locations,
+    );
   }
 }
