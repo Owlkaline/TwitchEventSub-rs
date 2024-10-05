@@ -1,27 +1,27 @@
+use std::io::Read;
+use std::panic;
+use std::time::Duration;
+
+use godot::init::EditorRunBehavior;
+use godot::prelude::*;
 use godot::{
   classes::{self, INode, Image, ImageTexture, Node, SpriteFrames},
   engine::{window::Flags, Button, GridContainer, Label, TextEdit, Window},
   obj::WithBaseField,
 };
-use log::LevelFilter;
-use std::time::Duration;
-
-use godot::init::EditorRunBehavior;
-use godot::prelude::*;
 use image::{EncodableLayout, ImageDecoder};
-use std::io::Read;
-
-use std::panic;
+use log::LevelFilter;
 use twitcheventsub::*;
 
 mod modules;
+use std::io::Cursor;
+
+use image::{codecs::gif::GifDecoder, AnimationDecoder};
+
 use crate::modules::{
   adbreak::*, cheer::*, emote::*, follow::*, getchatters::*, messages::*, poll::*, raid::*,
   redeems::*, subscription::*, GUser, GUserData,
 };
-use std::io::Cursor;
-
-use image::{codecs::gif::GifDecoder, AnimationDecoder};
 
 struct TwitchApi;
 
@@ -687,6 +687,9 @@ impl INode for TwitchEvent {
     }
     if self.shoutout_receive {
       twitch = twitch.add_subscription(Subscription::ChannelShoutoutReceive);
+    }
+    if self.moderator_deleted_message {
+      twitch = twitch.add_subscription(Subscription::ModeratorDeletedMessage);
     }
     if self.ad_break_begin {
       twitch = twitch.add_subscription(Subscription::AdBreakBegin);
