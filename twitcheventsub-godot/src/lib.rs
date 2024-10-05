@@ -363,6 +363,9 @@ impl TwitchEvent {
     if self.shoutout_receive {
       twitch = twitch.add_subscription(Subscription::ChannelShoutoutReceive);
     }
+    if self.moderator_deleted_message {
+      twitch = twitch.add_subscription(Subscription::ModeratorDeletedMessage);
+    }
     if self.ad_break_begin {
       twitch = twitch.add_subscription(Subscription::AdBreakBegin);
     }
