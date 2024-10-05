@@ -99,6 +99,8 @@ struct TwitchEvent {
   #[export]
   shoutout_receive: bool,
   #[export]
+  moderator_deleted_message: bool,
+  #[export]
   ad_break_begin: bool,
   #[export]
   permission_ban_timeout_user: bool,
@@ -199,6 +201,13 @@ pub struct GdPollProgressContainer {
 #[class(init)]
 pub struct GdPollEndContainer {
   pub data: Gd<GPollEnd>,
+}
+
+#[derive(GodotClass, Debug, GodotConvert)]
+#[godot(transparent)]
+#[class(init)]
+pub struct GdMessageDeletedContainer {
+  pub data: Gd<GMessageDeleted>,
 }
 
 #[godot_api]
@@ -443,7 +452,10 @@ impl TwitchEvent {
   }
 
   #[signal]
-  fn chat_message(message_data: GdMessageContainer);
+  fn on_message_deleted(message_data: GdMessageDeletedContainer);
+
+  #[signal]
+  fn on_chat_message(message_data: GdMessageContainer);
 
   #[signal]
   fn chat_message_powerup_gigantified_emote(messaage_data: GdMessageContainer);
@@ -523,6 +535,7 @@ impl INode for TwitchEvent {
       hype_train_end: false,
       shoutout_create: false,
       shoutout_receive: false,
+      moderator_deleted_message: false,
       ad_break_begin: true,
       chat_message: true,
       permission_ban_timeout_user: false,
@@ -810,6 +823,15 @@ impl INode for TwitchEvent {
                 "poll_end".into(),
                 &[GdPollEndContainer {
                   data: Gd::from_object(GPollEnd::from(end)),
+                }
+                .to_variant()],
+              );
+            }
+            Event::MessageDeleted(message_deleted) => {
+              self.base_mut().emit_signal(
+                "on_message_deleted".into(),
+                &[GdMessageDeletedContainer {
+                  data: Gd::from_object(GMessageDeleted::from(message_deleted)),
                 }
                 .to_variant()],
               );
