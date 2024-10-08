@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use crate::{modules::twitch_http::TwitchHttpRequest, Subscription};
 
 pub const LOG_FILE: &str = "twitch_events.log";
@@ -15,7 +17,7 @@ pub const LOG_FILE: &str = "twitch_events.log";
 pub enum EventSubError {
   WebsocketRestartFailed(String),
   TokenMissingScope,
-  TokenMissingSubscription(Subscription),
+  TokenMissingSubscription(Box<Subscription>),
   TokenMissingUnimplementedSubscription(String),
   NoSubscriptionsRequested,
   AuthorisationError(String),
@@ -30,7 +32,7 @@ pub enum EventSubError {
   CurlFailed(curl::Error),
   HttpFailed(String),
   ParseError(String),
-  TokenRequiresRefreshing(TwitchHttpRequest),
+  TokenRequiresRefreshing(Box<TwitchHttpRequest>),
   MaximumWebsocketTransmissionsExceeded(String),
 }
 
