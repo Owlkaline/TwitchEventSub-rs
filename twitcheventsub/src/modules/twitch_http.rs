@@ -297,10 +297,23 @@ impl TwitchApi {
   ) -> Result<String, EventSubError> {
     let mut url = RequestBuilder::new();
     if !id.is_empty() {
-      url = url.add_key_value("id", id.into_iter().map(|id| id.into()).collect::<Vec<String>>().join("&"));
+      url = url.add_key_value(
+        "id",
+        id.into_iter()
+          .map(|id| id.into())
+          .collect::<Vec<String>>()
+          .join("&"),
+      );
     }
     if !login.is_empty() {
-      url = url.add_key_value("login", login.into_iter().map(|login| login.into()).collect::<Vec<String>>().join("&"));
+      url = url.add_key_value(
+        "login",
+        login
+          .into_iter()
+          .map(|login| login.into())
+          .collect::<Vec<String>>()
+          .join("&"),
+      );
     }
     let url = url.build(GET_USERS_URL);
 
@@ -650,15 +663,15 @@ impl TwitchHttpRequest {
           let error = error.message.unwrap();
           if error.contains("Missing scope") {
             let scope = error.split_whitespace().nth(2).unwrap();
-            if let Some(missing_subscription) = Subscription::from_scope(&scope) {
+            if let Some(missing_subscription) = Subscription::from_scope(scope) {
               #[cfg(feature = "logging")]
               error!(
                 "Token missing subscription: Subscription::{:?}",
                 missing_subscription
               );
-              return Err(EventSubError::TokenMissingSubscription(
+              return Err(EventSubError::TokenMissingSubscription(Box::new(
                 missing_subscription,
-              ));
+              )));
             } else {
               #[cfg(feature = "logging")]
               error!("Token missing unimplemented subscription: {}", scope);
@@ -669,7 +682,9 @@ impl TwitchHttpRequest {
           } else {
             #[cfg(feature = "logging")]
             info!("Token requires refresing, debug: {:?}", error);
-            return Err(EventSubError::TokenRequiresRefreshing(self.to_owned()));
+            return Err(EventSubError::TokenRequiresRefreshing(Box::new(
+              self.to_owned(),
+            )));
           }
         }
         #[cfg(feature = "logging")]
