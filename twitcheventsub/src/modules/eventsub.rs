@@ -282,7 +282,7 @@ pub fn events(
         // Got a close message, so send a close message and return
         let _ = client.send(NetworkMessage::Close(None));
         let _ = message_sender.send(ResponseType::Close);
-        continue;
+        return;
       }
       NetworkMessage::Ping(_) => {
         #[cfg(feature = "logging")]
