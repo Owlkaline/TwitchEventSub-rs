@@ -55,9 +55,9 @@ pub enum Subscription {
   ChannelHypeTrainEnd,
   ChannelShoutoutCreate,
   ChannelShoutoutReceive,
+  ChannelMessageDeleted,
   ChatMessage,
   AdBreakBegin,
-  ModeratorDeletedMessage,
   PermissionBanTimeoutUser,
   PermissionDeleteMessage,
   PermissionReadChatters,
@@ -106,8 +106,8 @@ impl Subscription {
     ChannelHypeTrainEnd,
     ChannelShoutoutCreate,
     ChannelShoutoutReceive,
+    ChannelMessageDeleted,
     ChatMessage,
-    ModeratorDeletedMessage,
     PermissionBanTimeoutUser,
     PermissionDeleteMessage,
     PermissionReadChatters,
@@ -146,8 +146,8 @@ impl Subscription {
     ChannelHypeTrainEnd,
     ChannelShoutoutCreate,
     ChannelShoutoutReceive,
+    ChannelMessageDeleted,
     ChatMessage,
-    ModeratorDeletedMessage,
     PermissionBanTimeoutUser,
     PermissionDeleteMessage,
     PermissionReadChatters,
@@ -259,9 +259,7 @@ impl Subscription {
         "moderator:read:shoutouts+moderator:manage:shoutouts",
         "1",
       ),
-      Subscription::ModeratorDeletedMessage => {
-        ("channel.chat.message_delete", "user:read:chat", "1")
-      }
+      Subscription::ChannelMessageDeleted => ("channel.chat.message_delete", "user:read:chat", "1"),
       Subscription::PermissionBanTimeoutUser => ("", "moderator:manage:banned_users", ""),
       Subscription::PermissionDeleteMessage => ("", "moderator:manage:chat_messages", ""),
       Subscription::PermissionReadChatters => ("", "moderator:read:chatters", ""),
@@ -325,8 +323,11 @@ impl Subscription {
       Subscription::ChannelRaid => event_subscription
         .condition(condition.to_broadcaster_user_id(broadcaster_account_id.clone())),
       Subscription::ChannelUpdate => event_subscription.condition(condition),
-      Subscription::ModeratorDeletedMessage | Subscription::PermissionManageRewards => {
+      Subscription::ChannelMessageDeleted | Subscription::PermissionManageRewards => {
         event_subscription.condition(condition.user_id(broadcaster_account_id.to_owned()))
+      }
+      Subscription::ChannelShoutoutReceive | Subscription::ChannelShoutoutCreate => {
+        event_subscription.condition(condition.moderator_user_id(broadcaster_account_id.to_owned()))
       }
       Subscription::ChannelNewSubscription
       | Subscription::ChannelSubscriptionEnd

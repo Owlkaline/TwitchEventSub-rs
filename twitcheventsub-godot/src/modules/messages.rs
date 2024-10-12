@@ -103,6 +103,17 @@ pub struct GMessageData {
   moderator: bool,
 }
 
+#[derive(GodotClass, Debug)]
+#[class(init)]
+pub struct GMessageDeleted {
+  #[var]
+  broadcaster: Gd<GUser>,
+  #[var]
+  target: Gd<GUser>,
+  #[var]
+  message_id: GString,
+}
+
 impl From<Badge> for GBadge {
   fn from(badge: Badge) -> GBadge {
     GBadge {
@@ -228,6 +239,16 @@ impl From<Mention> for GMention {
       user_id: value.user_id.into(),
       user_login: value.user_login.into(),
       user_name: value.user_name.into(),
+    }
+  }
+}
+
+impl From<MessageDeletedData> for GMessageDeleted {
+  fn from(data: MessageDeletedData) -> Self {
+    GMessageDeleted {
+      broadcaster: Gd::from_object(data.broadcaster.into()),
+      target: Gd::from_object(data.target.into()),
+      message_id: data.message_id.into(),
     }
   }
 }

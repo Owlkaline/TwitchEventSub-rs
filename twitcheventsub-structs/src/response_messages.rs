@@ -246,6 +246,8 @@ pub enum Event {
   HypeTrainBegin(HypeTrainBeginData),
   HypeTrainEnd(HypeTrainEndData),
   MessageDeleted(MessageDeletedData),
+  ShoutoutRecieve(ShoutoutRecieveData),
+  ShoutoutCreate(ShoutoutCreateData),
 }
 
 #[derive(Serialise, Deserialise, Debug, Clone)]

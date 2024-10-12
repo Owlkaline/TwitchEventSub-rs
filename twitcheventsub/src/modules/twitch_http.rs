@@ -122,6 +122,33 @@ impl TwitchApi {
       .run()
   }
 
+  pub fn send_shoutout<
+    T: Into<String>,
+    S: Into<String>,
+    V: Into<String>,
+    X: Into<String>,
+    Z: Into<String>,
+  >(
+    access_token: T,
+    client_id: S,
+    from_broadcaster_id: X,
+    to_broadcaster_id: Z,
+    moderator_id: V,
+  ) -> Result<String, EventSubError> {
+    let url = RequestBuilder::new()
+      .add_key_value("from_broadcaster_id", from_broadcaster_id.into())
+      .add_key_value("to_broadcaster_id", to_broadcaster_id.into())
+      .add_key_value("moderator_id", moderator_id.into())
+      .build(SEND_SHOUTOUT_URL);
+
+    TwitchHttpRequest::new(url)
+      .header_authorisation(access_token.into(), AuthType::Bearer)
+      .header_client_id(client_id.into())
+      .json_content()
+      .is_post("")
+      .run()
+  }
+
   pub fn generate_token_from_refresh_token<S: Into<String>, T: Into<String>, V: Into<String>>(
     client_id: S,
     client_secret: T,
@@ -287,6 +314,40 @@ impl TwitchApi {
       .header_client_id(client_id.into())
       .json_content()
       .is_post(post_data)
+      .run()
+  }
+
+  pub fn get_users<T: Into<String>, I: Into<String>, S: Into<String>, V: Into<String>>(
+    access_token: T,
+    id: Vec<I>,
+    login: Vec<S>,
+    client_id: V,
+  ) -> Result<String, EventSubError> {
+    let mut url = RequestBuilder::new();
+    if !id.is_empty() {
+      url = url.add_key_value(
+        "id",
+        id.into_iter()
+          .map(|id| id.into())
+          .collect::<Vec<String>>()
+          .join("&"),
+      );
+    }
+    if !login.is_empty() {
+      url = url.add_key_value(
+        "login",
+        login
+          .into_iter()
+          .map(|login| login.into())
+          .collect::<Vec<String>>()
+          .join("&"),
+      );
+    }
+    let url = url.build(GET_USERS_URL);
+
+    TwitchHttpRequest::new(url)
+      .header_authorisation(access_token.into(), AuthType::Bearer)
+      .header_client_id(client_id.into())
       .run()
   }
 
@@ -667,15 +728,15 @@ impl TwitchHttpRequest {
           let error = error.message.unwrap();
           if error.contains("Missing scope") {
             let scope = error.split_whitespace().nth(2).unwrap();
-            if let Some(missing_subscription) = Subscription::from_scope(&scope) {
+            if let Some(missing_subscription) = Subscription::from_scope(scope) {
               #[cfg(feature = "logging")]
               error!(
                 "Token missing subscription: Subscription::{:?}",
                 missing_subscription
               );
-              return Err(EventSubError::TokenMissingSubscription(
+              return Err(EventSubError::TokenMissingSubscription(Box::new(
                 missing_subscription,
-              ));
+              )));
             } else {
               #[cfg(feature = "logging")]
               error!("Token missing unimplemented subscription: {}", scope);
@@ -686,7 +747,9 @@ impl TwitchHttpRequest {
           } else {
             #[cfg(feature = "logging")]
             info!("Token requires refresing, debug: {:?}", error);
-            return Err(EventSubError::TokenRequiresRefreshing(self.to_owned()));
+            return Err(EventSubError::TokenRequiresRefreshing(Box::new(
+              self.to_owned(),
+            )));
           }
         }
         #[cfg(feature = "logging")]

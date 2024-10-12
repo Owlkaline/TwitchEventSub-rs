@@ -840,6 +840,61 @@ impl TwitchEventSubApi {
     .and_then(|_| Ok(()))
   }
 
+  pub fn get_users_from_ids<S: Into<String>>(
+    &mut self,
+    ids: Vec<S>,
+  ) -> Result<Users, EventSubError> {
+    self.get_users(
+      ids
+        .into_iter()
+        .map(|a| a.into())
+        .collect::<Vec<String>>()
+        .into(),
+      Vec::with_capacity(0),
+    )
+  }
+
+  pub fn get_users_from_logins<S: Into<String>>(
+    &mut self,
+    logins: Vec<S>,
+  ) -> Result<Users, EventSubError> {
+    self.get_users(
+      Vec::with_capacity(0),
+      logins
+        .into_iter()
+        .map(|a| a.into())
+        .collect::<Vec<String>>()
+        .into(),
+    )
+  }
+
+  pub fn get_users_self(&mut self) -> Result<Users, EventSubError> {
+    self.get_users(Vec::with_capacity(0), Vec::with_capacity(0))
+  }
+
+  ///
+  /// It is recommended to use the get_users_from_* methods instead.
+  ///
+  /// How ever if you wish to use it manuall please
+  /// Refer to https://dev.twitch.tv/docs/api/reference/#get-users for specifics how to use
+  ///
+  pub fn get_users(&mut self, id: Vec<String>, login: Vec<String>) -> Result<Users, EventSubError> {
+    let access_token = self
+      .twitch_keys
+      .access_token
+      .clone()
+      .expect("Access token not set")
+      .get_token();
+    let client_id = self.twitch_keys.client_id.to_string();
+
+    TwitchEventSubApi::regen_token_if_401(
+      TwitchApi::get_users(access_token, id, login, client_id),
+      &mut self.twitch_keys,
+      &self.save_locations,
+    )
+    .and_then(|x| serde_json::from_str(&x).map_err(|e| EventSubError::ParseError(e.to_string())))
+  }
+
   pub fn get_channel_emotes<S: Into<String>>(
     &mut self,
     broadcaster_id: S,
@@ -984,5 +1039,28 @@ impl TwitchEventSubApi {
       &mut self.twitch_keys,
       &self.save_locations,
     )
+  }
+
+  pub fn send_shoutout<S: Into<String>>(&mut self, to_broadcaster_id: S) {
+    let broadcaster_account_id = self.twitch_keys.broadcaster_account_id.to_string();
+
+    let access_token = self
+      .twitch_keys
+      .access_token
+      .clone()
+      .expect("No Access Token set")
+      .get_token();
+    let client_id = self.twitch_keys.client_id.to_string();
+    let _ = TwitchEventSubApi::regen_token_if_401(
+      TwitchApi::send_shoutout(
+        access_token,
+        client_id,
+        broadcaster_account_id.to_string(),
+        to_broadcaster_id,
+        broadcaster_account_id,
+      ),
+      &mut self.twitch_keys,
+      &self.save_locations,
+    );
   }
 }
