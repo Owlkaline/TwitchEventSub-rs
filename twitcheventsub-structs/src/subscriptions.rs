@@ -290,10 +290,11 @@ impl Subscription {
     self.details().2
   }
 
-  pub fn construct_data<S: Into<String>>(
+  pub fn construct_data<S: Into<String>, T: Into<String>>(
     &self,
     session_id: &str,
     broadcaster_account_id: S,
+    token_user_id: T,
   ) -> Option<EventSubscription> {
     let transport = Transport::new(session_id);
 
@@ -302,32 +303,25 @@ impl Subscription {
     }
 
     let broadcaster_account_id = broadcaster_account_id.into();
+    let user_id_in_access_token = token_user_id.into();
 
     let event_subscription = EventSubscription::new(self, transport);
     let condition = Condition::new().broadcaster_user_id(broadcaster_account_id.to_owned());
 
     Some(match self {
-      Subscription::UserUpdate => {
-        event_subscription.condition(Condition::new().user_id(broadcaster_account_id.to_owned()))
-      }
-      Subscription::ChannelFollow => event_subscription.condition(
-        condition
-          .moderator_user_id(broadcaster_account_id.to_owned())
-          .user_id(broadcaster_account_id.to_owned()),
-      ),
-      Subscription::ChatMessage => {
-        event_subscription.condition(condition.user_id(broadcaster_account_id.to_owned()))
-      }
-      Subscription::ChannelPointsCustomRewardRedeem => event_subscription.condition(condition),
-      Subscription::AdBreakBegin => event_subscription.condition(condition),
+      Subscription::ChannelFollow => event_subscription
+        .condition(condition.moderator_user_id(user_id_in_access_token.to_owned())),
       Subscription::ChannelRaid => event_subscription
         .condition(condition.to_broadcaster_user_id(broadcaster_account_id.clone())),
-      Subscription::ChannelUpdate => event_subscription.condition(condition),
-      Subscription::ChannelMessageDeleted | Subscription::PermissionManageRewards => {
-        event_subscription.condition(condition.user_id(broadcaster_account_id.to_owned()))
+      Subscription::ChannelMessageDeleted
+      | Subscription::PermissionManageRewards
+      | Subscription::ChatMessage
+      | Subscription::UserUpdate => {
+        event_subscription.condition(condition.user_id(user_id_in_access_token.to_owned()))
       }
       Subscription::ChannelShoutoutReceive | Subscription::ChannelShoutoutCreate => {
-        event_subscription.condition(condition.moderator_user_id(broadcaster_account_id.to_owned()))
+        event_subscription
+          .condition(condition.moderator_user_id(user_id_in_access_token.to_owned()))
       }
       Subscription::ChannelNewSubscription
       | Subscription::ChannelSubscriptionEnd
@@ -344,7 +338,10 @@ impl Subscription {
       | Subscription::ChannelHypeTrainBegin
       | Subscription::ChannelHypeTrainProgress
       | Subscription::ChannelHypeTrainEnd
-      | Subscription::ChannelPointsAutoRewardRedeem => event_subscription.condition(condition),
+      | Subscription::ChannelPointsAutoRewardRedeem
+      | Subscription::ChannelUpdate
+      | Subscription::AdBreakBegin
+      | Subscription::ChannelPointsCustomRewardRedeem => event_subscription.condition(condition),
       Subscription::Custom((_, _, event)) => event.to_owned().transport(Transport::new(session_id)),
 
       _ => event_subscription,

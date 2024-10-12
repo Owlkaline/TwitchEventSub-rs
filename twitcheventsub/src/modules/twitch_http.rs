@@ -55,7 +55,7 @@ impl TwitchApi {
     access_token: T,
     client_id: V,
     broadcaster_account_id: X,
-    sender_account_id: Option<V>,
+    sender_account_id: V,
     is_reply_parent_message_id: Option<String>,
   ) -> Result<String, EventSubError> {
     let message = message.into();
@@ -70,10 +70,7 @@ impl TwitchApi {
       .is_post(
         serde_json::to_string(&SendMessage {
           broadcaster_id: broadcaster_account_id.to_owned(),
-          sender_id: sender_account_id
-            .ok_or(broadcaster_account_id)
-            .map(|s| s.into())
-            .unwrap(),
+          sender_id: sender_account_id.into(),
           message: message.into(),
           reply_parent_message_id: is_reply_parent_message_id,
         })

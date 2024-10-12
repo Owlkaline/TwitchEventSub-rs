@@ -348,6 +348,14 @@ impl TwitchEventSubApiBuilder {
       Vec::new(),
       self.enable_irc,
     )
+    .map(|mut twitch| {
+      if let Ok(users) = twitch.get_users_self() {
+        if let Some(user) = users.data.first() {
+          twitch.twitch_keys.token_user_id = user.id.to_owned();
+        }
+      }
+      twitch
+    })
     .map_err(|e| EventSubError::UnhandledError(e.to_string()))
   }
 }
@@ -721,12 +729,13 @@ impl TwitchEventSubApi {
       .expect("Access token not set")
       .get_token();
     let broadcaster_id = self.twitch_keys.broadcaster_account_id.to_string();
+    let moderator_id = self.twitch_keys.token_user_id.to_owned();
     let client_id = self.twitch_keys.client_id.to_string();
 
     TwitchEventSubApi::regen_token_if_401(
       TwitchApi::get_chatters(
         broadcaster_id.to_owned(),
-        broadcaster_id,
+        moderator_id,
         access_token,
         client_id,
       ),
@@ -745,6 +754,12 @@ impl TwitchEventSubApi {
       .get_token();
     let broadcaster_id = self.twitch_keys.broadcaster_account_id.to_string();
     let client_id = self.twitch_keys.client_id.to_string();
+
+    if !self.twitch_keys.token_user_id.is_empty()
+      && !broadcaster_id.eq(&self.twitch_keys.token_user_id)
+    {
+      return Err(EventSubError::TokenDoesntBelongToBroadcaster);
+    }
 
     TwitchEventSubApi::regen_token_if_401(
       TwitchApi::get_moderators(access_token, client_id, broadcaster_id),
@@ -987,11 +1002,7 @@ impl TwitchEventSubApi {
       .get_token();
     let client_id = self.twitch_keys.client_id.to_string();
     let broadcaster_account_id = self.twitch_keys.broadcaster_account_id.to_string();
-    let sender_id = self
-      .twitch_keys
-      .sender_account_id
-      .clone()
-      .unwrap_or(self.twitch_keys.broadcaster_account_id.to_string());
+    let sender_id = self.twitch_keys.token_user_id.to_owned();
 
     TwitchEventSubApi::regen_token_if_401(
       TwitchApi::send_chat_message(
@@ -999,7 +1010,7 @@ impl TwitchEventSubApi {
         access_token,
         client_id,
         broadcaster_account_id,
-        Some(sender_id),
+        sender_id,
         reply_message_parent_id,
       ),
       &mut self.twitch_keys,
@@ -1051,13 +1062,15 @@ impl TwitchEventSubApi {
       .expect("No Access Token set")
       .get_token();
     let client_id = self.twitch_keys.client_id.to_string();
+    let moderator_id = self.twitch_keys.token_user_id.to_owned();
+
     let _ = TwitchEventSubApi::regen_token_if_401(
       TwitchApi::send_shoutout(
         access_token,
         client_id,
-        broadcaster_account_id.to_string(),
-        to_broadcaster_id,
         broadcaster_account_id,
+        to_broadcaster_id,
+        moderator_id,
       ),
       &mut self.twitch_keys,
       &self.save_locations,

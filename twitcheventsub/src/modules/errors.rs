@@ -34,6 +34,7 @@ pub enum EventSubError {
   ParseError(String),
   TokenRequiresRefreshing(Box<TwitchHttpRequest>),
   MaximumWebsocketTransmissionsExceeded(String),
+  TokenDoesntBelongToBroadcaster,
 }
 
 #[derive(Debug)]
