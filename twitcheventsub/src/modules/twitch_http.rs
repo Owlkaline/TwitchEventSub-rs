@@ -121,6 +121,33 @@ impl TwitchApi {
       .run()
   }
 
+  pub fn send_shoutout<
+    T: Into<String>,
+    S: Into<String>,
+    V: Into<String>,
+    X: Into<String>,
+    Z: Into<String>,
+  >(
+    access_token: T,
+    client_id: S,
+    from_broadcaster_id: X,
+    to_broadcaster_id: Z,
+    moderator_id: V,
+  ) -> Result<String, EventSubError> {
+    let url = RequestBuilder::new()
+      .add_key_value("from_broadcaster_id", from_broadcaster_id.into())
+      .add_key_value("to_broadcaster_id", to_broadcaster_id.into())
+      .add_key_value("moderator_id", moderator_id.into())
+      .build(SEND_SHOUTOUT_URL);
+
+    TwitchHttpRequest::new(url)
+      .header_authorisation(access_token.into(), AuthType::Bearer)
+      .header_client_id(client_id.into())
+      .json_content()
+      .is_post("")
+      .run()
+  }
+
   pub fn generate_token_from_refresh_token<S: Into<String>, T: Into<String>, V: Into<String>>(
     client_id: S,
     client_secret: T,
@@ -174,7 +201,7 @@ impl TwitchApi {
       .join("+");
 
     let get_authorisation_code_request = format!(
-      "{}authorize?response_type=code&client_id={}&redirect_uri={}&scope={}",
+      "{}authorize?response_type=code&client_id={}&redirect_uri={}&scope={}&force_verify=true",
       TWITCH_AUTHORISE_URL,
       client_id.into(),
       redirect_url.to_owned(),

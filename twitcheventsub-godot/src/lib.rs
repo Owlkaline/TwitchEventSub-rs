@@ -1,27 +1,27 @@
+use std::io::Read;
+use std::panic;
+use std::time::Duration;
+
+use godot::init::EditorRunBehavior;
+use godot::prelude::*;
 use godot::{
   classes::{self, INode, Image, ImageTexture, Node, SpriteFrames},
   engine::{window::Flags, Button, GridContainer, Label, TextEdit, Window},
   obj::WithBaseField,
 };
-use log::LevelFilter;
-use std::time::Duration;
-
-use godot::init::EditorRunBehavior;
-use godot::prelude::*;
 use image::{EncodableLayout, ImageDecoder};
-use std::io::Read;
-
-use std::panic;
+use log::LevelFilter;
 use twitcheventsub::*;
 
 mod modules;
+use std::io::Cursor;
+
+use image::{codecs::gif::GifDecoder, AnimationDecoder};
+
 use crate::modules::{
   adbreak::*, cheer::*, emote::*, follow::*, getchatters::*, messages::*, poll::*, raid::*,
   redeems::*, subscription::*, GUser, GUserData,
 };
-use std::io::Cursor;
-
-use image::{codecs::gif::GifDecoder, AnimationDecoder};
 
 struct TwitchApi;
 
@@ -44,6 +44,15 @@ unsafe impl ExtensionLibrary for TwitchApi {
 #[derive(GodotClass)]
 #[class(base=Node)]
 struct TwitchEvent {
+  #[export]
+  connect_on_ready: bool,
+  #[export]
+  redirect_url: GString,
+  #[export]
+  user_token_file: GString,
+  #[export]
+  refresh_token_file: GString,
+
   #[export]
   chat_message: bool,
   #[export]
@@ -98,6 +107,8 @@ struct TwitchEvent {
   shoutout_create: bool,
   #[export]
   shoutout_receive: bool,
+  #[export]
+  moderator_deleted_message: bool,
   #[export]
   ad_break_begin: bool,
   #[export]
@@ -201,8 +212,180 @@ pub struct GdPollEndContainer {
   pub data: Gd<GPollEnd>,
 }
 
+#[derive(GodotClass, Debug, GodotConvert)]
+#[godot(transparent)]
+#[class(init)]
+pub struct GdMessageDeletedContainer {
+  pub data: Gd<GMessageDeleted>,
+}
+
 #[godot_api]
 impl TwitchEvent {
+  #[func]
+  fn connect_api(&mut self) {
+    //let mut keys_window = Window::new_alloc();
+    //keys_window.set_title("Secrest not set".into());
+    //keys_window.move_to_center();
+    //keys_window.move_to_foreground();
+    //keys_window.set_flag(Flags::ALWAYS_ON_TOP, true);
+    //keys_window.set_flag(Flags::POPUP, true);
+    //keys_window.request_attention();
+    //keys_window.grab_focus();
+    //keys_window.popup_centered();
+    //keys_window.set_size(Vector2i::new(400, 150));
+    //keys_window.set_position(Vector2i::new(500, 500));
+
+    //let mut grid_two_columns = GridContainer::new_alloc();
+    //grid_two_columns.set_columns(2);
+
+    //let mut redirect_url_label = Label::new_alloc();
+    //let mut redirect_url_input = TextEdit::new_alloc();
+    //redirect_url_label.set_text("Redirect url:".into());
+    //redirect_url_input.set_custom_minimum_size(Vector2::new(200.0, 20.0));
+    //redirect_url_input.set_text("http://localhost:3000".into());
+
+    //let mut client_id_label = Label::new_alloc();
+    //let mut client_id_input = TextEdit::new_alloc();
+    //client_id_input.set_custom_minimum_size(Vector2::new(200.0, 20.0));
+    //client_id_label.set_text("Client id:".into());
+
+    //let mut client_secret_label = Label::new_alloc();
+    //let mut client_secret_input = TextEdit::new_alloc();
+    //client_secret_input.set_custom_minimum_size(Vector2::new(200.0, 20.0));
+    //client_secret_label.set_text("Client secret:".into());
+
+    //let mut button = Button::new_alloc();
+
+    //button.set_text("Confirm".into());
+
+    //grid_two_columns.add_child(redirect_url_label.upcast());
+    //grid_two_columns.add_child(redirect_url_input.upcast());
+    //grid_two_columns.add_child(client_id_label.upcast());
+    //grid_two_columns.add_child(client_id_input.upcast());
+    //grid_two_columns.add_child(client_secret_label.upcast());
+    //grid_two_columns.add_child(client_secret_input.upcast());
+    //grid_two_columns.add_child(button.upcast());
+
+    //keys_window.add_child(grid_two_columns.upcast());
+
+    //self.base_mut().add_child(keys_window.upcast());
+    //keys_window.free();
+
+    let keys = match TwitchKeys::from_secrets_env() {
+      Ok(keys) => keys,
+      Err(_) => {
+        return;
+      }
+    };
+
+    let mut twitch = TwitchEventSubApi::builder(keys)
+      .set_redirect_url(&self.redirect_url)
+      .generate_new_token_if_insufficent_scope(true)
+      .generate_new_token_if_none(true)
+      .generate_access_token_on_expire(true)
+      .auto_save_load_created_tokens(&self.user_token_file, &self.refresh_token_file);
+
+    if self.user_update {
+      twitch = twitch.add_subscription(Subscription::UserUpdate);
+    }
+    if self.follow {
+      twitch = twitch.add_subscription(Subscription::ChannelFollow);
+    }
+    if self.raid {
+      twitch = twitch.add_subscription(Subscription::ChannelRaid);
+    }
+    if self.update {
+      twitch = twitch.add_subscription(Subscription::ChannelUpdate);
+    }
+    if self.new_subscription {
+      twitch = twitch.add_subscription(Subscription::ChannelNewSubscription);
+    }
+    if self.subscription_end {
+      twitch = twitch.add_subscription(Subscription::ChannelSubscriptionEnd);
+    }
+    if self.gift_subscription {
+      twitch = twitch.add_subscription(Subscription::ChannelGiftSubscription);
+    }
+    if self.resubscription {
+      twitch = twitch.add_subscription(Subscription::ChannelResubscription);
+    }
+    if self.cheer {
+      twitch = twitch.add_subscription(Subscription::ChannelCheer);
+    }
+    if self.points_custom_reward_redeem {
+      twitch = twitch.add_subscription(Subscription::ChannelPointsCustomRewardRedeem);
+    }
+    if self.points_auto_reward_redeem {
+      twitch = twitch.add_subscription(Subscription::ChannelPointsAutoRewardRedeem);
+    }
+    if self.poll_begin {
+      twitch = twitch.add_subscription(Subscription::ChannelPollBegin);
+    }
+    if self.poll_progress {
+      twitch = twitch.add_subscription(Subscription::ChannelPollProgress);
+    }
+    if self.poll_end {
+      twitch = twitch.add_subscription(Subscription::ChannelPollEnd);
+    }
+    if self.prediction_begin {
+      twitch = twitch.add_subscription(Subscription::ChannelPredictionBegin);
+    }
+    if self.prediction_progress {
+      twitch = twitch.add_subscription(Subscription::ChannelPredictionProgress);
+    }
+    if self.prediction_lock {
+      twitch = twitch.add_subscription(Subscription::ChannelPredictionLock);
+    }
+    if self.prediction_end {
+      twitch = twitch.add_subscription(Subscription::ChannelPredictionEnd);
+    }
+    if self.goal_begin {
+      twitch = twitch.add_subscription(Subscription::ChannelGoalBegin);
+    }
+    if self.goal_progress {
+      twitch = twitch.add_subscription(Subscription::ChannelGoalProgress);
+    }
+    if self.goal_end {
+      twitch = twitch.add_subscription(Subscription::ChannelGoalEnd);
+    }
+    if self.hype_train_begin {
+      twitch = twitch.add_subscription(Subscription::ChannelHypeTrainBegin);
+    }
+    if self.hype_train_progress {
+      twitch = twitch.add_subscription(Subscription::ChannelHypeTrainProgress);
+    }
+    if self.hype_train_end {
+      twitch = twitch.add_subscription(Subscription::ChannelHypeTrainEnd);
+    }
+    if self.shoutout_create {
+      twitch = twitch.add_subscription(Subscription::ChannelShoutoutCreate);
+    }
+    if self.shoutout_receive {
+      twitch = twitch.add_subscription(Subscription::ChannelShoutoutReceive);
+    }
+    if self.moderator_deleted_message {
+      twitch = twitch.add_subscription(Subscription::ModeratorDeletedMessage);
+    }
+    if self.ad_break_begin {
+      twitch = twitch.add_subscription(Subscription::AdBreakBegin);
+    }
+    if self.chat_message {
+      twitch = twitch.add_subscription(Subscription::ChatMessage);
+    }
+    if self.permission_ban_timeout_user {
+      twitch = twitch.add_subscription(Subscription::PermissionBanTimeoutUser);
+    }
+    if self.permission_delete_message {
+      twitch = twitch.add_subscription(Subscription::PermissionDeleteMessage);
+    }
+    if self.permission_read_chatters {
+      twitch = twitch.add_subscription(Subscription::PermissionReadChatters);
+    }
+
+    let twitch = twitch.build().unwrap();
+    self.twitch = Some(twitch);
+  }
+
   #[func]
   fn get_animated_texture_from_url(
     &mut self,
@@ -368,6 +551,21 @@ impl TwitchEvent {
   }
 
   #[func]
+  fn get_ad_schedule(&mut self) -> Array<Gd<GAdDetails>> {
+    let mut data = Array::new();
+
+    if let Some(twitch) = &mut self.twitch {
+      if let Ok(schedule) = twitch.get_ad_schedule() {
+        for details in schedule.data {
+          data.push(Gd::from_object(GAdDetails::from(details)));
+        }
+      }
+    }
+
+    data
+  }
+
+  #[func]
   /// Get user data by ids or logins. See https://dev.twitch.tv/docs/api/reference/#get-users
   fn get_users_from_self(&mut self) -> Array<Gd<GUserData>> {
     let mut gusers = Array::new();
@@ -399,53 +597,78 @@ impl TwitchEvent {
   }
 
   #[func]
+  fn get_custom_rewards(&mut self) -> Array<Gd<GGetCustomReward>> {
+    let mut rewards = Array::new();
+
+    if let Some(twitch) = &mut self.twitch {
+      if let Ok(custom_rewards) = twitch.get_custom_rewards() {
+        for reward in custom_rewards.data {
+          rewards.push(Gd::from_object(GGetCustomReward::from(reward)));
+        }
+      }
+    }
+
+    rewards
+  }
+
+  #[func]
   fn send_announcement(&mut self, message: GString, hex_colour: GString) {
     if let Some(twitch) = &mut self.twitch {
       let _ = twitch.send_announcement(message.to_string(), hex_colour.into());
     }
   }
 
+  #[func]
+  fn send_shoutout(&mut self, to_broadcaster_id: GString) {
+    if let Some(twitch) = &mut self.twitch {
+      let _ = twitch.send_shoutout(to_broadcaster_id);
+    }
+  }
+
   #[signal]
-  fn chat_message(message_data: GdMessageContainer);
+  fn on_message_deleted(message_data: GdMessageDeletedContainer);
+
+  #[signal]
+  fn on_chat_message(message_data: GdMessageContainer);
 
   #[signal]
   fn chat_message_powerup_gigantified_emote(messaage_data: GdMessageContainer);
 
   #[signal]
-  fn chat_message_powerup_message_effect(message_data: GdMessageContainer);
+  fn on_chat_message_powerup_message_effect(message_data: GdMessageContainer);
 
   #[signal]
-  fn custom_point_reward_redeem(reward: GdCustomRewardRedeemContainer);
+  fn on_custom_point_reward_redeem(reward: GdCustomRewardRedeemContainer);
 
   #[signal]
-  fn ad_break_start(ad_break_begin: GdAdBreakBeginContainer);
+  fn on_ad_break_start(ad_break_begin: GdAdBreakBeginContainer);
 
   #[signal]
-  fn raid(raid_info: GdRaidContainer);
+  fn on_raid(raid_info: GdRaidContainer);
 
   #[signal]
-  fn follow(follow_data: GdFollowContainer);
+  fn on_follow(follow_data: GdFollowContainer);
 
   #[signal]
-  fn new_subscription(subscription: GdNewSubscriptionContainer);
+  fn on_new_subscription(subscription: GdNewSubscriptionContainer);
 
   #[signal]
-  fn subscription_gift(gift_data: GdGiftContainer);
+  fn on_subscription_gift(gift_data: GdGiftContainer);
 
   #[signal]
-  fn resubscription(subscription: GdResubscriptionContainer);
+  fn on_resubscription(subscription: GdResubscriptionContainer);
 
   #[signal]
-  fn cheer(cheer: GdCheerContainer);
+  fn on_cheer(cheer: GdCheerContainer);
 
   #[signal]
-  fn poll_begin(poll_begin: GdPollBeginContainer);
+  fn on_poll_begin(poll_begin: GdPollBeginContainer);
 
   #[signal]
-  fn poll_progress(poll_progress: GdPollProgressContainer);
+  fn on_poll_progress(poll_progress: GdPollProgressContainer);
 
   #[signal]
-  fn poll_end(poll_end: GdPollEndContainer);
+  fn on_poll_end(poll_end: GdPollEndContainer);
 
   #[func]
   pub fn get_chatters(&mut self) -> Gd<GGetChatters> {
@@ -459,6 +682,11 @@ impl TwitchEvent {
 impl INode for TwitchEvent {
   fn init(base: Base<Node>) -> Self {
     Self {
+      connect_on_ready: true,
+      redirect_url: "http://localhost:3000".into(),
+      user_token_file: ".user_token.env".into(),
+      refresh_token_file: ".refresh_token.env".into(),
+
       twitch: None,
       user_update: false,
       follow: true,
@@ -486,6 +714,7 @@ impl INode for TwitchEvent {
       hype_train_end: false,
       shoutout_create: false,
       shoutout_receive: false,
+      moderator_deleted_message: false,
       ad_break_begin: true,
       chat_message: true,
       permission_ban_timeout_user: false,
@@ -496,166 +725,9 @@ impl INode for TwitchEvent {
   }
 
   fn ready(&mut self) {
-    //let mut keys_window = Window::new_alloc();
-    //keys_window.set_title("Secrest not set".into());
-    //keys_window.move_to_center();
-    //keys_window.move_to_foreground();
-    //keys_window.set_flag(Flags::ALWAYS_ON_TOP, true);
-    //keys_window.set_flag(Flags::POPUP, true);
-    //keys_window.request_attention();
-    //keys_window.grab_focus();
-    //keys_window.popup_centered();
-    //keys_window.set_size(Vector2i::new(400, 150));
-    //keys_window.set_position(Vector2i::new(500, 500));
-
-    //let mut grid_two_columns = GridContainer::new_alloc();
-    //grid_two_columns.set_columns(2);
-
-    //let mut redirect_url_label = Label::new_alloc();
-    //let mut redirect_url_input = TextEdit::new_alloc();
-    //redirect_url_label.set_text("Redirect url:".into());
-    //redirect_url_input.set_custom_minimum_size(Vector2::new(200.0, 20.0));
-    //redirect_url_input.set_text("http://localhost:3000".into());
-
-    //let mut client_id_label = Label::new_alloc();
-    //let mut client_id_input = TextEdit::new_alloc();
-    //client_id_input.set_custom_minimum_size(Vector2::new(200.0, 20.0));
-    //client_id_label.set_text("Client id:".into());
-
-    //let mut client_secret_label = Label::new_alloc();
-    //let mut client_secret_input = TextEdit::new_alloc();
-    //client_secret_input.set_custom_minimum_size(Vector2::new(200.0, 20.0));
-    //client_secret_label.set_text("Client secret:".into());
-
-    //let mut button = Button::new_alloc();
-
-    //button.set_text("Confirm".into());
-
-    //grid_two_columns.add_child(redirect_url_label.upcast());
-    //grid_two_columns.add_child(redirect_url_input.upcast());
-    //grid_two_columns.add_child(client_id_label.upcast());
-    //grid_two_columns.add_child(client_id_input.upcast());
-    //grid_two_columns.add_child(client_secret_label.upcast());
-    //grid_two_columns.add_child(client_secret_input.upcast());
-    //grid_two_columns.add_child(button.upcast());
-
-    //keys_window.add_child(grid_two_columns.upcast());
-
-    //self.base_mut().add_child(keys_window.upcast());
-    //keys_window.free();
-
-    let keys = match TwitchKeys::from_secrets_env() {
-      Ok(keys) => keys,
-      Err(_) => {
-        return;
-      }
-    };
-
-    let redirect_url = "http://localhost:3000";
-
-    let mut twitch = TwitchEventSubApi::builder(keys)
-      .set_redirect_url(redirect_url)
-      .generate_new_token_if_insufficent_scope(true)
-      .generate_new_token_if_none(true)
-      .generate_access_token_on_expire(true)
-      .auto_save_load_created_tokens(".user_token.env", ".refresh_token.env");
-
-    if self.user_update {
-      twitch = twitch.add_subscription(Subscription::UserUpdate);
+    if self.connect_on_ready {
+      self.connect_api();
     }
-    if self.follow {
-      twitch = twitch.add_subscription(Subscription::ChannelFollow);
-    }
-    if self.raid {
-      twitch = twitch.add_subscription(Subscription::ChannelRaid);
-    }
-    if self.update {
-      twitch = twitch.add_subscription(Subscription::ChannelUpdate);
-    }
-    if self.new_subscription {
-      twitch = twitch.add_subscription(Subscription::ChannelNewSubscription);
-    }
-    if self.subscription_end {
-      twitch = twitch.add_subscription(Subscription::ChannelSubscriptionEnd);
-    }
-    if self.gift_subscription {
-      twitch = twitch.add_subscription(Subscription::ChannelGiftSubscription);
-    }
-    if self.resubscription {
-      twitch = twitch.add_subscription(Subscription::ChannelResubscription);
-    }
-    if self.cheer {
-      twitch = twitch.add_subscription(Subscription::ChannelCheer);
-    }
-    if self.points_custom_reward_redeem {
-      twitch = twitch.add_subscription(Subscription::ChannelPointsCustomRewardRedeem);
-    }
-    if self.points_auto_reward_redeem {
-      twitch = twitch.add_subscription(Subscription::ChannelPointsAutoRewardRedeem);
-    }
-    if self.poll_begin {
-      twitch = twitch.add_subscription(Subscription::ChannelPollBegin);
-    }
-    if self.poll_progress {
-      twitch = twitch.add_subscription(Subscription::ChannelPollProgress);
-    }
-    if self.poll_end {
-      twitch = twitch.add_subscription(Subscription::ChannelPollEnd);
-    }
-    if self.prediction_begin {
-      twitch = twitch.add_subscription(Subscription::ChannelPredictionBegin);
-    }
-    if self.prediction_progress {
-      twitch = twitch.add_subscription(Subscription::ChannelPredictionProgress);
-    }
-    if self.prediction_lock {
-      twitch = twitch.add_subscription(Subscription::ChannelPredictionLock);
-    }
-    if self.prediction_end {
-      twitch = twitch.add_subscription(Subscription::ChannelPredictionEnd);
-    }
-    if self.goal_begin {
-      twitch = twitch.add_subscription(Subscription::ChannelGoalBegin);
-    }
-    if self.goal_progress {
-      twitch = twitch.add_subscription(Subscription::ChannelGoalProgress);
-    }
-    if self.goal_end {
-      twitch = twitch.add_subscription(Subscription::ChannelGoalEnd);
-    }
-    if self.hype_train_begin {
-      twitch = twitch.add_subscription(Subscription::ChannelHypeTrainBegin);
-    }
-    if self.hype_train_progress {
-      twitch = twitch.add_subscription(Subscription::ChannelHypeTrainProgress);
-    }
-    if self.hype_train_end {
-      twitch = twitch.add_subscription(Subscription::ChannelHypeTrainEnd);
-    }
-    if self.shoutout_create {
-      twitch = twitch.add_subscription(Subscription::ChannelShoutoutCreate);
-    }
-    if self.shoutout_receive {
-      twitch = twitch.add_subscription(Subscription::ChannelShoutoutReceive);
-    }
-    if self.ad_break_begin {
-      twitch = twitch.add_subscription(Subscription::AdBreakBegin);
-    }
-    if self.chat_message {
-      twitch = twitch.add_subscription(Subscription::ChatMessage);
-    }
-    if self.permission_ban_timeout_user {
-      twitch = twitch.add_subscription(Subscription::PermissionBanTimeoutUser);
-    }
-    if self.permission_delete_message {
-      twitch = twitch.add_subscription(Subscription::PermissionDeleteMessage);
-    }
-    if self.permission_read_chatters {
-      twitch = twitch.add_subscription(Subscription::PermissionReadChatters);
-    }
-
-    let twitch = twitch.build().unwrap();
-    self.twitch = Some(twitch);
   }
 
   fn process(&mut self, _delta: f64) {
@@ -667,9 +739,11 @@ impl INode for TwitchEvent {
               godot_print!("message recieved");
               self.base_mut().emit_signal(
                 match message_data.message_type {
-                  MessageType::PowerUpsGigantifiedEmote => "chat_message_powerup_gigantified_emote",
-                  MessageType::PowerUpsMessageEffect => "chat_message_powerup_message_effect",
-                  _ => "chat_message",
+                  MessageType::PowerUpsGigantifiedEmote => {
+                    "on_chat_message_powerup_gigantified_emote"
+                  }
+                  MessageType::PowerUpsMessageEffect => "on_chat_message_powerup_message_effect",
+                  _ => "on_chat_message",
                 }
                 .into(),
                 &[GdMessageContainer {
@@ -680,7 +754,7 @@ impl INode for TwitchEvent {
             }
             Event::Raid(raid_info) => {
               self.base_mut().emit_signal(
-                "raid".into(),
+                "on_raid".into(),
                 &[GdRaidContainer {
                   data: Gd::from_object(GRaid::from(raid_info)),
                 }
@@ -689,7 +763,7 @@ impl INode for TwitchEvent {
             }
             Event::AdBreakBegin(ad_break_data) => {
               self.base_mut().emit_signal(
-                "ad_break_start".into(),
+                "on_ad_break_start".into(),
                 &[GdAdBreakBeginContainer {
                   data: Gd::from_object(GAdBreakBegin::from(ad_break_data)),
                 }
@@ -698,7 +772,7 @@ impl INode for TwitchEvent {
             }
             Event::PointsCustomRewardRedeem(custom_reward_redeem) => {
               self.base_mut().emit_signal(
-                "custom_point_reward_redeem".into(),
+                "on_custom_point_reward_redeem".into(),
                 &[GdCustomRewardRedeemContainer {
                   data: Gd::from_object(GCustomRewardRedeem::from(custom_reward_redeem)),
                 }
@@ -707,7 +781,7 @@ impl INode for TwitchEvent {
             }
             Event::Follow(follow_data) => {
               self.base_mut().emit_signal(
-                "follow".into(),
+                "on_follow".into(),
                 &[GdFollowContainer {
                   data: Gd::from_object(GFollowData::from(follow_data)),
                 }
@@ -716,7 +790,7 @@ impl INode for TwitchEvent {
             }
             Event::NewSubscription(new_sub_data) => {
               self.base_mut().emit_signal(
-                "new_subscription".into(),
+                "on_new_subscription".into(),
                 &[GdNewSubscriptionContainer {
                   data: Gd::from_object(GNewSubscription::from(new_sub_data)),
                 }
@@ -725,7 +799,7 @@ impl INode for TwitchEvent {
             }
             Event::GiftSubscription(gift_data) => {
               self.base_mut().emit_signal(
-                "gift_subscription".into(),
+                "on_gift_subscription".into(),
                 &[GdGiftContainer {
                   data: Gd::from_object(GGift::from(gift_data)),
                 }
@@ -734,7 +808,7 @@ impl INode for TwitchEvent {
             }
             Event::Resubscription(resub_data) => {
               self.base_mut().emit_signal(
-                "resubscription".into(),
+                "on_resubscription".into(),
                 &[GdResubscriptionContainer {
                   data: Gd::from_object(GResubscription::from(resub_data)),
                 }
@@ -743,7 +817,7 @@ impl INode for TwitchEvent {
             }
             Event::Cheer(cheer) => {
               self.base_mut().emit_signal(
-                "cheer".into(),
+                "on_cheer".into(),
                 &[GdCheerContainer {
                   data: Gd::from_object(GCheerData::from(cheer)),
                 }
@@ -752,7 +826,7 @@ impl INode for TwitchEvent {
             }
             Event::PollBegin(begin) => {
               self.base_mut().emit_signal(
-                "poll_begin".into(),
+                "on_poll_begin".into(),
                 &[GdPollBeginContainer {
                   data: Gd::from_object(GPollBegin::from(begin)),
                 }
@@ -761,7 +835,7 @@ impl INode for TwitchEvent {
             }
             Event::PollProgress(progress) => {
               self.base_mut().emit_signal(
-                "poll_progress".into(),
+                "on_poll_progress".into(),
                 &[GdPollProgressContainer {
                   data: Gd::from_object(GPollProgress::from(progress)),
                 }
@@ -770,9 +844,18 @@ impl INode for TwitchEvent {
             }
             Event::PollEnd(end) => {
               self.base_mut().emit_signal(
-                "poll_end".into(),
+                "on_poll_end".into(),
                 &[GdPollEndContainer {
                   data: Gd::from_object(GPollEnd::from(end)),
+                }
+                .to_variant()],
+              );
+            }
+            Event::MessageDeleted(message_deleted) => {
+              self.base_mut().emit_signal(
+                "on_message_deleted".into(),
+                &[GdMessageDeletedContainer {
+                  data: Gd::from_object(GMessageDeleted::from(message_deleted)),
                 }
                 .to_variant()],
               );
