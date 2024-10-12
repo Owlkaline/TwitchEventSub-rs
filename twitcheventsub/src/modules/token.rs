@@ -97,6 +97,7 @@ pub struct TwitchKeys {
 
   pub broadcaster_account_id: String,
   pub sender_account_id: Option<String>,
+  pub token_user_id: Option<String>,
 }
 
 impl Default for TwitchKeys {
@@ -109,6 +110,7 @@ impl Default for TwitchKeys {
       client_secret: "".to_owned(),
       broadcaster_account_id: "".to_owned(),
       sender_account_id: None,
+      token_user_id: None,
     }
   }
 }
@@ -171,6 +173,7 @@ impl TwitchKeys {
       client_secret,
       broadcaster_account_id: broadcaster_id,
       sender_account_id: Some(bot_account_id),
+      token_user_id: None,
     })
   }
 }

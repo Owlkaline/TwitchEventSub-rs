@@ -6,6 +6,7 @@ use curl::easy::{Easy, List};
 
 #[cfg(feature = "logging")]
 use log::{error, info};
+use serde::Serialize;
 
 use crate::modules::{
   consts::*,
@@ -360,6 +361,31 @@ impl TwitchApi {
       .run()
   }
 
+  pub fn update_custom_rewards<
+    T: Into<String>,
+    S: Into<String>,
+    X: Into<String>,
+    Z: Into<String>,
+  >(
+    access_token: T,
+    client_id: S,
+    broadcaster_id: X,
+    redeem_id: Z,
+    update_redeem: UpdateCustomReward,
+  ) -> Result<String, EventSubError> {
+    let url = RequestBuilder::new()
+      .add_key_value("broadcaster_id", broadcaster_id.into())
+      .add_key_value("id", redeem_id.into())
+      .build(CUSTOM_REWARDS_URL);
+
+    TwitchHttpRequest::new(url)
+      .header_authorisation(access_token.into(), AuthType::Bearer)
+      .header_client_id(client_id.into())
+      .json_content()
+      .is_patch(serde_json::to_string(&update_redeem).unwrap())
+      .run()
+  }
+
   pub fn create_custom_reward<T: Into<String>, S: Into<String>, X: Into<String>>(
     access_token: T,
     client_id: S,
@@ -406,6 +432,7 @@ impl TwitchApi {
 pub enum RequestType {
   Post(String),
   Delete,
+  Patch(String),
 }
 
 #[derive(Clone, PartialEq, Debug)]
@@ -433,6 +460,11 @@ impl RequestType {
       }
       RequestType::Delete => {
         let _ = handle.custom_request("DELETE");
+      }
+      RequestType::Patch(data) => {
+        handle.put(true).unwrap();
+        handle.post_fields_copy(data.as_bytes()).unwrap();
+        let _ = handle.custom_request("PATCH");
       }
     }
   }
@@ -564,6 +596,12 @@ impl TwitchHttpRequest {
   #[must_use]
   pub fn is_post<S: Into<String>>(mut self, data: S) -> TwitchHttpRequest {
     self.request_type = Some(RequestType::Post(data.into()));
+    self
+  }
+
+  #[must_use]
+  pub fn is_patch<S: Into<String>>(mut self, data: S) -> TwitchHttpRequest {
+    self.request_type = Some(RequestType::Patch(data.into()));
     self
   }
 

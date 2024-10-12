@@ -772,6 +772,34 @@ impl TwitchEventSubApi {
     .and_then(|x| serde_json::from_str(&x).map_err(|e| EventSubError::ParseError(e.to_string())))
   }
 
+  pub fn update_custom_reward<S: Into<String>>(
+    &mut self,
+    redeem_id: S,
+    update_redeem: UpdateCustomReward,
+  ) -> Result<CreatedCustomRewardResponse, EventSubError> {
+    let access_token = self
+      .twitch_keys
+      .access_token
+      .clone()
+      .expect("Access token not set")
+      .get_token();
+    let broadcaster_id = self.twitch_keys.broadcaster_account_id.to_string();
+    let client_id = self.twitch_keys.client_id.to_string();
+
+    TwitchEventSubApi::regen_token_if_401(
+      TwitchApi::update_custom_rewards(
+        access_token,
+        client_id,
+        broadcaster_id,
+        redeem_id.into(),
+        update_redeem,
+      ),
+      &mut self.twitch_keys,
+      &self.save_locations,
+    )
+    .and_then(|x| serde_json::from_str(&x).map_err(|e| EventSubError::ParseError(e.to_string())))
+  }
+
   pub fn create_custom_reward(
     &mut self,
     custom_reward: CreateCustomReward,

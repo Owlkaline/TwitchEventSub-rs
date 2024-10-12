@@ -2,6 +2,64 @@ use serde::{Deserialize as Deserialise, Serialize as Serialise};
 
 use crate::{prefix_broadcaster, User};
 
+#[derive(Serialise, Deserialise, Debug, Default, Clone)]
+pub struct UpdateCustomReward {
+  #[serde(skip_serializing_if = "Option::is_none")]
+  pub title: Option<String>,
+  #[serde(skip_serializing_if = "Option::is_none")]
+  pub prompt: Option<String>,
+  #[serde(skip_serializing_if = "Option::is_none")]
+  pub cost: Option<i64>,
+  #[serde(skip_serializing_if = "Option::is_none")]
+  pub background_colour: Option<String>,
+  #[serde(skip_serializing_if = "Option::is_none")]
+  pub is_enabled: Option<bool>,
+  #[serde(skip_serializing_if = "Option::is_none")]
+  pub is_user_input_required: Option<bool>,
+  #[serde(skip_serializing_if = "Option::is_none")]
+  pub is_max_per_stream_enabled: Option<bool>,
+  #[serde(skip_serializing_if = "Option::is_none")]
+  pub max_per_stream: Option<i64>,
+  #[serde(skip_serializing_if = "Option::is_none")]
+  pub is_max_per_user_per_stream_enabled: Option<bool>,
+  #[serde(skip_serializing_if = "Option::is_none")]
+  pub max_per_user_per_stream: Option<i64>,
+  #[serde(skip_serializing_if = "Option::is_none")]
+  pub is_global_cooldown_enabled: Option<bool>,
+  #[serde(skip_serializing_if = "Option::is_none")]
+  pub global_cooldown_seconds: Option<i64>,
+  #[serde(skip_serializing_if = "Option::is_none")]
+  pub is_paused: Option<bool>,
+  #[serde(skip_serializing_if = "Option::is_none")]
+  pub should_redeptions_skip_request_queue: Option<bool>,
+}
+
+impl UpdateCustomReward {
+  pub fn new() -> UpdateCustomReward {
+    UpdateCustomReward::default()
+  }
+
+  pub fn enable(mut self) -> UpdateCustomReward {
+    self.is_enabled = Some(true);
+    self
+  }
+
+  pub fn disable(mut self) -> UpdateCustomReward {
+    self.is_enabled = Some(false);
+    self
+  }
+
+  pub fn prompt<S: Into<String>>(mut self, text: S) -> UpdateCustomReward {
+    self.prompt = Some(text.into());
+    self
+  }
+
+  pub fn title<S: Into<String>>(mut self, text: S) -> UpdateCustomReward {
+    self.title = Some(text.into());
+    self
+  }
+}
+
 #[derive(Serialise, Deserialise, Debug)]
 pub struct GetCustomRewards {
   pub data: Vec<GetCustomReward>,
