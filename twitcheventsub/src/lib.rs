@@ -1015,7 +1015,6 @@ impl TwitchEventSubApi {
 
   pub fn send_shoutout<S: Into<String>>(&mut self, to_broadcaster_id: S) {
     let broadcaster_account_id = self.twitch_keys.broadcaster_account_id.to_string();
-    let moderator_account_id = self.twitch_keys.this_account_id.to_string();
 
     let access_token = self
       .twitch_keys
@@ -1028,9 +1027,9 @@ impl TwitchEventSubApi {
       TwitchApi::send_shoutout(
         access_token,
         client_id,
-        broadcaster_account_id,
+        broadcaster_account_id.to_string(),
         to_broadcaster_id,
-        moderator_account_id,
+        broadcaster_account_id,
       ),
       &mut self.twitch_keys,
       &self.save_locations,
