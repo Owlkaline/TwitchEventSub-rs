@@ -62,6 +62,13 @@ pub fn events(
   save_locations: Option<(String, String)>,
   irc: Option<IRCChat>,
 ) {
+  if subscriptions.iter().all(|s| s.is_permission_subscription()) {
+    // Don't attempt eventsub things if no event sub events are being subscribed to
+    #[cfg(feature = "logging")]
+    info!("EventSub: no eventsub subscriptions chosen, exiting eventsub thread.");
+    return;
+  }
+
   use std::sync::mpsc::channel;
 
   use curl::Protocols;
@@ -288,6 +295,8 @@ pub fn events(
         // Got a close message, so send a close message and return
         let _ = client.send(NetworkMessage::Close(None));
         let _ = message_sender.send(ResponseType::Close);
+
+        // This will trigger attempts to reconnect or resubscribe afterwards
         continue;
       }
       NetworkMessage::Ping(_) => {

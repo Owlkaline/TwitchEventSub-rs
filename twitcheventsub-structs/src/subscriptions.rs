@@ -79,6 +79,20 @@ pub struct EventSubscription {
 }
 
 impl Subscription {
+  pub fn is_permission_subscription(&self) -> bool {
+    match self {
+      Subscription::PermissionBanTimeoutUser
+      | Subscription::PermissionDeleteMessage
+      | Subscription::PermissionReadChatters
+      | Subscription::PermissionReadModerator
+      | Subscription::PermissionManageRewards
+      | Subscription::PermissionSendAnnouncements
+      | Subscription::PermissionIRCRead
+      | Subscription::PermissionIRCWrite => true,
+      _ => false,
+    }
+  }
+
   from_string!(Subscription {
     UserUpdate,
     ChannelFollow,
