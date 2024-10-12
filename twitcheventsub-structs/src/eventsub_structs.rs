@@ -12,6 +12,7 @@ with_prefix!(pub prefix_thread "thread_");
 with_prefix!(pub prefix_parent "parent_");
 with_prefix!(pub prefix_chatter "chatter_");
 with_prefix!(pub prefix_target "target_");
+with_prefix!(pub prefix_moderator "moderator_");
 
 #[derive(Serialise, Deserialise, Clone, Debug)]
 pub struct TopContributions {
@@ -432,4 +433,28 @@ pub struct MessageDeletedData {
   #[serde(flatten, with = "prefix_target")]
   pub target: User,
   pub message_id: String,
+}
+
+#[derive(Serialise, Deserialise, Clone, Debug)]
+pub struct ShoutoutRecieveData {
+  #[serde(flatten, with = "prefix_broadcaster")]
+  broadcaster: User,
+  #[serde(flatten, with = "prefix_from_broadcaster")]
+  from_broadcaster: User,
+  viewer_count: u32,
+  started_at: String,
+}
+
+#[derive(Serialise, Deserialise, Clone, Debug)]
+pub struct ShoutoutCreateData {
+  #[serde(flatten, with = "prefix_broadcaster")]
+  broadcaster: User,
+  #[serde(flatten, with = "prefix_moderator")]
+  moderator: User,
+  #[serde(flatten, with = "prefix_to_broadcaster")]
+  to_broadcaster: User,
+  started_at: String,
+  viewer_count: u32,
+  cooldown_ends_at: String,
+  target_cooldown_ends_at: String,
 }
