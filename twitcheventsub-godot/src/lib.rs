@@ -45,6 +45,13 @@ unsafe impl ExtensionLibrary for TwitchApi {
 #[class(base=Node)]
 struct TwitchEvent {
   #[export]
+  redirect_url: GString,
+  #[export]
+  user_token_file: GString,
+  #[export]
+  refresh_token_file: GString,
+
+  #[export]
   channel_chat_message: bool,
   #[export]
   channel_user_update: bool,
@@ -509,6 +516,10 @@ impl INode for TwitchEvent {
   fn init(base: Base<Node>) -> Self {
     Self {
       twitch: None,
+      redirect_url: "http://localhost:3000".into(),
+      user_token_file: ".user_token.env".into(),
+      refresh_token_file: ".refresh_token.env".into(),
+
       channel_user_update: false,
       channel_follow: true,
       channel_raid: true,
@@ -601,14 +612,12 @@ impl INode for TwitchEvent {
       }
     };
 
-    let redirect_url = "http://localhost:3000";
-
     let mut twitch = TwitchEventSubApi::builder(keys)
-      .set_redirect_url(redirect_url)
+      .set_redirect_url(&self.redirect_url)
       .generate_new_token_if_insufficent_scope(true)
       .generate_new_token_if_none(true)
       .generate_access_token_on_expire(true)
-      .auto_save_load_created_tokens(".user_token.env", ".refresh_token.env");
+      .auto_save_load_created_tokens(&self.user_token_file, &self.refresh_token_file);
 
     if self.channel_user_update {
       twitch = twitch.add_subscription(Subscription::UserUpdate);
