@@ -1,19 +1,17 @@
-use crate::{
-  AnnouncementMessage, CreateCustomReward, EventSubError, SendMessage, Subscription, Token,
-  TwitchEventSubApi, Validation,
-};
 use curl::easy::{Easy, List};
-
 #[cfg(feature = "logging")]
 use log::{error, info};
 use serde::Serialize;
+use twitcheventsub_structs::*;
 
 use crate::modules::{
   consts::*,
   //  generic_message::{SendTimeoutRequest, TimeoutRequestData};
 };
-
-use twitcheventsub_structs::*;
+use crate::{
+  AnnouncementMessage, CreateCustomReward, EventSubError, SendMessage, Subscription, Token,
+  TwitchEventSubApi, Validation,
+};
 
 pub struct TwitchApi;
 
@@ -199,7 +197,7 @@ impl TwitchApi {
       .join("+");
 
     let get_authorisation_code_request = format!(
-      "{}authorize?response_type=code&client_id={}&redirect_uri={}&scope={}",
+      "{}authorize?response_type=code&client_id={}&redirect_uri={}&scope={}&force_verify=true",
       TWITCH_AUTHORISE_URL,
       client_id.into(),
       redirect_url.to_owned(),
