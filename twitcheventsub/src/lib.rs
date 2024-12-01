@@ -41,7 +41,7 @@ pub use crate::modules::{
 
 #[derive(Debug)]
 pub enum ResponseType {
-  Event(Event),
+  Event(TwitchEvent),
   Error(EventSubError),
   RawResponse(String),
   Close,

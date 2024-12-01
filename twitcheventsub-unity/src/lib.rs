@@ -237,7 +237,7 @@ pub extern "C" fn get_event(twitch: *mut TwitchEvents) -> *mut EventData {
   for response in twitch.api.receive_all_messages(None) {
     match response {
       ResponseType::Event(event_a) => match event_a {
-        Event::ChatMessage(message_data) => {
+        TwitchEvent::ChatMessage(message_data) => {
           println!("chat message recieved");
           event.kind = CString::new(match message_data.message_type {
             MessageType::PowerUpsGigantifiedEmote => "chat_message_powerup_gigantified_emote",
@@ -247,35 +247,35 @@ pub extern "C" fn get_event(twitch: *mut TwitchEvents) -> *mut EventData {
           .unwrap();
           event.json = CString::new(serde_json::to_string(&message_data).unwrap()).unwrap();
         }
-        Event::PointsCustomRewardRedeem(custom_reward_redeem) => {
+        TwitchEvent::PointsCustomRewardRedeem(custom_reward_redeem) => {
           event.kind = CString::new("custom_point_reward_redeem").unwrap();
           event.json = CString::new(serde_json::to_string(&custom_reward_redeem).unwrap()).unwrap();
         }
-        Event::AdBreakBegin(ad_break_begin) => {
+        TwitchEvent::AdBreakBegin(ad_break_begin) => {
           event.kind = CString::new("ad_break_start").unwrap();
           event.json = CString::new(serde_json::to_string(&ad_break_begin).unwrap()).unwrap();
         }
-        Event::Raid(raid) => {
+        TwitchEvent::Raid(raid) => {
           event.kind = CString::new("raid").unwrap();
           event.json = CString::new(serde_json::to_string(&raid).unwrap()).unwrap();
         }
-        Event::Follow(follow) => {
+        TwitchEvent::Follow(follow) => {
           event.kind = CString::new("follow").unwrap();
           event.json = CString::new(serde_json::to_string(&follow).unwrap()).unwrap();
         }
-        Event::NewSubscription(new_subscritpion) => {
+        TwitchEvent::NewSubscription(new_subscritpion) => {
           event.kind = CString::new("new_subscription").unwrap();
           event.json = CString::new(serde_json::to_string(&new_subscritpion).unwrap()).unwrap();
         }
-        Event::GiftSubscription(gift) => {
+        TwitchEvent::GiftSubscription(gift) => {
           event.kind = CString::new("subscription_gift").unwrap();
           event.json = CString::new(serde_json::to_string(&gift).unwrap()).unwrap();
         }
-        Event::Resubscription(resubscription) => {
+        TwitchEvent::Resubscription(resubscription) => {
           event.kind = CString::new("resubscritpion").unwrap();
           event.json = CString::new(serde_json::to_string(&resubscription).unwrap()).unwrap();
         }
-        Event::Cheer(cheer) => {
+        TwitchEvent::Cheer(cheer) => {
           event.kind = CString::new("cheer").unwrap();
           event.json = CString::new(serde_json::to_string(&cheer).unwrap()).unwrap();
         }

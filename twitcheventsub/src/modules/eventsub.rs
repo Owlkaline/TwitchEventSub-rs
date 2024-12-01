@@ -13,7 +13,7 @@ use std::{
 use log::{error, info};
 
 use tungstenite::{connect, stream::MaybeTlsStream, Error, Message as NetworkMessage, WebSocket};
-use twitcheventsub_structs::{Event, EventMessageType, GenericMessage, Subscription};
+use twitcheventsub_structs::{EventMessageType, GenericMessage, Subscription, TwitchEvent};
 
 use crate::{
   EventSubError, ResponseType, TokenAccess, TwitchEventSubApi, TwitchHttpRequest, TwitchKeys,
@@ -262,7 +262,7 @@ pub fn events(
             let mut message = message.payload.unwrap().event.unwrap();
 
             match &mut message {
-              Event::ChatMessage(ref mut msg) => {
+              TwitchEvent::ChatMessage(ref mut msg) => {
                 for (_, irc_message) in irc_messages.iter() {
                   if irc_message.display_name == msg.chatter.name
                     && irc_message.message.contains(&msg.message.text)
@@ -311,7 +311,7 @@ pub fn events(
               "EventSub: sending Pong Received an Error from Server: {:?}",
               e
             );
-            return;
+            continue;
           }
         }
       }

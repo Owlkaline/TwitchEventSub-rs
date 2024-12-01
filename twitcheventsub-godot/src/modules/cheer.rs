@@ -33,7 +33,7 @@ pub struct GCheerData {
 impl From<CheerData> for GCheerData {
   fn from(cheer_data: CheerData) -> GCheerData {
     GCheerData {
-      user: Gd::from_object(GUser::from(cheer_data.user)),
+      user: Gd::from_object(GUser::from(cheer_data.user.unwrap_or(User::default()))),
       broadcaster: Gd::from_object(GUser::from(cheer_data.broadcaster)),
       is_anonymous: cheer_data.is_anonymous.into(),
       message: cheer_data.message.into(),

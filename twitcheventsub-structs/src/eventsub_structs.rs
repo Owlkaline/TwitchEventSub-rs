@@ -1,5 +1,8 @@
 use serde_with::with_prefix;
 
+#[cfg(feature = "bevy")]
+use bevy_ecs::prelude::Event;
+
 use crate::*;
 use crate::{Deserialise, Serialise};
 
@@ -147,7 +150,8 @@ pub struct PredicitionEndData {
   pub ended_at: String,
 }
 
-#[derive(Serialise, Deserialise, Clone, Debug)]
+#[cfg_attr(feature = "bevy", derive(Serialise, Deserialise, Debug, Clone, Event))]
+#[cfg_attr(not(feature = "bevy"), derive(Serialise, Deserialise, Debug, Clone))]
 pub struct GiftData {
   #[serde(flatten)]
   pub user: OptionalUser,
@@ -172,7 +176,8 @@ pub struct RewardEmote {
   pub end: u32,
 }
 
-#[derive(Serialise, Deserialise, Clone, Debug)]
+#[cfg_attr(feature = "bevy", derive(Serialise, Deserialise, Debug, Clone, Event))]
+#[cfg_attr(not(feature = "bevy"), derive(Serialise, Deserialise, Debug, Clone))]
 pub struct RewardMessageData {
   pub text: String,
   pub emotes: Option<Vec<RewardEmote>>,
@@ -206,7 +211,8 @@ pub struct AutoRewardData {
   pub unlocked_emote: Option<UnlockedEmote>,
 }
 
-#[derive(Serialise, Deserialise, Clone, Debug)]
+#[cfg_attr(feature = "bevy", derive(Serialise, Deserialise, Debug, Clone, Event))]
+#[cfg_attr(not(feature = "bevy"), derive(Serialise, Deserialise, Debug, Clone))]
 pub struct ChannelPointsAutoRewardRedeemData {
   #[serde(flatten, with = "prefix_broadcaster")]
   pub broadcaster: User,
@@ -219,10 +225,11 @@ pub struct ChannelPointsAutoRewardRedeemData {
   pub redeemed_at: String,
 }
 
-#[derive(Serialise, Deserialise, Clone, Debug)]
+#[cfg_attr(feature = "bevy", derive(Serialise, Deserialise, Debug, Clone, Event))]
+#[cfg_attr(not(feature = "bevy"), derive(Serialise, Deserialise, Debug, Clone))]
 pub struct CheerData {
   #[serde(flatten)]
-  pub user: User,
+  pub user: Option<User>,
   #[serde(flatten, with = "prefix_broadcaster")]
   pub broadcaster: User,
   pub is_anonymous: bool,
@@ -230,7 +237,8 @@ pub struct CheerData {
   pub bits: u32,
 }
 
-#[derive(Serialise, Deserialise, Clone, Debug)]
+#[cfg_attr(feature = "bevy", derive(Serialise, Deserialise, Debug, Clone, Event))]
+#[cfg_attr(not(feature = "bevy"), derive(Serialise, Deserialise, Debug, Clone))]
 pub struct FollowData {
   #[serde(flatten)]
   pub user: User,
@@ -239,7 +247,8 @@ pub struct FollowData {
   pub followed_at: String,
 }
 
-#[derive(Serialise, Deserialise, Clone, Debug)]
+#[cfg_attr(feature = "bevy", derive(Serialise, Deserialise, Debug, Clone, Event))]
+#[cfg_attr(not(feature = "bevy"), derive(Serialise, Deserialise, Debug, Clone))]
 pub struct NewSubscriptionData {
   #[serde(flatten)]
   pub user: User,
@@ -249,7 +258,8 @@ pub struct NewSubscriptionData {
   pub is_gift: bool,
 }
 
-#[derive(Serialise, Deserialise, Clone, Debug)]
+#[cfg_attr(feature = "bevy", derive(Serialise, Deserialise, Debug, Clone, Event))]
+#[cfg_attr(not(feature = "bevy"), derive(Serialise, Deserialise, Debug, Clone))]
 pub struct ResubscriptionData {
   #[serde(flatten)]
   pub user: User,
@@ -273,7 +283,7 @@ pub struct OptionalUser {
 }
 
 #[repr(C)]
-#[derive(Serialise, Deserialise, Clone, Debug)]
+#[derive(Serialise, Deserialise, Clone, Debug, Default)]
 pub struct User {
   #[serde(rename = "user_id")]
   pub id: String,
@@ -283,7 +293,8 @@ pub struct User {
   pub login: String,
 }
 
-#[derive(Serialise, Deserialise, Clone, Debug)]
+#[cfg_attr(feature = "bevy", derive(Serialise, Deserialise, Debug, Clone, Event))]
+#[cfg_attr(not(feature = "bevy"), derive(Serialise, Deserialise, Debug, Clone))]
 pub struct AdBreakBeginData {
   #[serde(flatten, with = "prefix_broadcaster")]
   pub broadcaster: User,
@@ -312,7 +323,8 @@ pub enum MessageType {
 }
 
 #[repr(C)]
-#[derive(Serialise, Deserialise, Clone, Debug)]
+#[cfg_attr(feature = "bevy", derive(Serialise, Deserialise, Debug, Clone, Event))]
+#[cfg_attr(not(feature = "bevy"), derive(Serialise, Deserialise, Debug, Clone))]
 pub struct MessageData {
   #[serde(flatten, with = "prefix_broadcaster")]
   pub broadcaster: User,
@@ -337,7 +349,8 @@ pub struct MessageData {
   pub moderator: bool,
 }
 
-#[derive(Serialise, Deserialise, Clone, Debug)]
+#[cfg_attr(feature = "bevy", derive(Serialise, Deserialise, Debug, Clone, Event))]
+#[cfg_attr(not(feature = "bevy"), derive(Serialise, Deserialise, Debug, Clone))]
 pub struct RaidData {
   #[serde(flatten, with = "prefix_from_broadcaster")]
   pub from_broadcaster: User,
@@ -413,7 +426,8 @@ pub struct PollBeginData {
   pub ends_at: String,
 }
 
-#[derive(Serialise, Deserialise, Clone, Debug)]
+#[cfg_attr(feature = "bevy", derive(Serialise, Deserialise, Debug, Clone, Event))]
+#[cfg_attr(not(feature = "bevy"), derive(Serialise, Deserialise, Debug, Clone))]
 pub struct CustomPointsRewardRedeemData {
   pub id: String,
   #[serde(flatten)]
@@ -426,7 +440,8 @@ pub struct CustomPointsRewardRedeemData {
   pub redeemed_at: String,
 }
 
-#[derive(Serialise, Deserialise, Clone, Debug)]
+#[cfg_attr(feature = "bevy", derive(Serialise, Deserialise, Debug, Clone, Event))]
+#[cfg_attr(not(feature = "bevy"), derive(Serialise, Deserialise, Debug, Clone))]
 pub struct MessageDeletedData {
   #[serde(flatten, with = "prefix_broadcaster")]
   pub broadcaster: User,
@@ -435,7 +450,8 @@ pub struct MessageDeletedData {
   pub message_id: String,
 }
 
-#[derive(Serialise, Deserialise, Clone, Debug)]
+#[cfg_attr(feature = "bevy", derive(Serialise, Deserialise, Debug, Clone, Event))]
+#[cfg_attr(not(feature = "bevy"), derive(Serialise, Deserialise, Debug, Clone))]
 pub struct ShoutoutRecieveData {
   #[serde(flatten, with = "prefix_broadcaster")]
   broadcaster: User,
@@ -445,7 +461,8 @@ pub struct ShoutoutRecieveData {
   started_at: String,
 }
 
-#[derive(Serialise, Deserialise, Clone, Debug)]
+#[cfg_attr(feature = "bevy", derive(Serialise, Deserialise, Debug, Clone, Event))]
+#[cfg_attr(not(feature = "bevy"), derive(Serialise, Deserialise, Debug, Clone))]
 pub struct ShoutoutCreateData {
   #[serde(flatten, with = "prefix_broadcaster")]
   broadcaster: User,

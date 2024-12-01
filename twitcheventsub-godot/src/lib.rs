@@ -2,6 +2,8 @@ use std::io::Read;
 use std::panic;
 use std::time::Duration;
 
+use godot::engine::window::WindowInitialPosition;
+use godot::engine::{ConfirmationDialog, LineEdit};
 use godot::init::EditorRunBehavior;
 use godot::prelude::*;
 use godot::{
@@ -43,7 +45,7 @@ unsafe impl ExtensionLibrary for TwitchApi {
 
 #[derive(GodotClass)]
 #[class(base=Node)]
-struct TwitchEvent {
+struct TwitchEventNode {
   #[export]
   channel_chat_message: bool,
   #[export]
@@ -211,7 +213,7 @@ pub struct GdMessageDeletedContainer {
 }
 
 #[godot_api]
-impl TwitchEvent {
+impl TwitchEventNode {
   #[func]
   fn get_animated_texture_from_url(
     &mut self,
@@ -502,10 +504,45 @@ impl TwitchEvent {
       self.twitch.as_mut().unwrap().get_chatters().unwrap(),
     ))
   }
+
+  pub fn create_popup(&mut self) {
+    let mut confirmation = ConfirmationDialog::new_alloc();
+
+    confirmation.set_title("Set Twitch Client Details".into());
+    confirmation.set_initial_position(WindowInitialPosition::CENTER_PRIMARY_SCREEN);
+    confirmation.set_visible(true);
+
+    let mut grid_container = GridContainer::new_alloc();
+    grid_container.set_columns(1);
+
+    let mut client_id_label = Label::new_alloc();
+    client_id_label.set_text("Client ID:".into());
+
+    let mut client_id_edit = LineEdit::new_alloc();
+    client_id_edit.set_placeholder("Client ID".into());
+    client_id_edit.set_clear_button_enabled(true);
+    client_id_edit.set_custom_minimum_size(Vector2 { x: 200.0, y: 0.0 });
+
+    let mut client_secret_label = Label::new_alloc();
+    client_secret_label.set_text("Client Secret:".into());
+
+    let mut client_secret_edit = LineEdit::new_alloc();
+    client_secret_edit.set_placeholder("Client Secret".into());
+    client_secret_edit.set_secret(true);
+
+    grid_container.add_child(client_id_label.upcast());
+    grid_container.add_child(client_id_edit.upcast());
+    grid_container.add_child(client_secret_label.upcast());
+    grid_container.add_child(client_secret_edit.upcast());
+
+    confirmation.add_child(grid_container.upcast());
+
+    self.base_mut().add_child(confirmation.upcast());
+  }
 }
 
 #[godot_api]
-impl INode for TwitchEvent {
+impl INode for TwitchEventNode {
   fn init(base: Base<Node>) -> Self {
     Self {
       twitch: None,
@@ -546,57 +583,10 @@ impl INode for TwitchEvent {
   }
 
   fn ready(&mut self) {
-    //let mut keys_window = Window::new_alloc();
-    //keys_window.set_title("Secrest not set".into());
-    //keys_window.move_to_center();
-    //keys_window.move_to_foreground();
-    //keys_window.set_flag(Flags::ALWAYS_ON_TOP, true);
-    //keys_window.set_flag(Flags::POPUP, true);
-    //keys_window.request_attention();
-    //keys_window.grab_focus();
-    //keys_window.popup_centered();
-    //keys_window.set_size(Vector2i::new(400, 150));
-    //keys_window.set_position(Vector2i::new(500, 500));
-
-    //let mut grid_two_columns = GridContainer::new_alloc();
-    //grid_two_columns.set_columns(2);
-
-    //let mut redirect_url_label = Label::new_alloc();
-    //let mut redirect_url_input = TextEdit::new_alloc();
-    //redirect_url_label.set_text("Redirect url:".into());
-    //redirect_url_input.set_custom_minimum_size(Vector2::new(200.0, 20.0));
-    //redirect_url_input.set_text("http://localhost:3000".into());
-
-    //let mut client_id_label = Label::new_alloc();
-    //let mut client_id_input = TextEdit::new_alloc();
-    //client_id_input.set_custom_minimum_size(Vector2::new(200.0, 20.0));
-    //client_id_label.set_text("Client id:".into());
-
-    //let mut client_secret_label = Label::new_alloc();
-    //let mut client_secret_input = TextEdit::new_alloc();
-    //client_secret_input.set_custom_minimum_size(Vector2::new(200.0, 20.0));
-    //client_secret_label.set_text("Client secret:".into());
-
-    //let mut button = Button::new_alloc();
-
-    //button.set_text("Confirm".into());
-
-    //grid_two_columns.add_child(redirect_url_label.upcast());
-    //grid_two_columns.add_child(redirect_url_input.upcast());
-    //grid_two_columns.add_child(client_id_label.upcast());
-    //grid_two_columns.add_child(client_id_input.upcast());
-    //grid_two_columns.add_child(client_secret_label.upcast());
-    //grid_two_columns.add_child(client_secret_input.upcast());
-    //grid_two_columns.add_child(button.upcast());
-
-    //keys_window.add_child(grid_two_columns.upcast());
-
-    //self.base_mut().add_child(keys_window.upcast());
-    //keys_window.free();
-
     let keys = match TwitchKeys::from_secrets_env() {
       Ok(keys) => keys,
       Err(_) => {
+        self.create_popup();
         return;
       }
     };
@@ -716,7 +706,7 @@ impl INode for TwitchEvent {
       if let Some(message) = api.receive_single_message(Duration::ZERO) {
         match message {
           ResponseType::Event(event) => match event {
-            Event::ChatMessage(message_data) => {
+            TwitchEvent::ChatMessage(message_data) => {
               godot_print!("message recieved");
               self.base_mut().emit_signal(
                 match message_data.message_type {
@@ -731,7 +721,7 @@ impl INode for TwitchEvent {
                 .to_variant()],
               );
             }
-            Event::Raid(raid_info) => {
+            TwitchEvent::Raid(raid_info) => {
               self.base_mut().emit_signal(
                 "raid".into(),
                 &[GdRaidContainer {
@@ -740,7 +730,7 @@ impl INode for TwitchEvent {
                 .to_variant()],
               );
             }
-            Event::AdBreakBegin(ad_break_data) => {
+            TwitchEvent::AdBreakBegin(ad_break_data) => {
               self.base_mut().emit_signal(
                 "ad_break_start".into(),
                 &[GdAdBreakBeginContainer {
@@ -749,7 +739,7 @@ impl INode for TwitchEvent {
                 .to_variant()],
               );
             }
-            Event::PointsCustomRewardRedeem(custom_reward_redeem) => {
+            TwitchEvent::PointsCustomRewardRedeem(custom_reward_redeem) => {
               self.base_mut().emit_signal(
                 "custom_point_reward_redeem".into(),
                 &[GdCustomRewardRedeemContainer {
@@ -758,7 +748,7 @@ impl INode for TwitchEvent {
                 .to_variant()],
               );
             }
-            Event::Follow(follow_data) => {
+            TwitchEvent::Follow(follow_data) => {
               self.base_mut().emit_signal(
                 "follow".into(),
                 &[GdFollowContainer {
@@ -767,7 +757,7 @@ impl INode for TwitchEvent {
                 .to_variant()],
               );
             }
-            Event::NewSubscription(new_sub_data) => {
+            TwitchEvent::NewSubscription(new_sub_data) => {
               self.base_mut().emit_signal(
                 "new_subscription".into(),
                 &[GdNewSubscriptionContainer {
@@ -776,7 +766,7 @@ impl INode for TwitchEvent {
                 .to_variant()],
               );
             }
-            Event::GiftSubscription(gift_data) => {
+            TwitchEvent::GiftSubscription(gift_data) => {
               self.base_mut().emit_signal(
                 "gift_subscription".into(),
                 &[GdGiftContainer {
@@ -785,7 +775,7 @@ impl INode for TwitchEvent {
                 .to_variant()],
               );
             }
-            Event::Resubscription(resub_data) => {
+            TwitchEvent::Resubscription(resub_data) => {
               self.base_mut().emit_signal(
                 "resubscription".into(),
                 &[GdResubscriptionContainer {
@@ -794,7 +784,7 @@ impl INode for TwitchEvent {
                 .to_variant()],
               );
             }
-            Event::Cheer(cheer) => {
+            TwitchEvent::Cheer(cheer) => {
               self.base_mut().emit_signal(
                 "cheer".into(),
                 &[GdCheerContainer {
@@ -803,7 +793,7 @@ impl INode for TwitchEvent {
                 .to_variant()],
               );
             }
-            Event::PollBegin(begin) => {
+            TwitchEvent::PollBegin(begin) => {
               self.base_mut().emit_signal(
                 "poll_begin".into(),
                 &[GdPollBeginContainer {
@@ -812,7 +802,7 @@ impl INode for TwitchEvent {
                 .to_variant()],
               );
             }
-            Event::PollProgress(progress) => {
+            TwitchEvent::PollProgress(progress) => {
               self.base_mut().emit_signal(
                 "poll_progress".into(),
                 &[GdPollProgressContainer {
@@ -821,7 +811,7 @@ impl INode for TwitchEvent {
                 .to_variant()],
               );
             }
-            Event::PollEnd(end) => {
+            TwitchEvent::PollEnd(end) => {
               self.base_mut().emit_signal(
                 "poll_end".into(),
                 &[GdPollEndContainer {
@@ -830,7 +820,7 @@ impl INode for TwitchEvent {
                 .to_variant()],
               );
             }
-            Event::MessageDeleted(message_deleted) => {
+            TwitchEvent::MessageDeleted(message_deleted) => {
               self.base_mut().emit_signal(
                 "message_deleted".into(),
                 &[GdMessageDeletedContainer {

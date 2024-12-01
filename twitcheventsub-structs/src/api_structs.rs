@@ -150,7 +150,7 @@ pub struct AnnouncementMessage {
 pub struct CreateCustomReward {
   pub title: String,
   pub cost: i64,
-  pub prompt: bool,
+  pub prompt: String,
   pub is_enabled: bool,
   pub is_user_input_required: bool,
   pub is_max_per_stream_enabled: bool,
@@ -166,7 +166,7 @@ impl Default for CreateCustomReward {
     CreateCustomReward {
       title: "default".to_owned(),
       cost: 1,
-      prompt: false,
+      prompt: "Reward Description".to_owned(),
       max_per_stream: 1,
       max_per_user_per_stream: 1,
       global_cooldown_seconds: 1,

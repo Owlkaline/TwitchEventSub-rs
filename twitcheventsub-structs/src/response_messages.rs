@@ -224,7 +224,7 @@ pub struct Cheer {
 )]
 #[cfg_attr(not(feature = "bevy"), derive(Serialise, Deserialise, Debug, Clone))]
 #[serde(untagged)]
-pub enum Event {
+pub enum TwitchEvent {
   ChatMessage(MessageData),
   Raid(RaidData),
   Follow(FollowData),
@@ -254,7 +254,7 @@ pub enum Event {
 pub struct Payload {
   pub session: Option<Session>,
   pub subscription: Option<GMSubscription>,
-  pub event: Option<Event>,
+  pub event: Option<TwitchEvent>,
 }
 
 #[derive(Serialise, Deserialise, Debug, Clone)]
