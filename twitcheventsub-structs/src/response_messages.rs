@@ -136,6 +136,20 @@ pub enum FragmentType {
   Emote,
   #[serde(rename = "mention")]
   Mention,
+  BttvEmote,
+}
+
+impl FragmentType {
+  pub fn from_string(v: &str) -> FragmentType {
+    match v {
+      "text" => FragmentType::Text,
+      "cheermote" => FragmentType::CheerMote,
+      "emote" => FragmentType::Emote,
+      "mention" => FragmentType::Mention,
+      "bttvemote" => FragmentType::BttvEmote,
+      _ => FragmentType::Text,
+    }
+  }
 }
 
 impl Into<String> for FragmentType {
@@ -145,6 +159,7 @@ impl Into<String> for FragmentType {
       FragmentType::CheerMote => "cheermote",
       FragmentType::Emote => "emote",
       FragmentType::Mention => "mention",
+      FragmentType::BttvEmote => "bttvemote",
     }
     .to_string()
   }

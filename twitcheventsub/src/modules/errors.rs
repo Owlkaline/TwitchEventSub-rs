@@ -1,5 +1,3 @@
-use std::borrow::Cow;
-
 use crate::{modules::twitch_http::TwitchHttpRequest, Subscription};
 
 pub const LOG_FILE: &str = "twitch_events.log";

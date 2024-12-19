@@ -101,6 +101,8 @@ pub struct GMessageData {
   returning_chater: bool,
   #[var]
   moderator: bool,
+  #[var]
+  kind: GString,
 }
 
 #[derive(GodotClass, Debug)]
@@ -185,6 +187,24 @@ impl From<MessageData> for GMessageData {
       first_time_chatter: msg.first_time_chatter,
       returning_chater: msg.returning_chatter,
       moderator: msg.moderator,
+      kind: msg.message_type.to_string().into_godot(),
+    }
+  }
+}
+
+impl GFragments {
+  pub fn convert_to_rust(&self) -> Fragments {
+    let mut emote = None;
+    if let Some(emote_info) = self.emote.get(0) {
+      emote = Some(emote_info.bind().convert_to_rust());
+    }
+
+    Fragments {
+      kind: FragmentType::from_string(&self.kind.to_string()),
+      text: self.text.to_string(),
+      cheermote: None,
+      emote,
+      mention: None,
     }
   }
 }

@@ -322,6 +322,20 @@ pub enum MessageType {
   PowerUpsGigantifiedEmote,
 }
 
+impl ToString for MessageType {
+  fn to_string(&self) -> String {
+    match self {
+      MessageType::Text => "text",
+      MessageType::ChannelPointsHighlighted => "channel_points_highlighted",
+      MessageType::ChannelPointsSubOnly => "channel_points_sub_only",
+      MessageType::UserIntro => "user_intro",
+      MessageType::PowerUpsMessageEffect => "power_ups_message_effect",
+      MessageType::PowerUpsGigantifiedEmote => "power_ups_gigantified_emote",
+    }
+    .to_string()
+  }
+}
+
 #[repr(C)]
 #[cfg_attr(feature = "bevy", derive(Serialise, Deserialise, Debug, Clone, Event))]
 #[cfg_attr(not(feature = "bevy"), derive(Serialise, Deserialise, Debug, Clone))]

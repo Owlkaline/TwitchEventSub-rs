@@ -8,7 +8,7 @@ use godot::init::EditorRunBehavior;
 use godot::prelude::*;
 use godot::{
   classes::{self, INode, Image, ImageTexture, Node, SpriteFrames},
-  engine::{window::Flags, Button, GridContainer, Label, TextEdit, Window},
+  engine::{GridContainer, Label},
   obj::WithBaseField,
 };
 use image::{EncodableLayout, ImageDecoder};
@@ -46,13 +46,6 @@ unsafe impl ExtensionLibrary for TwitchApi {
 #[derive(GodotClass)]
 #[class(base=Node)]
 struct TwitchEventNode {
-  #[export]
-  redirect_url: GString,
-  #[export]
-  user_token_file: GString,
-  #[export]
-  refresh_token_file: GString,
-
   #[export]
   channel_chat_message: bool,
   #[export]
@@ -247,7 +240,6 @@ impl TwitchEventNode {
           .bytes()
           .map(|a| a.unwrap())
           .collect::<Vec<_>>();
-        godot_print!("{}x{}", width, height);
         let image = Image::create_from_data(
           width as i32,
           height as i32,
@@ -262,7 +254,12 @@ impl TwitchEventNode {
         sprite_frames.add_frame(animation_name.clone(), texture.upcast());
       }
       delay_ms /= number_of_frames as f32;
-      sprite_frames.set_animation_speed(animation_name, (1000.0 / delay_ms) as f64);
+      let mut animation_speed = (1000.0 / delay_ms) as f64;
+      if animation_speed.is_infinite() || animation_speed.is_subnormal() || animation_speed.is_nan()
+      {
+        animation_speed = 1000.0 / 100.0;
+      }
+      sprite_frames.set_animation_speed(animation_name, animation_speed);
     }
 
     animated_sprite.set_sprite_frames(sprite_frames);
@@ -294,22 +291,25 @@ impl TwitchEventNode {
   }
 
   #[func]
-  fn get_emote_url_1x(&mut self, emote: Gd<GEmote>) -> GString {
-    self.get_emote_url(emote, EmoteScale::Size1)
+  fn get_emote_url_1x(&mut self, fragment: Gd<GFragments>) -> Gd<GEmoteUrl> {
+    self.get_emote_url(fragment, EmoteScale::Size1)
   }
 
   #[func]
-  fn get_emote_url_2x(&mut self, emote: Gd<GEmote>) -> GString {
-    self.get_emote_url(emote, EmoteScale::Size2)
+  fn get_emote_url_2x(&mut self, fragment: Gd<GFragments>) -> Gd<GEmoteUrl> {
+    self.get_emote_url(fragment, EmoteScale::Size2)
   }
 
   #[func]
-  fn get_emote_url_3x(&mut self, emote: Gd<GEmote>) -> GString {
-    self.get_emote_url(emote, EmoteScale::Size3)
+  fn get_emote_url_3x(&mut self, fragment: Gd<GFragments>) -> Gd<GEmoteUrl> {
+    self.get_emote_url(fragment, EmoteScale::Size3)
   }
 
-  fn get_emote_url(&mut self, emote: Gd<GEmote>, scale: EmoteScale) -> GString {
-    let mut url = String::new();
+  fn get_emote_url(&mut self, fragment: Gd<GFragments>, scale: EmoteScale) -> Gd<GEmoteUrl> {
+    let mut url = GEmoteUrl {
+      url: GString::new(),
+      animated: false,
+    };
 
     if let Some(twitch) = &mut self.twitch {
       let mut builder = EmoteBuilder::builder().animate_or_fallback_on_static();
@@ -325,12 +325,13 @@ impl TwitchEventNode {
         }
       }
 
-      if let Some(emote_url) = builder.build(twitch, &emote.bind().convert_to_rust()) {
-        url = emote_url.url;
+      if let Some(emote_url) = builder.build(twitch, &fragment.bind().convert_to_rust()) {
+        url.url = emote_url.url.into_godot(); //.url;
+        url.animated = emote_url.animated;
       }
     }
 
-    url.into()
+    Gd::from_object(url)
   }
 
   #[func]
@@ -553,10 +554,6 @@ impl INode for TwitchEventNode {
   fn init(base: Base<Node>) -> Self {
     Self {
       twitch: None,
-      redirect_url: "http://localhost:3000".into(),
-      user_token_file: ".user_token.env".into(),
-      refresh_token_file: ".refresh_token.env".into(),
-
       channel_user_update: false,
       channel_follow: true,
       channel_raid: true,
@@ -597,17 +594,19 @@ impl INode for TwitchEventNode {
     let keys = match TwitchKeys::from_secrets_env() {
       Ok(keys) => keys,
       Err(_) => {
-        self.create_popup();
+        //self.create_popup();
         return;
       }
     };
 
+    let redirect_url = "http://localhost:3000";
+
     let mut twitch = TwitchEventSubApi::builder(keys)
-      .set_redirect_url(&self.redirect_url)
+      .set_redirect_url(redirect_url)
       .generate_new_token_if_insufficent_scope(true)
       .generate_new_token_if_none(true)
       .generate_access_token_on_expire(true)
-      .auto_save_load_created_tokens(&self.user_token_file, &self.refresh_token_file);
+      .auto_save_load_created_tokens(".user_token.env", ".refresh_token.env");
 
     if self.channel_user_update {
       twitch = twitch.add_subscription(Subscription::UserUpdate);
@@ -716,7 +715,6 @@ impl INode for TwitchEventNode {
         match message {
           ResponseType::Event(event) => match event {
             TwitchEvent::ChatMessage(message_data) => {
-              godot_print!("message recieved");
               self.base_mut().emit_signal(
                 match message_data.message_type {
                   MessageType::PowerUpsGigantifiedEmote => "chat_message_powerup_gigantified_emote",

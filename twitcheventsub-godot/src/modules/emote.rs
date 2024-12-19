@@ -36,6 +36,24 @@ pub struct GEmoteStaticImages {
   url_4x: GString,
 }
 
+#[derive(GodotClass, Debug)]
+#[class(init)]
+pub struct GEmoteUrl {
+  #[var]
+  pub url: GString,
+  #[var]
+  pub animated: bool,
+}
+
+impl From<EmoteUrl> for GEmoteUrl {
+  fn from(value: EmoteUrl) -> Self {
+    GEmoteUrl {
+      url: value.url.into(),
+      animated: value.animated,
+    }
+  }
+}
+
 impl From<RewardEmote> for GRewardEmote {
   fn from(value: RewardEmote) -> Self {
     GRewardEmote {

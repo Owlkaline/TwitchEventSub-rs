@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use serde::{Deserialize as Deserialise, Serialize as Serialise};
 
 use crate::{prefix_broadcaster, User};
@@ -430,6 +432,15 @@ impl EmoteScale {
       EmoteScale::Size2 => 1,
       EmoteScale::Size3 => 2,
     }
+  }
+
+  pub fn to_string(&self) -> String {
+    match self {
+      EmoteScale::Size1 => "1x",
+      EmoteScale::Size2 => "2x",
+      EmoteScale::Size3 => "3x",
+    }
+    .to_string()
   }
 }
 

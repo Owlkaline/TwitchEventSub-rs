@@ -1,3 +1,4 @@
+pub mod bttv;
 pub mod consts;
 pub mod emotebuilder;
 pub mod errors;

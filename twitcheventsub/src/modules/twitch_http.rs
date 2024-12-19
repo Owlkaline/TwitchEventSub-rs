@@ -1,7 +1,6 @@
 use curl::easy::{Easy, List};
 #[cfg(feature = "logging")]
 use log::{error, info};
-use serde::Serialize;
 use twitcheventsub_structs::*;
 
 use crate::modules::{

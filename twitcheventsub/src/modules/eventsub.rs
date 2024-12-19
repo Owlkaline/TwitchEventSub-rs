@@ -9,6 +9,8 @@ use std::{
   time::{Duration, Instant},
 };
 
+use super::{bttv::BTTV, irc_bot};
+
 #[cfg(feature = "logging")]
 use log::{error, info};
 
@@ -61,6 +63,7 @@ pub fn events(
   mut twitch_keys: TwitchKeys,
   save_locations: Option<(String, String)>,
   irc: Option<IRCChat>,
+  bttv: BTTV,
 ) {
   if subscriptions.iter().all(|s| s.is_permission_subscription()) {
     // Don't attempt eventsub things if no event sub events are being subscribed to
@@ -71,12 +74,9 @@ pub fn events(
 
   use std::sync::mpsc::channel;
 
-  use curl::Protocols;
-  use tungstenite::error::TlsError;
+  use twitcheventsub_structs::{Emote, FragmentType};
 
   use crate::modules::irc_bot::{IRCMessage, IRCResponse};
-
-  use super::irc_bot;
 
   let mut last_message = Instant::now();
 
@@ -271,6 +271,17 @@ pub fn events(
                     msg.first_time_chatter = irc_message.first_time_chatter;
                     msg.moderator = irc_message.moderator;
                     break;
+                  }
+                }
+
+                for fragment in &mut msg.message.fragments {
+                  // Only check plain text for bttv emotes
+                  if fragment.kind == FragmentType::Text {
+                    if bttv.emote_names.contains(&fragment.text.to_lowercase()) {
+                      // is BTTV emote
+                      fragment.kind = FragmentType::BttvEmote;
+                      //fragment.emote.unwrap().
+                    }
                   }
                 }
               }

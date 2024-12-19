@@ -10,6 +10,7 @@ use std::sync::{Arc, Mutex};
 
 use crate::modules::consts::*;
 
+use modules::bttv::BTTV;
 use modules::irc_bot::IRCChat;
 use open;
 
@@ -369,6 +370,7 @@ pub struct TwitchEventSubApi {
   save_locations: Option<(String, String)>,
   subscriptions: Vec<Subscription>,
   subscription_data: Vec<String>,
+  bttv: BTTV,
 }
 
 impl TwitchEventSubApi {
@@ -382,6 +384,9 @@ impl TwitchEventSubApi {
     custom_subscription_data: Vec<String>,
     irc_channel: Option<(String, String)>,
   ) -> Result<TwitchEventSubApi, Error> {
+    let bttv = BTTV::new(twitch_keys.broadcaster_account_id.clone());
+    let bttv2 = BTTV::new(twitch_keys.broadcaster_account_id.clone());
+
     let mut irc = None;
 
     if let Some((username, channel)) = irc_channel {
@@ -429,6 +434,7 @@ impl TwitchEventSubApi {
         keys_clone,
         None,
         irc,
+        bttv,
       )
     });
 
@@ -440,6 +446,7 @@ impl TwitchEventSubApi {
       save_locations: None,
       subscriptions,
       subscription_data: custom_subscription_data,
+      bttv: bttv2,
     })
   }
 
