@@ -24,7 +24,40 @@ TWITCH_CLIENT_SECRET = "CLIENT_SECRET from twitch console app"
 TWITCH_BROADCASTER_ID = "Your broadcaster ID as numbers"
 ```
 
-### Example Usage
+## Godot Example
+
+1. Grab the compiled binaries and .gdextension file from release or compile your own
+2. Paste them into the root directory of your project and click reload project
+3. Add a single TwitchEvent Object to your scene
+4. Select it, and on the right side of the editor, next to the inspector tab click the node tab
+5. In this tab you will see all avaiable twitch event signals
+6. Double click on the one you want and add it to a script!
+
+Don't forget to enable/disable the subscriptions you want to use!
+
+The result should look similar to the following:
+
+```GDScript
+extends Sprite2D
+
+# Called when the node enters the scene tree for the first time.
+func _ready():
+	pass # Replace with function body.
+
+# Called every frame. 'delta' is the elapsed time since the previous frame.
+func _process(delta):
+	pass
+
+func _on_twitch_event_chat_message(message_data: GMessageData):
+	print("user: {} Message: {}", message_data.chatter.name, message_data.message);
+	# Do stuff when message comes in or if message contains specific text
+
+func _on_twitch_event_custom_point_reward_redeem(reward: GReward):
+	print("A channel point redeem was just redeem: {}", reward.title);
+	# Do stuff when a reward is redeemed!
+```
+
+### Rust Example Usage
 
 ```rust
 use std::time::Duration;
@@ -111,38 +144,6 @@ fn main() {
     }
 }
 ```
-
-## Godot Example
-
-1. Grab the compiled binaries and .gdextension file from release or compile your own
-2. Paste them into the root directory of your project and click reload project
-3. Add a single TwitchEvent Object to your scene
-4. Select it, and on the right side of the editor, next to the inspector tab click the node tab
-5. In this tab you will see all avaiable twitch event signals
-6. Double click on the one you want and add it to a script!
-
-The result should look similar to the following:
-
-```GDScript
-extends Sprite2D
-
-# Called when the node enters the scene tree for the first time.
-func _ready():
-	pass # Replace with function body.
-
-# Called every frame. 'delta' is the elapsed time since the previous frame.
-func _process(delta):
-	pass
-
-func _on_twitch_event_chat_message(message_data: GMessageData):
-	print("user: {} Message: {}", message_data.chatter.name, message_data.message);
-	# Do stuff when message comes in or if message contains specific text
-
-func _on_twitch_event_custom_point_reward_redeem(reward: GReward):
-	print("A channel point redeem was just redeem: {}", reward.title);
-	# Do stuff when a reward is redeemed!
-```
-
 ## Building
 
 ```doc
