@@ -4,6 +4,16 @@ A simple rust library for dealing with that pesky twitch api, specifically event
 
 ## Quick Start
 
+### Get your keys
+
+Go to your twitch console at: https://dev.twitch.tv/console
+```
+1. Click Register your application, give it an very unique name
+2. For now, put http://localhost:3000 exactly the OAuth redirect
+3. Save
+4. Then get your client ID and Client secret from your registered app.
+```
+
 ### Setting up authentication keys.
 
 Create a .secrets.env or .example.env file in working directory with the following filled out:
