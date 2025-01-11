@@ -100,8 +100,11 @@ impl TwitchEventSubApiBuilder {
     self
   }
 
-  pub fn add_subscriptions(mut self, mut subs: Vec<Subscription>) -> TwitchEventSubApiBuilder {
-    self.subscriptions.append(&mut subs);
+  pub fn add_subscriptions<I: IntoIterator<Item = Subscription>>(
+    mut self,
+    subs: I,
+  ) -> TwitchEventSubApiBuilder {
+    self.subscriptions.extend(subs);
     self
   }
 
