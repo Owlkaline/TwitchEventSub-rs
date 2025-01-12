@@ -20,6 +20,8 @@ win64
 .settings/*
 old/*
 src/obj/*
+*.so
+*.dll
 
 .vs/
 x64/
