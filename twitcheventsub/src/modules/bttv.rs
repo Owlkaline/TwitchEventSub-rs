@@ -89,9 +89,12 @@ impl BTTV {
 
 #[derive(Deserialise, Debug, Clone)]
 pub struct BttvUserResponse {
-  id: String,
-  bots: Vec<String>,
-  avatar: String,
+  #[serde(rename = "id")]
+  _id: String,
+  #[serde(rename = "bots")]
+  _bots: Vec<String>,
+  #[serde(rename = "avatar")]
+  _avatar: String,
   #[serde(rename = "channelEmotes")]
   channel_emotes: Vec<BttvEmote>,
   #[serde(rename = "sharedEmotes")]
@@ -103,17 +106,20 @@ struct BttvEmote {
   id: String,
   code: String,
   #[serde(rename = "imageType")]
-  image_type: String,
+  _image_type: String,
   animated: bool,
-  user: BttvUser,
+  #[serde(rename = "user")]
+  _user: BttvUser,
 }
 
 #[derive(Deserialise, Debug, Clone)]
 struct BttvUser {
-  id: Option<String>,
-  name: Option<String>,
+  #[serde(rename = "id")]
+  _id: Option<String>,
+  #[serde(rename = "name")]
+  _name: Option<String>,
   #[serde(rename = "displayName")]
-  display_name: Option<String>,
+  _display_name: Option<String>,
   #[serde(rename = "providerId")]
-  provider_id: Option<String>,
+  _provider_id: Option<String>,
 }
