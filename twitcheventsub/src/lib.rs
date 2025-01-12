@@ -865,6 +865,15 @@ impl TwitchEventSubApi {
     .and_then(|_| Ok(()))
   }
 
+  pub fn api_user_id(&self) -> String {
+    self
+      .twitch_keys
+      .sender_account_id
+      .as_deref()
+      .unwrap_or(&self.twitch_keys.broadcaster_account_id)
+      .to_owned()
+  }
+
   pub fn get_users_from_ids<S: Into<String>>(
     &mut self,
     ids: Vec<S>,
