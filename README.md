@@ -6,7 +6,7 @@ A simple rust library for dealing with that pesky twitch api, specifically event
 
 ### Get your keys
 
-Go to your twitch console at: https://dev.twitch.tv/console
+Go to your [Twitch Console](https://dev.twitch.tv/console)
 ```
 1. Click Register your application, give it an very unique name
 2. For now, put http://localhost:3000 exactly the OAuth redirect
@@ -59,89 +59,41 @@ func _on_twitch_event_custom_point_reward_redeem(reward: GReward):
 
 ### Rust Example Usage
 
+You can find the full code here: [chat message example](https://github.com/Owlkaline/TwitchEventSub-rs/blob/main/examples/chat_messages.rs)
+
+Here is a sample match statement of how you recieve events
 ```rust
-use std::time::Duration;
-use twitch_eventsub::*;
+// users program main loop simulation
+let bot_response = "Thank you for chatting!";
 
-fn main() {
-    let keys = TwitchKeys::from_secrets_env().unwrap();
+loop {
+  // Set duration to ZERO for non blocking for loop of messages
+  // Recommended for most setups
+  // If you are not running this inside a game and just byitself
+  // Such as a chat bot, setting this to 1 millis seems to be good
+  let responses = api.receive_all_messages(Some(Duration::from_millis(1)));
+  for response in responses {
+    // In this example we don't care about Error Response types so match only events
+    if let ResponseType::Event(event) = response {
+    match event {
+      // Match all chat messages coming in
+      TwitchEvent::ChatMessage(message_data) => {
+        let message = message_data.message.text;
+        let username = message_data.chatter.name;
 
-    let twitch = TwitchEventSubApi::builder(keys)
-        // sockets are used to read data from the request so a port
-        // must be specified
-        .set_redirect_url("https://your_redirect_url:port_is_necessary")
-        .generate_new_token_if_insufficent_scope(true)
-        .generate_new_token_if_none(true)
-        .generate_access_token_on_expire(true)
-        .auto_save_load_created_tokens(".user_token.env", ".refresh_token.env")
-        .add_subscription(Subscription::ChannelFollow)
-        .add_subscriptions(vec![
-            Subscription::ChannelRaid,
-            Subscription::ChannelNewSubscription,
-            Subscription::ChannelGiftSubscription,
-            Subscription::ChannelResubscription,
-            Subscription::ChannelCheer,
-            Subscription::ChannelPointsCustomRewardRedeem,
-            Subscription::ChannelPointsAutoRewardRedeem,
-            Subscription::ChatMessage,
-            Subscription::AdBreakBegin,
-        ]);
-
-    // Check for results or just unwrap if you are spicy!
-    let mut api = {
-        match twitch.build() {
-            Ok(api) => api,
-            Err(EventSubError::TokenMissingScope) => {
-                panic!("Reauthorisation of token is required for the token to have all the requested subscriptions.");
-            }
-            Err(EventSubError::NoSubscriptionsRequested) => {
-                panic!("No subscriptions passed into builder!");
-            }
-            Err(e) => {
-                // some other error
-                panic!("{:?}", e);
-            }
+        if message.eq(&bot_response) {
+          // This is the message we just sent, so don't reply to it.
+          continue;
         }
-    };
 
-    // users program main loop simulation
-    loop {
-        // Set duration to ZERO for non blocking for loop of messages
-        // Recommended for most setups
-        // If you are not running this inside a game and just byitself
-        // Such as a chat bot, setting this to 1 millis seems to be good
-        let responses = api.receive_all_messages(Some(Duration::from_millis(1)));
-        for response in responses {
-            match response {
-                ResponseType::Event(event) => {
-                    match event {
-                        TwitchEvent::ChatMessage(message_data) => {
-                            let message = message_data.message.text;
-                            let username = message_data.chatter.name;
-                            println!("{} said: {}", username, message);
-                            let _ = api
-                                .send_chat_message(format!("Thank you for chatting {}!", username))
-                                .unwrap();
-                        }
-                        TwitchEvent::PointsCustomRewardRedeem(reward) => {
-                            println!(
-                                "{} redeemed {} with {} Channel Points: {}",
-                                reward.user.name,
-                                reward.reward.title,
-                                reward.reward.cost,
-                                reward.user_input,
-                            );
-                        }
-                        _ => {
-                            // Events that you don't care about or are not subscribed to, can be ignored.
-                        }
-                    }
-                }
-                ResponseType::Close => println!("Twitch requested socket close."),
-                _ => {}
-            }
-        }
+        println!("{} said: {}", username, message);
+        let _ = api.send_chat_message(bot_response).unwrap();
+      }
+      _ => {
+        // Events that you don't care about or are not subscribed to, can be ignored.
+      }
     }
+  }
 }
 ```
 ## Building
