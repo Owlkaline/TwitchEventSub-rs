@@ -127,6 +127,7 @@ impl TwitchKeys {
   }
 
   pub fn from_secrets_env() -> Result<TwitchKeys, TwitchKeysError> {
+    // TODO: Make customisable location
     simple_env_load::load_env_from([".example.env", ".secrets.env"]);
 
     fn get(key: &str) -> Result<String, String> {

@@ -1,17 +1,23 @@
+use std::fs;
 use std::io::Read;
-use std::ops::Deref;
+use std::io::Write;
 use std::panic;
-use std::thread;
 use std::time::Duration;
 
+use godot::classes::control::FocusMode;
+use godot::classes::link_button::UnderlineMode;
 use godot::classes::window::WindowInitialPosition;
-use godot::classes::{
-  AnimatedTexture, ConfirmationDialog, GridContainer, Label, LineEdit, Texture2D,
-};
+use godot::classes::AspectRatioContainer;
+use godot::classes::Button;
+use godot::classes::LinkButton;
+use godot::classes::TextureRect;
+use godot::classes::VBoxContainer;
+use godot::classes::{AnimatedTexture, ConfirmationDialog, GridContainer, Label, LineEdit};
 use godot::init::EditorRunBehavior;
+use godot::meta::ParamType;
 use godot::prelude::*;
 use godot::{
-  classes::{self, INode, Image, ImageTexture, Node, SpriteFrames},
+  classes::{self, INode, Image, ImageTexture, Node},
   obj::WithBaseField,
 };
 use image::{EncodableLayout, ImageDecoder};
@@ -27,6 +33,8 @@ use crate::modules::{
   adbreak::*, cheer::*, emote::*, follow::*, getchatters::*, messages::*, poll::*, raid::*,
   redeems::*, subscription::*, GUser, GUserData,
 };
+
+const VISUAL_ERROR: &[u8] = include_bytes!("../assets/visual_error.png");
 
 struct TwitchApi;
 
@@ -49,6 +57,10 @@ unsafe impl ExtensionLibrary for TwitchApi {
 #[derive(GodotClass)]
 #[class(base=Node)]
 struct TwitchEventNode {
+  #[export]
+  start_onready: bool,
+  #[export]
+  redirect_url: GString,
   #[export]
   channel_chat_message: bool,
   #[export]
@@ -113,6 +125,11 @@ struct TwitchEventNode {
   permission_delete_message: bool,
   #[export]
   permission_read_chatters: bool,
+  client_id_field: Option<Gd<LineEdit>>,
+  client_secret_field: Option<Gd<LineEdit>>,
+  broadcaster_id_field: Option<Gd<LineEdit>>,
+  redirect_url_field: Option<Gd<LineEdit>>,
+  need_help: Option<Gd<AspectRatioContainer>>,
   twitch: Option<TwitchEventSubApi>,
   base: Base<Node>,
 }
@@ -235,7 +252,6 @@ impl TwitchEventNode {
     let mut animated_texture = AnimatedTexture::new_gd();
 
     let data = TwitchEventSubApi::get_image_data_from_url(url);
-    let mut delay_ms = 0.0;
 
     if let Ok(gif) = GifDecoder::new(Cursor::new(data.unwrap())) {
       let (width, height) = gif.dimensions();
@@ -244,10 +260,17 @@ impl TwitchEventNode {
 
       let mut textures = Vec::new();
       let mut frame_duartion_ms = Vec::new();
-      for (i, frame) in frames.into_iter().enumerate() {
+      for frame in frames.into_iter() {
         let (n, d) = frame.delay().numer_denom_ms();
-        let delay = n as f32 / d as f32;
-        delay_ms += delay;
+        dbg!(frame.delay());
+
+        let delay = Duration::from_millis(if n == 0 || d == 0 {
+          100
+        } else {
+          n as u64 / d as u64
+        })
+        .as_secs_f32();
+
         let data = frame
           .buffer()
           .bytes()
@@ -267,20 +290,11 @@ impl TwitchEventNode {
         frame_duartion_ms.push(delay);
       }
 
-      delay_ms /= number_of_frames as f32;
-      let mut animation_speed = (1000.0 / delay_ms) as f64;
-      if animation_speed.is_infinite() || animation_speed.is_subnormal() || animation_speed.is_nan()
       {
-        animation_speed = 1000.0 / 100.0;
-      }
-      {
-        //let mut animated_texture: Gd<AnimatedTexture> = Gd::from_instance_id(animated_texture_id);
         animated_texture.set_frames(number_of_frames as i32);
-        //animated_texture.set_speed_scale(animation_speed as f32);
-        //animated_texture.set_speed_scale(1.0);
         for i in 0..number_of_frames {
           animated_texture.set_frame_texture(i as i32, &textures[i]);
-          animated_texture.set_frame_duration(i as i32, frame_duartion_ms[i] * 0.001);
+          animated_texture.set_frame_duration(i as i32, frame_duartion_ms[i]);
         }
       }
     }
@@ -535,23 +549,84 @@ impl TwitchEventNode {
     ))
   }
 
-  pub fn create_popup(&mut self) {
+  #[func]
+  pub fn create_secrets(&mut self) {
+    if let (Some(new_id), Some(new_secret), Some(new_broadcaster_id), Some(new_url)) = (
+      &self.client_id_field,
+      &self.client_secret_field,
+      &self.broadcaster_id_field,
+      &self.redirect_url_field,
+    ) {
+      let new_client_id = new_id.get_text();
+      let new_client_secret = new_secret.get_text();
+      let new_broadcaster_id = new_broadcaster_id.get_text();
+      let new_redirect_url = new_url.get_text();
+
+      let mut file = fs::File::create(".example.env").unwrap();
+
+      let secrets = format!(
+        "TWITCH_CLIENT_ID = \"{}\"\
+        \nTWITCH_CLIENT_SECRET = \"{}\"\
+        \nTWITCH_BROADCASTER_ID = \"{}\"",
+        new_client_id, new_client_secret, new_broadcaster_id
+      );
+
+      file.write_all(format!("{}\n", secrets).as_bytes()).unwrap();
+
+      self.redirect_url = new_redirect_url;
+      self.start_twitchevents();
+    }
+  }
+
+  #[func]
+  fn show_hide_help_info(&mut self) {
+    if let Some(need_help) = &mut self.need_help {
+      let is_visible = need_help.is_visible();
+      need_help.set_visible(!is_visible);
+    }
+  }
+
+  pub fn create_popup(
+    &mut self,
+    possible_client_id: Option<String>,
+    possible_client_secret: Option<String>,
+    possible_broadcaster_id: Option<String>,
+  ) {
+    let mut vbox = VBoxContainer::new_alloc();
+
     let mut confirmation = ConfirmationDialog::new_alloc();
 
     confirmation.set_title("Set Twitch Client Details");
     confirmation.set_initial_position(WindowInitialPosition::CENTER_PRIMARY_SCREEN);
     confirmation.set_visible(true);
+    confirmation.move_to_foreground();
+    //confirmation.set_max_size(Vector2i::new(800, 500));
+    if let Some(mut okay_button) = confirmation.get_ok_button() {
+      okay_button.connect("pressed", &self.to_gd().callable("create_secrets"));
+    }
+
+    let mut twitch_console_label = Label::new_alloc();
+    twitch_console_label.set_text("Get Client ID and Secret here -> ");
+    let mut twitch_console = LinkButton::new_alloc();
+    twitch_console.set_text("Open Twitch Console");
+    twitch_console.set_uri("https://dev.twitch.tv/console");
+    twitch_console.set_underline_mode(UnderlineMode::ALWAYS);
+    twitch_console.set_focus_mode(FocusMode::CLICK);
 
     let mut grid_container = GridContainer::new_alloc();
-    grid_container.set_columns(1);
+    grid_container.set_columns(2);
 
     let mut client_id_label = Label::new_alloc();
     client_id_label.set_text("Client ID:");
 
     let mut client_id_edit = LineEdit::new_alloc();
+    client_id_edit.set_name("NewClientId");
     client_id_edit.set_placeholder("Client ID");
     client_id_edit.set_clear_button_enabled(true);
     client_id_edit.set_custom_minimum_size(Vector2 { x: 200.0, y: 0.0 });
+    if let Some(assigned_id) = possible_client_id {
+      client_id_edit.set_text(&assigned_id);
+    }
 
     let mut client_secret_label = Label::new_alloc();
     client_secret_label.set_text("Client Secret:");
@@ -559,72 +634,132 @@ impl TwitchEventNode {
     let mut client_secret_edit = LineEdit::new_alloc();
     client_secret_edit.set_placeholder("Client Secret");
     client_secret_edit.set_secret(true);
+    if let Some(assigned_secret) = possible_client_secret {
+      if assigned_secret.is_empty() {
+        client_secret_edit.set_placeholder("Invalid Secret Key");
+      } else {
+        client_secret_edit.set_text(&assigned_secret);
+      }
+    }
 
+    let mut redirect_url_label = Label::new_alloc();
+    redirect_url_label.set_text("Redirect Url:");
+
+    let mut redirect_url_label2 = Label::new_alloc();
+    redirect_url_label2.set_text("Set In Editor");
+
+    let mut redirect_url_edit = LineEdit::new_alloc();
+    redirect_url_edit.set_text(self.redirect_url.clone().owned_to_arg());
+    redirect_url_edit.set_placeholder("http://localhost:3000");
+
+    let mut twitch_console_label = Label::new_alloc();
+    twitch_console_label.set_text("Get Client ID and Secret here -> ");
+
+    let mut broadcaster_link_label = Label::new_alloc();
+    broadcaster_link_label.set_text("Get Broadcaster ID here -> ");
+    let mut broadcaster_link = LinkButton::new_alloc();
+    broadcaster_link.set_text("Get Broadcaster ID");
+    broadcaster_link
+      .set_uri("https://www.streamweasels.com/tools/convert-twitch-username-%20to-user-id/");
+    broadcaster_link.set_underline_mode(UnderlineMode::ALWAYS);
+    broadcaster_link.set_focus_mode(FocusMode::CLICK);
+
+    let mut broadcaster_id_label = Label::new_alloc();
+    broadcaster_id_label.set_text("Broadcaster Id:");
+
+    let mut broadcaster_id_edit = LineEdit::new_alloc();
+    broadcaster_id_edit.set_placeholder("Broadcaster id");
+    if let Some(assigned_broadcaster_id) = possible_broadcaster_id {
+      broadcaster_id_edit.set_text(&assigned_broadcaster_id);
+    }
+
+    let image = image::ImageReader::new(Cursor::new(VISUAL_ERROR))
+      .with_guessed_format()
+      .unwrap()
+      .decode()
+      .unwrap()
+      .to_rgba8();
+
+    let image = Image::create_from_data(
+      image.width() as i32,
+      image.height() as i32,
+      false,
+      classes::image::Format::RGBA8,
+      &PackedByteArray::from(image.as_bytes()),
+    )
+    .unwrap();
+
+    let texture = ImageTexture::create_from_image(&image).unwrap();
+
+    let mut need_help_button = Button::new_alloc();
+    need_help_button.set_text("need help?");
+
+    need_help_button.connect("pressed", &self.to_gd().callable("show_hide_help_info"));
+
+    let mut visual_error = AspectRatioContainer::new_alloc();
+    visual_error.set_visible(false);
+
+    let mut visual_error_texture = TextureRect::new_alloc();
+    visual_error_texture.set_texture(&texture);
+
+    let mut ratio_error_texture = AspectRatioContainer::new_alloc();
+    ratio_error_texture.add_child(&visual_error_texture);
+
+    let mut error_description = Label::new_alloc();
+    error_description.set_text(
+      "If you are faced with this when the browser opens you have the incorrect redirect url set.",
+    );
+
+    let mut error_vbox = VBoxContainer::new_alloc();
+
+    error_vbox.add_child(&error_description);
+    error_vbox.add_child(&ratio_error_texture);
+
+    visual_error.add_child(&error_vbox);
+
+    grid_container.add_child(&twitch_console_label);
+    grid_container.add_child(&twitch_console);
     grid_container.add_child(&client_id_label);
     grid_container.add_child(&client_id_edit);
     grid_container.add_child(&client_secret_label);
     grid_container.add_child(&client_secret_edit);
+    grid_container.add_child(&redirect_url_label);
+    grid_container.add_child(&redirect_url_label2);
+    grid_container.add_child(&broadcaster_link_label);
+    grid_container.add_child(&broadcaster_link);
+    grid_container.add_child(&broadcaster_id_label);
+    grid_container.add_child(&broadcaster_id_edit);
+    grid_container.add_child(&need_help_button);
+    // grid_container.add_child(&error_description);
+    // grid_container.add_child(&visual_error);
 
-    confirmation.add_child(&grid_container);
+    vbox.add_child(&grid_container);
+    vbox.add_child(&visual_error);
+
+    confirmation.add_child(&vbox);
+    //confirmation.add_child(&error_description);
+
+    self.client_id_field = Some(client_id_edit);
+    self.client_secret_field = Some(client_secret_edit);
+    self.broadcaster_id_field = Some(broadcaster_id_edit);
+    self.redirect_url_field = Some(redirect_url_edit);
+    self.need_help = Some(visual_error);
 
     self.base_mut().add_child(&confirmation);
   }
-}
 
-#[godot_api]
-impl INode for TwitchEventNode {
-  fn init(base: Base<Node>) -> Self {
-    Self {
-      twitch: None,
-      channel_user_update: false,
-      channel_follow: true,
-      channel_raid: true,
-      channel_update: false,
-      channel_new_subscription: true,
-      channel_subscription_end: false,
-      channel_gift_subscription: true,
-      channel_resubscription: true,
-      channel_cheer: true,
-      channel_points_custom_reward_redeem: true,
-      channel_points_auto_reward_redeem: true,
-      channel_poll_begin: false,
-      channel_poll_progress: false,
-      channel_poll_end: false,
-      channel_prediction_begin: false,
-      channel_prediction_progress: false,
-      channel_prediction_lock: false,
-      channel_prediction_end: false,
-      channel_goal_begin: false,
-      channel_goal_progress: false,
-      channel_goal_end: false,
-      channel_hype_train_begin: false,
-      channel_hype_train_progress: false,
-      channel_hype_train_end: false,
-      channel_message_deleted: false,
-      channel_shoutout_created: false,
-      channel_shoutout_received: false,
-      channel_ad_break_begin: true,
-      channel_chat_message: true,
-      permission_ban_timeout_user: false,
-      permission_delete_message: false,
-      permission_read_chatters: false,
-      base,
-    }
-  }
-
-  fn ready(&mut self) {
+  #[func]
+  fn start_twitchevents(&mut self) {
     let keys = match TwitchKeys::from_secrets_env() {
       Ok(keys) => keys,
       Err(_) => {
-        //self.create_popup();
+        self.create_popup(None, None, None);
         return;
       }
     };
 
-    let redirect_url = "http://localhost:3000";
-
-    let mut twitch = TwitchEventSubApi::builder(keys)
-      .set_redirect_url(redirect_url)
+    let mut twitch = TwitchEventSubApi::builder(keys.clone())
+      .set_redirect_url(self.redirect_url.to_string())
       .generate_new_token_if_insufficent_scope(true)
       .generate_new_token_if_none(true)
       .generate_access_token_on_expire(true)
@@ -727,8 +862,83 @@ impl INode for TwitchEventNode {
       twitch = twitch.add_subscription(Subscription::PermissionReadChatters);
     }
 
-    let twitch = twitch.build().unwrap();
-    self.twitch = Some(twitch);
+    match twitch.build() {
+      Ok(twitch) => {
+        self.twitch = Some(twitch);
+      }
+      Err(e) => match e {
+        EventSubError::InvalidOauthToken(exact_error) => {
+          let mut client_id = keys.client_id;
+          let mut client_secret = keys.client_secret;
+          let broadcaster_id = keys.broadcaster_account_id;
+
+          if exact_error.contains("400") {
+            client_id = "Invalid ID".to_string();
+          }
+          if exact_error.contains("403") {
+            client_secret = String::new();
+          }
+
+          self.create_popup(Some(client_id), Some(client_secret), Some(broadcaster_id));
+        }
+        _ => {}
+      },
+    }
+  }
+}
+
+#[godot_api]
+impl INode for TwitchEventNode {
+  fn init(base: Base<Node>) -> Self {
+    Self {
+      twitch: None,
+      start_onready: true,
+      redirect_url: "http://localhost:3000".to_godot(),
+      channel_user_update: false,
+      channel_follow: true,
+      channel_raid: true,
+      channel_update: false,
+      channel_new_subscription: true,
+      channel_subscription_end: false,
+      channel_gift_subscription: true,
+      channel_resubscription: true,
+      channel_cheer: true,
+      channel_points_custom_reward_redeem: true,
+      channel_points_auto_reward_redeem: true,
+      channel_poll_begin: false,
+      channel_poll_progress: false,
+      channel_poll_end: false,
+      channel_prediction_begin: false,
+      channel_prediction_progress: false,
+      channel_prediction_lock: false,
+      channel_prediction_end: false,
+      channel_goal_begin: false,
+      channel_goal_progress: false,
+      channel_goal_end: false,
+      channel_hype_train_begin: false,
+      channel_hype_train_progress: false,
+      channel_hype_train_end: false,
+      channel_message_deleted: false,
+      channel_shoutout_created: false,
+      channel_shoutout_received: false,
+      channel_ad_break_begin: true,
+      channel_chat_message: true,
+      permission_ban_timeout_user: false,
+      permission_delete_message: false,
+      permission_read_chatters: false,
+      client_id_field: None,
+      client_secret_field: None,
+      broadcaster_id_field: None,
+      redirect_url_field: None,
+      need_help: None,
+      base,
+    }
+  }
+
+  fn ready(&mut self) {
+    if self.start_onready {
+      self.start_twitchevents();
+    }
   }
 
   fn process(&mut self, _delta: f64) {
@@ -856,6 +1066,23 @@ impl INode for TwitchEventNode {
                 }
                 .to_variant()],
               );
+            }
+            _ => {}
+          },
+          ResponseType::Ready => {
+            //godot_print!("Twitch is ready!");
+          }
+          ResponseType::Error(error) => match error {
+            EventSubError::InvalidOauthToken(_exact_error) => {
+              let keys = api.get_twitch_keys();
+
+              self.twitch = None;
+
+              let client_id = keys.client_id;
+              let client_secret = keys.client_secret;
+              let broadcaster_id = "Invalid Id".to_owned();
+
+              self.create_popup(Some(client_id), Some(client_secret), Some(broadcaster_id));
             }
             _ => {}
           },

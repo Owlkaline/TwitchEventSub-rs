@@ -192,7 +192,7 @@ pub fn events(
               info!("EventSub: Subscribing to events!");
               let mut clone_twitch_keys = twitch_keys.clone();
               if let Some(TokenAccess::User(ref token)) = twitch_keys.access_token {
-                sub_data
+                let failed_to_communicate_with_main_thread = sub_data
                   .iter()
                   .map(|sub_data| {
                     TwitchHttpRequest::new(SUBSCRIBE_URL)
@@ -209,13 +209,18 @@ pub fn events(
                     )
                   })
                   .filter_map(Result::err)
-                  .for_each(|error| {
+                  .any(|error| {
                     #[cfg(feature = "logging")]
                     error!("EventSub: {:?}", error);
-                    message_sender
-                      .send(ResponseType::Error(error))
-                      .expect("Failed to send error Message back to main thread.");
+                    let sent_msg = message_sender.send(ResponseType::Error(error));
+                    sent_msg.is_err()
                   });
+
+                if failed_to_communicate_with_main_thread {
+                  #[cfg(feature = "logging")]
+                  error!("EventSub: Failed to communicate with main thread, exiting!");
+                  return;
+                }
               } else {
                 let _ = message_sender.send(ResponseType::Error(
                   EventSubError::InvalidAccessToken(format!(

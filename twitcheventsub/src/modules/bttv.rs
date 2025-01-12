@@ -7,8 +7,8 @@ use twitcheventsub_structs::{EmoteScale, EmoteUrl};
 
 use crate::TwitchHttpRequest;
 
-pub const BTTV_GLOBAL_EMOTES: &str = "https://api.betterttv.net/3/cached/emotes/global";
-pub const BTTV_CHANNEL_EMOTES: &str =
+pub const _BTTV_GLOBAL_EMOTES: &str = "https://api.betterttv.net/3/cached/emotes/global";
+pub const _BTTV_CHANNEL_EMOTES: &str =
   "https://twitch.center/customapi/bttvemotes?channel={username}";
 pub const BTTV_CHANNEL_EMOTES_FROM_ID: &str =
   "https://api.betterttv.net/3/cached/users/twitch/{id}";

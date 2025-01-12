@@ -453,6 +453,10 @@ impl TwitchEventSubApi {
     })
   }
 
+  pub fn get_twitch_keys(&self) -> TwitchKeys {
+    self.twitch_keys.clone()
+  }
+
   pub fn restart_websockets(&mut self) -> Result<(), EventSubError> {
     let keys_clone = self.twitch_keys.clone();
     let subscriptions = self.subscriptions.clone();
@@ -509,6 +513,11 @@ impl TwitchEventSubApi {
     is_local: bool,
   ) -> Result<String, EventSubError> {
     let browser_url = browser_url.into();
+
+    if let Err(response) = TwitchHttpRequest::new(&browser_url).run() {
+      return Err(response);
+    }
+
     if is_local {
       if let Err(e) = open::that_detached(browser_url) {
         #[cfg(feature = "logging")]
