@@ -74,7 +74,7 @@ pub fn events(
 
   use std::sync::mpsc::channel;
 
-  use twitcheventsub_structs::{Emote, FragmentType};
+  use twitcheventsub_structs::{Emote, FragmentType, Fragments};
 
   use crate::modules::irc_bot::{IRCMessage, IRCResponse};
 
@@ -274,16 +274,43 @@ pub fn events(
                   }
                 }
 
+                let mut fragments: Vec<Fragments> = Vec::new();
                 for fragment in &mut msg.message.fragments {
                   // Only check plain text for bttv emotes
                   if fragment.kind == FragmentType::Text {
-                    if bttv.emote_names.contains(&fragment.text.to_lowercase()) {
-                      // is BTTV emote
-                      fragment.kind = FragmentType::BttvEmote;
-                      //fragment.emote.unwrap().
+                    let mut new_fragment: Fragments = fragment.clone();
+                    new_fragment.text = String::new();
+                    let text_particles = fragment.text.split(' ').collect::<Vec<_>>();
+
+                    for test_text in text_particles {
+                      if bttv.emote_names.contains(&test_text.to_lowercase()) {
+                        if !new_fragment.text.is_empty() {
+                          fragments.push(new_fragment);
+                        }
+
+                        new_fragment = fragment.clone();
+                        // is BTTV emote
+                        new_fragment.kind = FragmentType::BttvEmote;
+                        new_fragment.text = format!("{}", test_text.to_lowercase());
+
+                        fragments.push(new_fragment);
+
+                        new_fragment = fragment.clone();
+                        new_fragment.text = String::new();
+                        //fragment.emote.unwrap().
+                      } else {
+                        new_fragment.text = format!("{}{} ", new_fragment.text, test_text);
+                      }
                     }
+                    if !new_fragment.text.is_empty() {
+                      fragments.push(new_fragment);
+                    }
+                  } else {
+                    fragments.push(fragment.clone());
                   }
                 }
+
+                msg.message.fragments = fragments;
               }
               _ => {}
             }

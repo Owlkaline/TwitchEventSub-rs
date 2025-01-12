@@ -228,6 +228,7 @@ impl From<Fragments> for GFragments {
     }
 
     let value_kind: String = value.kind.into();
+    println!("message value convet {}", value.text);
     GFragments {
       kind: value_kind.into(),
       text: value.text.into(),

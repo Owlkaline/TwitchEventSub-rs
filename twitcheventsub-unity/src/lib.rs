@@ -1,10 +1,9 @@
 extern crate rand;
 
-use rand::Rng;
 use std::ffi::{c_char, CStr, CString};
 use std::mem::transmute;
 
-use serde::{Deserialize as Deserialise, Serialize as Serialise};
+use serde::Deserialize as Deserialise;
 
 use twitcheventsub::*;
 
@@ -282,7 +281,7 @@ pub extern "C" fn get_event(twitch: *mut TwitchEvents) -> *mut EventData {
         _ => {}
       },
 
-      ResponseType::RawResponse(raw_string) => {
+      ResponseType::RawResponse(_raw_string) => {
         //event.kind = CString::new("RawResponse").unwrap();
         //event.json = CString::new(raw_string).unwrap();
       }
@@ -295,5 +294,5 @@ pub extern "C" fn get_event(twitch: *mut TwitchEvents) -> *mut EventData {
 
 #[no_mangle]
 pub extern "C" fn destroy_twitch_events(twitch_events: *mut TwitchEvents) {
-  let twitch: Box<TwitchEvents> = unsafe { transmute(twitch_events) };
+  let _twitch: Box<TwitchEvents> = unsafe { transmute(twitch_events) };
 }

@@ -169,7 +169,9 @@ impl EmoteBuilder {
           None
         }
       }
-      FragmentType::BttvEmote => twitch.bttv.get_emote_url(&fragment.text, &self.scale),
+      FragmentType::BttvEmote => {
+        twitch.bttv.get_emote_url(&fragment.text, &self.scale)
+      }
       _ => None,
     }
   }

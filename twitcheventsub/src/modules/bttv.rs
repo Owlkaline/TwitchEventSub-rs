@@ -79,6 +79,8 @@ impl BTTV {
           animated: emote.animated,
         });
       }
+    } else {
+      println!("failed to get bttv response");
     }
 
     None
