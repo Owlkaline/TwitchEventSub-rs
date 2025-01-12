@@ -115,7 +115,7 @@ fn main() {
             match response {
                 ResponseType::Event(event) => {
                     match event {
-                        Event::ChatMessage(message_data) => {
+                        TwitchEvent::ChatMessage(message_data) => {
                             let message = message_data.message.text;
                             let username = message_data.chatter.name;
                             println!("{} said: {}", username, message);
@@ -123,7 +123,7 @@ fn main() {
                                 .send_chat_message(format!("Thank you for chatting {}!", username))
                                 .unwrap();
                         }
-                        Event::PointsCustomRewardRedeem(reward) => {
+                        TwitchEvent::PointsCustomRewardRedeem(reward) => {
                             println!(
                                 "{} redeemed {} with {} Channel Points: {}",
                                 reward.user.name,
