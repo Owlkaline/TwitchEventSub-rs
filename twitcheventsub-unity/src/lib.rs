@@ -215,17 +215,17 @@ impl EventData {
 }
 
 #[no_mangle]
-pub extern "C" fn extract_type(event_data: *mut EventData) -> CString {
+pub extern "C" fn extract_type(event_data: *mut EventData) -> *const std::ffi::c_char {
   let event = unsafe { &mut *event_data };
 
-  event.kind()
+  event.kind().as_ptr()
 }
 
 #[no_mangle]
-pub extern "C" fn extract_json(event_data: *mut EventData) -> CString {
+pub extern "C" fn extract_json(event_data: *mut EventData) -> *const std::ffi::c_char {
   let event = unsafe { &mut *event_data };
 
-  event.json()
+  event.json().as_ptr()
 }
 
 #[no_mangle]
