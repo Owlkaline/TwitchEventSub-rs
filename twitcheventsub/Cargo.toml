@@ -30,3 +30,13 @@ serde.workspace = true
 serde_json.workspace = true
 twitcheventsub-structs.workspace = true
 serde_with.workspace = true
+
+[[example]]
+name = "chat_messages"
+path = "../examples/chat_messages.rs"
+doc-scrape-examples = true
+
+[package.metadata.example.chat_messages]
+name = "Chat Messages"
+description = "Illustrates recieving and sending chat messages"
+category = "Api"
