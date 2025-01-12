@@ -1,14 +1,17 @@
 use std::io::Read;
+use std::ops::Deref;
 use std::panic;
+use std::thread;
 use std::time::Duration;
 
-use godot::engine::window::WindowInitialPosition;
-use godot::engine::{ConfirmationDialog, LineEdit};
+use godot::classes::window::WindowInitialPosition;
+use godot::classes::{
+  AnimatedTexture, ConfirmationDialog, GridContainer, Label, LineEdit, Texture2D,
+};
 use godot::init::EditorRunBehavior;
 use godot::prelude::*;
 use godot::{
   classes::{self, INode, Image, ImageTexture, Node, SpriteFrames},
-  engine::{GridContainer, Label},
   obj::WithBaseField,
 };
 use image::{EncodableLayout, ImageDecoder};
@@ -215,23 +218,33 @@ pub struct GdMessageDeletedContainer {
 #[godot_api]
 impl TwitchEventNode {
   #[func]
-  fn get_animated_texture_from_url(
-    &mut self,
-    url: GString,
-    mut animated_sprite: Gd<classes::AnimatedSprite2D>,
-    mut sprite_frames: Gd<SpriteFrames>,
-  ) {
-    let animation_name = StringName::from("emote");
-    sprite_frames.add_animation(animation_name.clone());
-    sprite_frames.set_animation_loop(animation_name.clone(), true);
+  fn get_generic_emote_texture_from_url(&mut self, url: Gd<GEmoteUrl>) -> Variant {
+    if url.bind().animated {
+      self
+        .get_animated_texture_from_url(url.bind().url.to_owned())
+        .to_variant()
+    } else {
+      self
+        .get_static_texture_from_url(url.bind().url.to_owned())
+        .to_variant()
+    }
+  }
+
+  #[func]
+  fn get_animated_texture_from_url(&mut self, url: GString) -> Gd<AnimatedTexture> {
+    let mut animated_texture = AnimatedTexture::new_gd();
 
     let data = TwitchEventSubApi::get_image_data_from_url(url);
     let mut delay_ms = 0.0;
+
     if let Ok(gif) = GifDecoder::new(Cursor::new(data.unwrap())) {
       let (width, height) = gif.dimensions();
       let frames = gif.into_frames().collect_frames().unwrap();
       let number_of_frames = frames.len();
-      for frame in frames {
+
+      let mut textures = Vec::new();
+      let mut frame_duartion_ms = Vec::new();
+      for (i, frame) in frames.into_iter().enumerate() {
         let (n, d) = frame.delay().numer_denom_ms();
         let delay = n as f32 / d as f32;
         delay_ms += delay;
@@ -240,30 +253,39 @@ impl TwitchEventNode {
           .bytes()
           .map(|a| a.unwrap())
           .collect::<Vec<_>>();
+
         let image = Image::create_from_data(
           width as i32,
           height as i32,
           false,
           classes::image::Format::RGBA8,
-          PackedByteArray::from(data.as_bytes()),
+          &PackedByteArray::from(data.as_bytes()),
         )
         .unwrap();
-        let texture = ImageTexture::create_from_image(image).unwrap();
-
-        //texture2d
-        sprite_frames.add_frame(animation_name.clone(), texture.upcast());
+        let texture = ImageTexture::create_from_image(&image).unwrap();
+        textures.push(texture);
+        frame_duartion_ms.push(delay);
       }
+
       delay_ms /= number_of_frames as f32;
       let mut animation_speed = (1000.0 / delay_ms) as f64;
       if animation_speed.is_infinite() || animation_speed.is_subnormal() || animation_speed.is_nan()
       {
         animation_speed = 1000.0 / 100.0;
       }
-      sprite_frames.set_animation_speed(animation_name, animation_speed);
+      {
+        //let mut animated_texture: Gd<AnimatedTexture> = Gd::from_instance_id(animated_texture_id);
+        animated_texture.set_frames(number_of_frames as i32);
+        //animated_texture.set_speed_scale(animation_speed as f32);
+        //animated_texture.set_speed_scale(1.0);
+        for i in 0..number_of_frames {
+          animated_texture.set_frame_texture(i as i32, &textures[i]);
+          animated_texture.set_frame_duration(i as i32, frame_duartion_ms[i] * 0.001);
+        }
+      }
     }
 
-    animated_sprite.set_sprite_frames(sprite_frames);
-    animated_sprite.play();
+    animated_texture
   }
 
   #[func]
@@ -281,11 +303,11 @@ impl TwitchEventNode {
       image.height() as i32,
       false,
       classes::image::Format::RGBA8,
-      PackedByteArray::from(image.as_bytes()),
+      &PackedByteArray::from(image.as_bytes()),
     )
     .unwrap();
 
-    let texture = ImageTexture::create_from_image(image);
+    let texture = ImageTexture::create_from_image(&image);
 
     return texture.unwrap();
   }
@@ -326,7 +348,7 @@ impl TwitchEventNode {
       }
 
       if let Some(emote_url) = builder.build(twitch, &fragment.bind().convert_to_rust()) {
-        url.url = emote_url.url.into_godot(); //.url;
+        url.url = emote_url.url.into(); //.url;
         url.animated = emote_url.animated;
       }
     }
@@ -363,7 +385,7 @@ impl TwitchEventNode {
     if let Some(twitch) = &mut self.twitch {
       if let Ok(users) = twitch.get_users_from_ids(id.iter_shared().collect()) {
         for user in users.data {
-          gusers.push(Gd::from_object(GUserData::from(user)));
+          gusers.push(&Gd::from_object(GUserData::from(user)));
         }
       }
     }
@@ -378,7 +400,7 @@ impl TwitchEventNode {
     if let Some(twitch) = &mut self.twitch {
       if let Ok(users) = twitch.get_users_from_logins(logins.iter_shared().collect()) {
         for user in users.data {
-          gusers.push(Gd::from_object(GUserData::from(user)));
+          gusers.push(&Gd::from_object(GUserData::from(user)));
         }
       }
     }
@@ -393,7 +415,7 @@ impl TwitchEventNode {
     if let Some(twitch) = &mut self.twitch {
       if let Ok(schedule) = twitch.get_ad_schedule() {
         for details in schedule.data {
-          data.push(Gd::from_object(GAdDetails::from(details)));
+          data.push(&Gd::from_object(GAdDetails::from(details)));
         }
       }
     }
@@ -409,7 +431,7 @@ impl TwitchEventNode {
     if let Some(twitch) = &mut self.twitch {
       if let Ok(users) = twitch.get_users_self() {
         for user in users.data {
-          gusers.push(Gd::from_object(GUserData::from(user)));
+          gusers.push(&Gd::from_object(GUserData::from(user)));
         }
       }
     }
@@ -424,7 +446,7 @@ impl TwitchEventNode {
     if let Some(twitch) = &mut self.twitch {
       if let Ok(mods) = twitch.get_moderators() {
         for user in mods.data {
-          moderators.push(Gd::from_object(GUser::from(user)));
+          moderators.push(&Gd::from_object(GUser::from(user)));
         }
       }
     }
@@ -439,7 +461,7 @@ impl TwitchEventNode {
     if let Some(twitch) = &mut self.twitch {
       if let Ok(custom_rewards) = twitch.get_custom_rewards() {
         for reward in custom_rewards.data {
-          rewards.push(Gd::from_object(GGetCustomReward::from(reward)));
+          rewards.push(&Gd::from_object(GGetCustomReward::from(reward)));
         }
       }
     }
@@ -516,7 +538,7 @@ impl TwitchEventNode {
   pub fn create_popup(&mut self) {
     let mut confirmation = ConfirmationDialog::new_alloc();
 
-    confirmation.set_title("Set Twitch Client Details".into());
+    confirmation.set_title("Set Twitch Client Details");
     confirmation.set_initial_position(WindowInitialPosition::CENTER_PRIMARY_SCREEN);
     confirmation.set_visible(true);
 
@@ -524,28 +546,28 @@ impl TwitchEventNode {
     grid_container.set_columns(1);
 
     let mut client_id_label = Label::new_alloc();
-    client_id_label.set_text("Client ID:".into());
+    client_id_label.set_text("Client ID:");
 
     let mut client_id_edit = LineEdit::new_alloc();
-    client_id_edit.set_placeholder("Client ID".into());
+    client_id_edit.set_placeholder("Client ID");
     client_id_edit.set_clear_button_enabled(true);
     client_id_edit.set_custom_minimum_size(Vector2 { x: 200.0, y: 0.0 });
 
     let mut client_secret_label = Label::new_alloc();
-    client_secret_label.set_text("Client Secret:".into());
+    client_secret_label.set_text("Client Secret:");
 
     let mut client_secret_edit = LineEdit::new_alloc();
-    client_secret_edit.set_placeholder("Client Secret".into());
+    client_secret_edit.set_placeholder("Client Secret");
     client_secret_edit.set_secret(true);
 
-    grid_container.add_child(client_id_label.upcast());
-    grid_container.add_child(client_id_edit.upcast());
-    grid_container.add_child(client_secret_label.upcast());
-    grid_container.add_child(client_secret_edit.upcast());
+    grid_container.add_child(&client_id_label);
+    grid_container.add_child(&client_id_edit);
+    grid_container.add_child(&client_secret_label);
+    grid_container.add_child(&client_secret_edit);
 
-    confirmation.add_child(grid_container.upcast());
+    confirmation.add_child(&grid_container);
 
-    self.base_mut().add_child(confirmation.upcast());
+    self.base_mut().add_child(&confirmation);
   }
 }
 
@@ -720,8 +742,7 @@ impl INode for TwitchEventNode {
                   MessageType::PowerUpsGigantifiedEmote => "chat_message_powerup_gigantified_emote",
                   MessageType::PowerUpsMessageEffect => "chat_message_powerup_message_effect",
                   _ => "chat_message",
-                }
-                .into(),
+                },
                 &[GdMessageContainer {
                   data: Gd::from_object(GMessageData::from(message_data)),
                 }
@@ -730,7 +751,7 @@ impl INode for TwitchEventNode {
             }
             TwitchEvent::Raid(raid_info) => {
               self.base_mut().emit_signal(
-                "raid".into(),
+                "raid",
                 &[GdRaidContainer {
                   data: Gd::from_object(GRaid::from(raid_info)),
                 }
@@ -739,7 +760,7 @@ impl INode for TwitchEventNode {
             }
             TwitchEvent::AdBreakBegin(ad_break_data) => {
               self.base_mut().emit_signal(
-                "ad_break_start".into(),
+                "ad_break_start",
                 &[GdAdBreakBeginContainer {
                   data: Gd::from_object(GAdBreakBegin::from(ad_break_data)),
                 }
@@ -748,7 +769,7 @@ impl INode for TwitchEventNode {
             }
             TwitchEvent::PointsCustomRewardRedeem(custom_reward_redeem) => {
               self.base_mut().emit_signal(
-                "custom_point_reward_redeem".into(),
+                "custom_point_reward_redeem",
                 &[GdCustomRewardRedeemContainer {
                   data: Gd::from_object(GCustomRewardRedeem::from(custom_reward_redeem)),
                 }
@@ -757,7 +778,7 @@ impl INode for TwitchEventNode {
             }
             TwitchEvent::Follow(follow_data) => {
               self.base_mut().emit_signal(
-                "follow".into(),
+                "follow",
                 &[GdFollowContainer {
                   data: Gd::from_object(GFollowData::from(follow_data)),
                 }
@@ -766,7 +787,7 @@ impl INode for TwitchEventNode {
             }
             TwitchEvent::NewSubscription(new_sub_data) => {
               self.base_mut().emit_signal(
-                "new_subscription".into(),
+                "new_subscription",
                 &[GdNewSubscriptionContainer {
                   data: Gd::from_object(GNewSubscription::from(new_sub_data)),
                 }
@@ -775,7 +796,7 @@ impl INode for TwitchEventNode {
             }
             TwitchEvent::GiftSubscription(gift_data) => {
               self.base_mut().emit_signal(
-                "gift_subscription".into(),
+                "gift_subscription",
                 &[GdGiftContainer {
                   data: Gd::from_object(GGift::from(gift_data)),
                 }
@@ -784,7 +805,7 @@ impl INode for TwitchEventNode {
             }
             TwitchEvent::Resubscription(resub_data) => {
               self.base_mut().emit_signal(
-                "resubscription".into(),
+                "resubscription",
                 &[GdResubscriptionContainer {
                   data: Gd::from_object(GResubscription::from(resub_data)),
                 }
@@ -793,7 +814,7 @@ impl INode for TwitchEventNode {
             }
             TwitchEvent::Cheer(cheer) => {
               self.base_mut().emit_signal(
-                "cheer".into(),
+                "cheer",
                 &[GdCheerContainer {
                   data: Gd::from_object(GCheerData::from(cheer)),
                 }
@@ -802,7 +823,7 @@ impl INode for TwitchEventNode {
             }
             TwitchEvent::PollBegin(begin) => {
               self.base_mut().emit_signal(
-                "poll_begin".into(),
+                "poll_begin",
                 &[GdPollBeginContainer {
                   data: Gd::from_object(GPollBegin::from(begin)),
                 }
@@ -811,7 +832,7 @@ impl INode for TwitchEventNode {
             }
             TwitchEvent::PollProgress(progress) => {
               self.base_mut().emit_signal(
-                "poll_progress".into(),
+                "poll_progress",
                 &[GdPollProgressContainer {
                   data: Gd::from_object(GPollProgress::from(progress)),
                 }
@@ -820,7 +841,7 @@ impl INode for TwitchEventNode {
             }
             TwitchEvent::PollEnd(end) => {
               self.base_mut().emit_signal(
-                "poll_end".into(),
+                "poll_end",
                 &[GdPollEndContainer {
                   data: Gd::from_object(GPollEnd::from(end)),
                 }
@@ -829,7 +850,7 @@ impl INode for TwitchEventNode {
             }
             TwitchEvent::MessageDeleted(message_deleted) => {
               self.base_mut().emit_signal(
-                "message_deleted".into(),
+                "message_deleted",
                 &[GdMessageDeletedContainer {
                   data: Gd::from_object(GMessageDeleted::from(message_deleted)),
                 }

@@ -116,7 +116,7 @@ impl From<PollBeginData> for GPollBegin {
     let mut choices = Array::new();
 
     for choice in poll.choices {
-      choices.push(Gd::from_object(GBeginChoices::from(choice)));
+      choices.push(&Gd::from_object(GBeginChoices::from(choice)));
     }
 
     GPollBegin {
@@ -139,7 +139,7 @@ impl From<PollProgressData> for GPollProgress {
     let mut choices = Array::new();
 
     for choice in poll.choices {
-      choices.push(Gd::from_object(GChoices::from(choice)));
+      choices.push(&Gd::from_object(GChoices::from(choice)));
     }
 
     GPollProgress {
@@ -162,7 +162,7 @@ impl From<PollEndData> for GPollEnd {
     let mut choices = Array::new();
 
     for choice in poll.choices {
-      choices.push(Gd::from_object(GChoices::from(choice)));
+      choices.push(&Gd::from_object(GChoices::from(choice)));
     }
 
     GPollEnd {

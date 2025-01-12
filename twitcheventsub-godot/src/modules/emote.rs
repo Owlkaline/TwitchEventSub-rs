@@ -68,7 +68,7 @@ impl From<RewardEmote> for GRewardEmote {
 impl GEmote {
   #[func]
   pub fn has_animation(&self) -> bool {
-    self.format.contains(&"animated".into())
+    self.format.contains("animated")
   }
 
   pub fn convert_to_rust(&self) -> Emote {
@@ -97,7 +97,7 @@ impl From<Emote> for GEmote {
 
     if let Some(some_format) = value.format {
       for value_format in some_format {
-        format.push(value_format.into());
+        format.push(&value_format);
       }
     }
 

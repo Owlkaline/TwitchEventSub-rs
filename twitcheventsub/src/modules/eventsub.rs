@@ -297,11 +297,11 @@ pub fn events(
 
                         new_fragment = fragment.clone();
                         new_fragment.text = String::new();
-                        //fragment.emote.unwrap().
                       } else {
                         new_fragment.text = format!("{}{} ", new_fragment.text, test_text);
                       }
                     }
+
                     if !new_fragment.text.is_empty() {
                       fragments.push(new_fragment);
                     }

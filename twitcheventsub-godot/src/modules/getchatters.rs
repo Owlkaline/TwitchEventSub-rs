@@ -28,12 +28,12 @@ impl From<GetChatters> for GGetChatters {
     let mut data = Array::new();
 
     if let Some(cursor_data) = get_chatters.pagination.cursor {
-      cursor.push(cursor_data.into());
+      cursor.push(&cursor_data);
     }
 
     for i in 0..get_chatters.data.len() {
       let user = get_chatters.data[i].to_owned();
-      data.push(Gd::from_object(GUser::from(user)));
+      data.push(&Gd::from_object(GUser::from(user)));
     }
 
     GGetChatters {

@@ -153,16 +153,16 @@ impl From<MessageData> for GMessageData {
     let mut badges = Array::new();
 
     if let Some(cheer_data) = msg.cheer {
-      cheer.push(Gd::from_object(GCheer::from(cheer_data)));
+      cheer.push(&Gd::from_object(GCheer::from(cheer_data)));
     }
 
     if let Some(reply_data) = msg.reply {
-      reply.push(Gd::from_object(GReply::from(reply_data)));
+      reply.push(&Gd::from_object(GReply::from(reply_data)));
     }
 
     for i in 0..msg.badges.len() {
       let badge = msg.badges[i].to_owned();
-      badges.push(Gd::from_object(GBadge::from(badge)));
+      badges.push(&Gd::from_object(GBadge::from(badge)));
     }
 
     GMessageData {
@@ -187,11 +187,12 @@ impl From<MessageData> for GMessageData {
       first_time_chatter: msg.first_time_chatter,
       returning_chater: msg.returning_chatter,
       moderator: msg.moderator,
-      kind: msg.message_type.to_string().into_godot(),
+      kind: msg.message_type.to_string().into(),
     }
   }
 }
 
+#[godot_api]
 impl GFragments {
   pub fn convert_to_rust(&self) -> Fragments {
     let mut emote = None;
@@ -207,6 +208,11 @@ impl GFragments {
       mention: None,
     }
   }
+
+  #[func]
+  fn is_any_emote(&self) -> bool {
+    self.kind.to_string().eq("emote") || self.kind.to_string().eq("bttvemote")
+  }
 }
 
 impl From<Fragments> for GFragments {
@@ -216,15 +222,15 @@ impl From<Fragments> for GFragments {
     let mut mention = Array::new();
 
     if let Some(frag_cheermote) = value.cheermote {
-      cheermote.push(Gd::from_object(GCheerMote::from(frag_cheermote)));
+      cheermote.push(&Gd::from_object(GCheerMote::from(frag_cheermote)));
     }
 
     if let Some(frag_emote) = value.emote {
-      emote.push(Gd::from_object(GEmote::from(frag_emote)));
+      emote.push(&Gd::from_object(GEmote::from(frag_emote)));
     }
 
     if let Some(frag_mention) = value.mention {
-      mention.push(Gd::from_object(GMention::from(frag_mention)));
+      mention.push(&Gd::from_object(GMention::from(frag_mention)));
     }
 
     let value_kind: String = value.kind.into();
@@ -244,7 +250,7 @@ impl From<Message> for GMessage {
     let mut fragments = Array::new();
 
     for frag in value.fragments {
-      fragments.push(Gd::from_object(GFragments::from(frag)));
+      fragments.push(&Gd::from_object(GFragments::from(frag)));
     }
 
     GMessage {
