@@ -37,6 +37,10 @@ fn main() {
   let bot_response = "Thank you for chatting!";
 
   loop {
+    // Set duration to ZERO for non blocking for loop of messages
+    // Recommended for most setups
+    // If you are not running this inside a game and just byitself
+    // Such as a chat bot, setting this to 1 millis seems to be good
     let responses = api.receive_all_messages(Some(Duration::from_millis(1)));
     for response in responses {
       // In this example we don't care about Error Response types so match only events
