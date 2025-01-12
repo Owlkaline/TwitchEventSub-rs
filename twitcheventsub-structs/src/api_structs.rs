@@ -1,5 +1,3 @@
-use std::fmt::Display;
-
 use serde::{Deserialize as Deserialise, Serialize as Serialise};
 
 use crate::{prefix_broadcaster, User};
@@ -444,6 +442,7 @@ impl EmoteScale {
   }
 }
 
+#[derive(Debug, Clone)]
 pub struct EmoteUrl {
   pub url: String,
   pub animated: bool,

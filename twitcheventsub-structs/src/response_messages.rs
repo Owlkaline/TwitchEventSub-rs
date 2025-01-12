@@ -5,7 +5,7 @@ use crate::*;
 #[cfg(feature = "bevy")]
 use bevy_ecs::prelude::Event as BevyEvent;
 
-#[derive(Deserialise)]
+#[derive(Deserialise, Debug, Clone)]
 pub struct NewAccessTokenResponse {
   pub access_token: String,
   pub expires_in: u32,
