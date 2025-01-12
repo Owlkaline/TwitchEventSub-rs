@@ -1,6 +1,6 @@
 [package]
 name = "twitcheventsub-structs"
-version = "0.1.2"
+version = "0.1.5"
 authors = ["Owlkaline"]
 description = "Defined Struct types for of all the twitch eventsub responses easy Serialise/Deserialie"
 repository = "https://github.com/Owlkaline/TwitchEventSubStructs"

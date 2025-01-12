@@ -39,17 +39,17 @@ image = "0.25.2"
 rand = "0.8.5"
 
 [workspace.dependencies.twitcheventsub]
-version = "0.1"
+version = "0.1.5"
 path = "twitcheventsub"
 
 [workspace.dependencies.twitcheventsub-godot]
-version = "0.1"
+version = "0.1.5"
 path = "twitcheventsub-godot"
 
 [workspace.dependencies.twitcheventsub-unity]
-version = "0.1"
+version = "0.1.5"
 path = "twitcheventsub-unity"
 
 [workspace.dependencies.twitcheventsub-structs]
-version = "0.1"
+version = "0.1.5"
 path = "twitcheventsub-structs"
