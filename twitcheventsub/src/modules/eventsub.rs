@@ -74,7 +74,7 @@ pub fn events(
 
   use std::sync::mpsc::channel;
 
-  use twitcheventsub_structs::{Emote, FragmentType, Fragments};
+  use twitcheventsub_structs::{FragmentType, Fragments};
 
   use crate::modules::irc_bot::{IRCMessage, IRCResponse};
 

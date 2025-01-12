@@ -1,7 +1,7 @@
 use crate::TwitchEventSubApi;
 
 use twitcheventsub_structs::{
-  Emote, EmoteData, EmoteFormat, EmoteScale, EmoteUrl, FragmentType, Fragments, ThemeMode,
+  EmoteData, EmoteFormat, EmoteScale, EmoteUrl, FragmentType, Fragments, ThemeMode,
 };
 
 pub struct EmoteBuilder {
@@ -169,9 +169,7 @@ impl EmoteBuilder {
           None
         }
       }
-      FragmentType::BttvEmote => {
-        twitch.bttv.get_emote_url(&fragment.text, &self.scale)
-      }
+      FragmentType::BttvEmote => twitch.bttv.get_emote_url(&fragment.text, &self.scale),
       _ => None,
     }
   }
