@@ -3,7 +3,7 @@ use std::time::Duration;
 use twitcheventsub::*;
 
 fn main() {
-  let keys = TwitchKeys::from_secrets_env().unwrap();
+  let keys = TwitchKeys::from_secrets_env(vec![]).unwrap();
 
   let twitch = TwitchEventSubApi::builder(keys)
     // Make sure this matches exactly what you have set in twitch console

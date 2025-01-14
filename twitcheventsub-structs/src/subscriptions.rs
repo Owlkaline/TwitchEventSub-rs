@@ -56,6 +56,7 @@ pub enum Subscription {
   ChannelShoutoutCreate,
   ChannelShoutoutReceive,
   ChannelMessageDeleted,
+  ChannelUserBanned,
   ChatMessage,
   AdBreakBegin,
   PermissionBanTimeoutUser,
@@ -121,6 +122,7 @@ impl Subscription {
     ChannelShoutoutCreate,
     ChannelShoutoutReceive,
     ChannelMessageDeleted,
+    ChannelUserBanned,
     ChatMessage,
     PermissionBanTimeoutUser,
     PermissionDeleteMessage,
@@ -161,6 +163,7 @@ impl Subscription {
     ChannelShoutoutCreate,
     ChannelShoutoutReceive,
     ChannelMessageDeleted,
+    ChannelUserBanned,
     ChatMessage,
     PermissionBanTimeoutUser,
     PermissionDeleteMessage,
@@ -273,6 +276,7 @@ impl Subscription {
         "moderator:read:shoutouts+moderator:manage:shoutouts",
         "1",
       ),
+      Subscription::ChannelUserBanned => ("channel.ban", "channel:moderate", "1"),
       Subscription::ChannelMessageDeleted => ("channel.chat.message_delete", "user:read:chat", "1"),
       Subscription::PermissionBanTimeoutUser => ("", "moderator:manage:banned_users", ""),
       Subscription::PermissionDeleteMessage => ("", "moderator:manage:chat_messages", ""),
@@ -354,6 +358,7 @@ impl Subscription {
       | Subscription::ChannelHypeTrainEnd
       | Subscription::ChannelPointsAutoRewardRedeem
       | Subscription::ChannelUpdate
+      | Subscription::ChannelUserBanned
       | Subscription::AdBreakBegin
       | Subscription::ChannelPointsCustomRewardRedeem => event_subscription.condition(condition),
       Subscription::Custom((_, _, event)) => event.to_owned().transport(Transport::new(session_id)),

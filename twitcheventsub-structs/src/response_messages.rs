@@ -253,16 +253,17 @@ pub enum TwitchEvent {
   PollProgress(PollProgressData),
   PollBegin(PollBeginData),
   PollEnd(PollEndData),
-  PredictionProgress(PredicitonProgressData),
+  PredictionProgress(PredictionProgressData),
   PredictionBegin(PredictionBeginData),
   PredictionLock(PredictionLockData),
-  PredictionEnd(PredicitionEndData),
+  PredictionEnd(PredictionEndData),
   HypeTrainProgress(HypeTrainProgressData),
   HypeTrainBegin(HypeTrainBeginData),
   HypeTrainEnd(HypeTrainEndData),
   MessageDeleted(MessageDeletedData),
-  ShoutoutRecieve(ShoutoutRecieveData),
+  ShoutoutReceive(ShoutoutReceiveData),
   ShoutoutCreate(ShoutoutCreateData),
+  UserBanned(UserBannedData),
 }
 
 #[derive(Serialise, Deserialise, Debug, Clone)]

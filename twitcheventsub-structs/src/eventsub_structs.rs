@@ -87,10 +87,10 @@ pub struct TopPredictors {
 
 #[derive(Serialise, Deserialise, Clone, Debug)]
 pub struct BeginOutcome {
-  id: String,
-  title: String,
+  pub id: String,
+  pub title: String,
   #[serde(rename = "color")]
-  colour: String,
+  pub colour: String,
 }
 
 #[derive(Serialise, Deserialise, Clone, Debug)]
@@ -116,10 +116,10 @@ pub struct PredictionBeginData {
 }
 
 #[derive(Serialise, Deserialise, Clone, Debug)]
-pub struct PredicitonProgressData {
+pub struct PredictionProgressData {
   pub id: String,
   #[serde(flatten, with = "prefix_broadcaster")]
-  broadcaster: User,
+  pub broadcaster: User,
   pub title: String,
   pub outcomes: Vec<Outcome>,
   pub started_at: String,
@@ -138,7 +138,7 @@ pub struct PredictionLockData {
 }
 
 #[derive(Serialise, Deserialise, Clone, Debug)]
-pub struct PredicitionEndData {
+pub struct PredictionEndData {
   pub id: String,
   #[serde(flatten, with = "prefix_broadcaster")]
   pub broadcaster: User,
@@ -466,7 +466,7 @@ pub struct MessageDeletedData {
 
 #[cfg_attr(feature = "bevy", derive(Serialise, Deserialise, Debug, Clone, Event))]
 #[cfg_attr(not(feature = "bevy"), derive(Serialise, Deserialise, Debug, Clone))]
-pub struct ShoutoutRecieveData {
+pub struct ShoutoutReceiveData {
   #[serde(flatten, with = "prefix_broadcaster")]
   broadcaster: User,
   #[serde(flatten, with = "prefix_from_broadcaster")]
@@ -488,4 +488,18 @@ pub struct ShoutoutCreateData {
   viewer_count: u32,
   cooldown_ends_at: String,
   target_cooldown_ends_at: String,
+}
+
+#[derive(Serialise, Deserialise, Clone, Debug)]
+pub struct UserBannedData {
+  #[serde(flatten)]
+  pub user: User,
+  #[serde(flatten, with = "prefix_broadcaster")]
+  pub broadcaster: User,
+  #[serde(flatten, with = "prefix_moderator")]
+  pub moderator: User,
+  pub reason: String,
+  pub banned_at: String,
+  pub ends_at: Option<String>,
+  pub is_permanent: bool,
 }
