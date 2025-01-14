@@ -5,6 +5,7 @@ pub mod follow;
 pub mod getchatters;
 pub mod messages;
 pub mod poll;
+pub mod prediction;
 pub mod raid;
 pub mod redeems;
 pub mod subscription;

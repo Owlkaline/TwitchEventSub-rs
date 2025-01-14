@@ -30,8 +30,8 @@ use std::io::Cursor;
 use image::{codecs::gif::GifDecoder, AnimationDecoder};
 
 use crate::modules::{
-  adbreak::*, cheer::*, emote::*, follow::*, getchatters::*, messages::*, poll::*, raid::*,
-  redeems::*, subscription::*, GUser, GUserData,
+  adbreak::*, cheer::*, emote::*, follow::*, getchatters::*, messages::*, poll::*, prediction::*,
+  raid::*, redeems::*, subscription::*, GUser, GUserData,
 };
 
 const VISUAL_ERROR: &[u8] = include_bytes!("../assets/visual_error.png");
@@ -125,6 +125,8 @@ struct TwitchEventNode {
   permission_delete_message: bool,
   #[export]
   permission_read_chatters: bool,
+  #[export]
+  env_file_name: GString,
   client_id_field: Option<Gd<LineEdit>>,
   client_secret_field: Option<Gd<LineEdit>>,
   broadcaster_id_field: Option<Gd<LineEdit>>,
@@ -228,6 +230,34 @@ pub struct GdPollEndContainer {
 #[derive(GodotClass, Debug, GodotConvert)]
 #[godot(transparent)]
 #[class(init)]
+pub struct GdPredictionBeginContainer {
+  pub data: Gd<GPredictionBegin>,
+}
+
+#[derive(GodotClass, Debug, GodotConvert)]
+#[godot(transparent)]
+#[class(init)]
+pub struct GdPredictionProgressContainer {
+  pub data: Gd<GPredictionProgress>,
+}
+
+#[derive(GodotClass, Debug, GodotConvert)]
+#[godot(transparent)]
+#[class(init)]
+pub struct GdPredictionLockContainer {
+  pub data: Gd<GPredictionLock>,
+}
+
+#[derive(GodotClass, Debug, GodotConvert)]
+#[godot(transparent)]
+#[class(init)]
+pub struct GdPredictionEndContainer {
+  pub data: Gd<GPredictionEnd>,
+}
+
+#[derive(GodotClass, Debug, GodotConvert)]
+#[godot(transparent)]
+#[class(init)]
 pub struct GdMessageDeletedContainer {
   pub data: Gd<GMessageDeleted>,
 }
@@ -262,7 +292,6 @@ impl TwitchEventNode {
       let mut frame_duartion_ms = Vec::new();
       for frame in frames.into_iter() {
         let (n, d) = frame.delay().numer_denom_ms();
-        dbg!(frame.delay());
 
         let delay = Duration::from_millis(if n == 0 || d == 0 {
           100
@@ -542,6 +571,18 @@ impl TwitchEventNode {
   #[signal]
   fn poll_end(poll_end: GdPollEndContainer);
 
+  #[signal]
+  fn prediction_begin(begin: GdPredictionBeginContainer);
+
+  #[signal]
+  fn prediction_progress(progress: GdPredictionProgressContainer);
+
+  #[signal]
+  fn prediction_lock(lock: GdPredictionLockContainer);
+
+  #[signal]
+  fn prediction_end(end: GdPredictionEndContainer);
+
   #[func]
   pub fn get_chatters(&mut self) -> Gd<GGetChatters> {
     Gd::from_object(GGetChatters::from(
@@ -562,7 +603,7 @@ impl TwitchEventNode {
       let new_broadcaster_id = new_broadcaster_id.get_text();
       let new_redirect_url = new_url.get_text();
 
-      let mut file = fs::File::create(".example.env").unwrap();
+      let mut file = fs::File::create(format!(".{}.env", self.env_file_name)).unwrap();
 
       let secrets = format!(
         "TWITCH_CLIENT_ID = \"{}\"\
@@ -750,7 +791,10 @@ impl TwitchEventNode {
 
   #[func]
   fn start_twitchevents(&mut self) {
-    let keys = match TwitchKeys::from_secrets_env() {
+    let keys = match TwitchKeys::from_secrets_env(vec![format!(
+      ".{}.env",
+      self.env_file_name.to_string()
+    )]) {
       Ok(keys) => keys,
       Err(_) => {
         self.create_popup(None, None, None);
@@ -926,6 +970,7 @@ impl INode for TwitchEventNode {
       permission_ban_timeout_user: false,
       permission_delete_message: false,
       permission_read_chatters: false,
+      env_file_name: "secrets".to_godot(),
       client_id_field: None,
       client_secret_field: None,
       broadcaster_id_field: None,
@@ -1054,6 +1099,42 @@ impl INode for TwitchEventNode {
                 "poll_end",
                 &[GdPollEndContainer {
                   data: Gd::from_object(GPollEnd::from(end)),
+                }
+                .to_variant()],
+              );
+            }
+            TwitchEvent::PredictionBegin(begin_data) => {
+              self.base_mut().emit_signal(
+                "prediction_begin",
+                &[GdPredictionBeginContainer {
+                  data: Gd::from_object(GPredictionBegin::from(begin_data)),
+                }
+                .to_variant()],
+              );
+            }
+            TwitchEvent::PredictionProgress(progress_data) => {
+              self.base_mut().emit_signal(
+                "prediction_progress",
+                &[GdPredictionProgressContainer {
+                  data: Gd::from_object(GPredictionProgress::from(progress_data)),
+                }
+                .to_variant()],
+              );
+            }
+            TwitchEvent::PredictionLock(lock_data) => {
+              self.base_mut().emit_signal(
+                "prediction_lock",
+                &[GdPredictionLockContainer {
+                  data: Gd::from_object(GPredictionLock::from(lock_data)),
+                }
+                .to_variant()],
+              );
+            }
+            TwitchEvent::PredictionEnd(end_data) => {
+              self.base_mut().emit_signal(
+                "prediction_end",
+                &[GdPredictionEndContainer {
+                  data: Gd::from_object(GPredictionEnd::from(end_data)),
                 }
                 .to_variant()],
               );
