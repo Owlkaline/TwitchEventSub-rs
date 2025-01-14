@@ -245,6 +245,46 @@ impl TwitchApi {
     })
   }
 
+  // OIDC Implicit
+  pub fn generate_bot_access_token<S: Into<String>, T: Into<String>>(
+    client_id: S,
+    redirect_url: T,
+    scopes: &Vec<Subscription>,
+    is_local: bool,
+  ) -> Result<String, EventSubError> {
+    let redirect_url = redirect_url.into();
+
+    let scope = &scopes
+      .iter()
+      .map(|s| s.required_scope())
+      .filter(|s| !s.is_empty())
+      .collect::<Vec<String>>()
+      .join("+");
+
+    let get_authorisation_token_request = format!(
+      "{}authorize?response_type=token&client_id={}&redirect_uri={}&scope={}&force_verify=false",
+      TWITCH_AUTHORISE_URL,
+      client_id.into(),
+      redirect_url.to_owned(),
+      scope
+    );
+
+    match TwitchEventSubApi::open_browser(get_authorisation_token_request, redirect_url, is_local) {
+      Ok(http_response) => {
+        if http_response.contains("error") {
+          Err(EventSubError::UnhandledError(format!("{}", http_response)))
+        } else {
+          dbg!(&http_response);
+          let auth_code = http_response.split('&').collect::<Vec<_>>()[0]
+            .split('=')
+            .collect::<Vec<_>>()[1];
+          Ok(auth_code.to_string())
+        }
+      }
+      e => e,
+    }
+  }
+
   pub fn delete_message<
     U: Into<String>,
     S: Into<String>,

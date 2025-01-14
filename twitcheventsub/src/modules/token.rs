@@ -97,6 +97,7 @@ pub struct TwitchKeys {
 
   pub broadcaster_account_id: String,
   pub sender_account_id: Option<String>,
+  pub sender_access_token: Option<String>,
   pub token_user_id: String,
 }
 
@@ -110,6 +111,7 @@ impl Default for TwitchKeys {
       client_secret: "".to_owned(),
       broadcaster_account_id: "".to_owned(),
       sender_account_id: None,
+      sender_access_token: None,
       token_user_id: "".to_owned(),
     }
   }
@@ -126,9 +128,13 @@ impl TwitchKeys {
     }
   }
 
-  pub fn from_secrets_env() -> Result<TwitchKeys, TwitchKeysError> {
+  pub fn from_secrets_env(locations: Vec<String>) -> Result<TwitchKeys, TwitchKeysError> {
     // TODO: Make customisable location
-    simple_env_load::load_env_from([".example.env", ".secrets.env"]);
+    if locations.is_empty() {
+      simple_env_load::load_env_from(vec![".secrets.env", ".example.env"]);
+    } else {
+      simple_env_load::load_env_from(locations);
+    }
 
     fn get(key: &str) -> Result<String, String> {
       std::env::var(key).map_err(|_| format!("please set {key} in .example.env"))
@@ -174,6 +180,7 @@ impl TwitchKeys {
       client_secret,
       broadcaster_account_id: broadcaster_id.to_owned(),
       sender_account_id: Some(bot_account_id),
+      sender_access_token: None,
       token_user_id: broadcaster_id,
     })
   }

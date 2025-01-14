@@ -332,6 +332,20 @@ impl TwitchEventSubApiBuilder {
       }
     }
 
+    // All main account tokens are valid and correct
+    // Get bot account token now if set
+    //if let Some(ref bot_id) = self.twitch_keys.sender_account_id {
+    //  if bot_id != &self.twitch_keys.broadcaster_account_id {
+    //    // Generate access token from OIDC implicit grant flow
+    //    dbg!(TwitchApi::generate_bot_access_token(
+    //      self.twitch_keys.client_id.to_owned(),
+    //      self.redirect_url.unwrap().to_owned(),
+    //      &self.subscriptions,
+    //      self.bot_is_local,
+    //    ));
+    //  }
+    //}
+
     if save_new_tokens {
       if let Some((token_file, refresh_file)) = self.auto_save_load_created_tokens {
         #[cfg(feature = "logging")]

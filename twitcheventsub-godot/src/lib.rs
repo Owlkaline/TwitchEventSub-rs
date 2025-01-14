@@ -22,6 +22,7 @@ use godot::{
 };
 use image::{EncodableLayout, ImageDecoder};
 use log::LevelFilter;
+use modules::banned::GUserBanned;
 use twitcheventsub::*;
 
 mod modules;
@@ -119,6 +120,8 @@ struct TwitchEventNode {
   channel_message_deleted: bool,
   #[export]
   channel_ad_break_begin: bool,
+  #[export]
+  channel_user_banned: bool,
   #[export]
   permission_ban_timeout_user: bool,
   #[export]
@@ -260,6 +263,13 @@ pub struct GdPredictionEndContainer {
 #[class(init)]
 pub struct GdMessageDeletedContainer {
   pub data: Gd<GMessageDeleted>,
+}
+
+#[derive(GodotClass, Debug, GodotConvert)]
+#[godot(transparent)]
+#[class(init)]
+pub struct GdUserBannedContainer {
+  pub data: Gd<GUserBanned>,
 }
 
 #[godot_api]
@@ -583,6 +593,9 @@ impl TwitchEventNode {
   #[signal]
   fn prediction_end(end: GdPredictionEndContainer);
 
+  #[signal]
+  fn user_banned(ban: GdUserBannedContainer);
+
   #[func]
   pub fn get_chatters(&mut self) -> Gd<GGetChatters> {
     Gd::from_object(GGetChatters::from(
@@ -896,6 +909,9 @@ impl TwitchEventNode {
     if self.channel_chat_message {
       twitch = twitch.add_subscription(Subscription::ChatMessage);
     }
+    if self.channel_user_banned {
+      twitch = twitch.add_subscription(Subscription::ChannelUserBanned);
+    }
     if self.permission_ban_timeout_user {
       twitch = twitch.add_subscription(Subscription::PermissionBanTimeoutUser);
     }
@@ -967,6 +983,7 @@ impl INode for TwitchEventNode {
       channel_shoutout_received: false,
       channel_ad_break_begin: true,
       channel_chat_message: true,
+      channel_user_banned: false,
       permission_ban_timeout_user: false,
       permission_delete_message: false,
       permission_read_chatters: false,
@@ -1144,6 +1161,15 @@ impl INode for TwitchEventNode {
                 "message_deleted",
                 &[GdMessageDeletedContainer {
                   data: Gd::from_object(GMessageDeleted::from(message_deleted)),
+                }
+                .to_variant()],
+              );
+            }
+            TwitchEvent::UserBanned(ban_data) => {
+              self.base_mut().emit_signal(
+                "user_banned",
+                &[GdUserBannedContainer {
+                  data: Gd::from_object(GUserBanned::from(ban_data)),
                 }
                 .to_variant()],
               );

@@ -258,7 +258,7 @@ pub fn events(
             is_reconnecting = true;
             let _ = client.send(NetworkMessage::Close(None));
             let (new_client, _) = connect(&url).expect(
-              "Failed to reconnect to new url after recieving reocnnect message from twitch.",
+              "Failed to reconnect to new url after recieving reconnect message from twitch.",
             );
             client = new_client;
           }

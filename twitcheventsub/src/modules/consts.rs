@@ -6,6 +6,7 @@ pub const SEND_MESSAGE_URL: &str = "https://api.twitch.tv/helix/chat/messages";
 pub const SEND_ANNOUNCEMENT_URL: &str = "https://api.twitch.tv/helix/chat/announcements";
 pub const SEND_SHOUTOUT_URL: &str = "https://api.twitch.tv/helix/chat/shoutouts";
 pub const TWITCH_AUTHORISE_URL: &str = "https://id.twitch.tv/oauth2/";
+pub const TWITCH_BOT_AUTHORISE_URL: &str = "https://id.twitch.tv/oauth2/authorize?";
 pub const TWITCH_TOKEN_URL: &str = "https://id.twitch.tv/oauth2/token";
 pub const TWITCH_BAN_URL: &str = "https://api.twitch.tv/helix/moderation/bans";
 pub const TWITCH_DELETE_MESSAGE_URL: &str = "https://api.twitch.tv/helix/moderation/chat";
