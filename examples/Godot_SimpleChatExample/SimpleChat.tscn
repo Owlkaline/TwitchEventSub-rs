@@ -1,0 +1,51 @@
+[gd_scene load_steps=2 format=3 uid="uid://cyyhwe7qi0ikw"]
+
+[ext_resource type="Script" path="res://chat.gd" id="1_gu7eb"]
+
+[node name="SimpleChat" type="Node2D"]
+position = Vector2(56, 0)
+
+[node name="ChatContainer" type="AspectRatioContainer" parent="."]
+show_behind_parent = true
+offset_left = -57.0
+offset_top = 4.0
+offset_right = 522.0
+offset_bottom = 580.0
+stretch_mode = 1
+
+[node name="Chat" type="Panel" parent="ChatContainer"]
+show_behind_parent = true
+layout_mode = 2
+script = ExtResource("1_gu7eb")
+
+[node name="ChatScrollContainer" type="ScrollContainer" parent="ChatContainer/Chat"]
+clip_contents = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+follow_focus = true
+horizontal_scroll_mode = 0
+
+[node name="Messages" type="VBoxContainer" parent="ChatContainer/Chat/ChatScrollContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="TwitchEventNode" type="TwitchEventNode" parent="."]
+channel_follow = false
+channel_raid = false
+channel_new_subscription = false
+channel_gift_subscription = false
+channel_resubscription = false
+channel_cheer = false
+channel_points_custom_reward_redeem = false
+channel_points_auto_reward_redeem = false
+channel_ad_break_begin = false
+unique_name_in_owner = true
+
+[connection signal="chat_message" from="TwitchEventNode" to="ChatContainer/Chat" method="_on_twitch_event_node_chat_message"]
+[connection signal="custom_point_reward_redeem" from="TwitchEventNode" to="ChatContainer/Chat" method="_on_twitch_event_node_custom_point_reward_redeem"]

@@ -1,0 +1,16 @@
+[00:00:00.358] (7233d86a6b40) INFO   Found user access token!
+[00:00:00.358] (7233d86a6b40) INFO   Found refresh token!
+[00:00:00.358] (7233d86a6b40) INFO   Running curl command with:
+[00:00:00.358] (7233d86a6b40) INFO       url: https://id.twitch.tv/oauth2/validate
+[00:00:01.128] (7233d86a6b40) INFO   Running curl command with:
+[00:00:01.128] (7233d86a6b40) INFO       url: https://api.betterttv.net/3/cached/users/twitch/122297321
+[00:00:01.218] (7233d86a6b40) INFO   Running curl command with:
+[00:00:01.218] (7233d86a6b40) INFO       url: https://api.betterttv.net/3/cached/users/twitch/122297321
+[00:00:01.309] (7233d86a6b40) INFO   Starting websocket client.
+[00:00:01.650] (7233d86a6b40) INFO   Running curl command with:
+[00:00:01.650] (7233d86a6b40) INFO       url: https://api.twitch.tv/helix/users
+[00:00:01.654] (7233967fc6c0) INFO   EventSub: ping recieved
+[00:00:01.654] (7233967fc6c0) INFO   EventSub: Welcome message!
+[00:00:01.654] (7233967fc6c0) INFO   EventSub: Subscribing to events!
+[00:00:01.654] (7233967fc6c0) INFO   Running curl command with:
+[00:00:01.655] (7233967fc6c0) INFO       url: https://api.twitch.tv/helix/eventsub/subscriptions
