@@ -112,6 +112,14 @@ cargo build --release
 
 If you are recieving this error, you havve most likely forgotten to include the http:// prefix of your app redirect_url, as it has to match EXACTLY with what you have put as the OAuth Redirect URLs in the Twitch Console of your App.
 
+## Donations
+
+### Please don't donate unless you truely have the money to do so.
+### If you would like to support me to allow me to continue expanding this library and continue streaming you can donate any amount you feel comfortable with via kofi.
+### thanks~
+
+[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/T6T1S1CMK)
+
 ## License
 
 The `TwitchEventSub-rs` crate is licensed under the MIT license, see [`LICENSE`](LICENSE) for more
