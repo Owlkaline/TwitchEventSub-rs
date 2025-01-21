@@ -6,11 +6,15 @@ use std::time::Duration;
 
 use godot::classes::control::FocusMode;
 use godot::classes::link_button::UnderlineMode;
+use godot::classes::tween::EaseType;
+use godot::classes::tween::TransitionType;
 use godot::classes::window::WindowInitialPosition;
 use godot::classes::AspectRatioContainer;
 use godot::classes::Button;
 use godot::classes::LinkButton;
+use godot::classes::Panel;
 use godot::classes::TextureRect;
+use godot::classes::Tween;
 use godot::classes::VBoxContainer;
 use godot::classes::{AnimatedTexture, ConfirmationDialog, GridContainer, Label, LineEdit};
 use godot::init::EditorRunBehavior;
@@ -62,6 +66,8 @@ unsafe impl ExtensionLibrary for TwitchApi {
 struct TwitchEventNode {
   #[export]
   start_onready: bool,
+  #[export]
+  show_connected_notification: bool,
   #[export]
   redirect_url: GString,
   #[export]
@@ -635,6 +641,11 @@ impl TwitchEventNode {
       let new_broadcaster_id = new_broadcaster_id.get_text();
       let new_redirect_url = new_url.get_text();
 
+      if new_client_id.is_empty() && new_client_secret.is_empty() && new_broadcaster_id.is_empty() {
+        self.create_popup(None, None, None);
+        return;
+      }
+
       let mut file = fs::File::create(format!(".{}.env", self.env_file_name)).unwrap();
 
       let secrets = format!(
@@ -665,6 +676,9 @@ impl TwitchEventNode {
     possible_client_secret: Option<String>,
     possible_broadcaster_id: Option<String>,
   ) {
+    let _ = fs::remove_file(".user_token.env");
+    let _ = fs::remove_file(".refresh_token.env");
+
     let mut vbox = VBoxContainer::new_alloc();
 
     let mut confirmation = ConfirmationDialog::new_alloc();
@@ -828,11 +842,41 @@ impl TwitchEventNode {
       self.env_file_name.to_string()
     )]) {
       Ok(keys) => keys,
-      Err(_) => {
-        self.create_popup(None, None, None);
-        return;
-      }
+      Err(_) => match TwitchKeys::from_secrets_env(vec![String::from(".example.env")]) {
+        Ok(keys) => keys,
+        Err(_) => {
+          self.create_popup(None, None, None);
+          return;
+        }
+      },
     };
+
+    if keys.client_id.is_empty() {
+      self.create_popup(
+        Some(String::from("No Id Set")),
+        Some(keys.client_secret),
+        Some(keys.broadcaster_account_id),
+      );
+      return;
+    }
+
+    if keys.client_secret.is_empty() {
+      self.create_popup(
+        Some(keys.client_id),
+        Some(String::new()),
+        Some(keys.broadcaster_account_id),
+      );
+      return;
+    }
+
+    if keys.client_secret.is_empty() {
+      self.create_popup(
+        Some(keys.client_id),
+        Some(keys.client_secret),
+        Some(String::from("No Broadcaster Set")),
+      );
+      return;
+    }
 
     let mut twitch = TwitchEventSubApi::builder(keys.clone())
       .set_redirect_url(self.redirect_url.to_string())
@@ -972,6 +1016,7 @@ impl INode for TwitchEventNode {
     Self {
       twitch: None,
       start_onready: true,
+      show_connected_notification: true,
       redirect_url: "http://localhost:3000".to_godot(),
       channel_user_update: false,
       channel_follow: true,
@@ -1006,7 +1051,7 @@ impl INode for TwitchEventNode {
       permission_ban_timeout_user: false,
       permission_delete_message: false,
       permission_read_chatters: false,
-      env_file_name: "example".to_godot(),
+      env_file_name: "secrets".to_godot(),
       client_id_field: None,
       client_secret_field: None,
       broadcaster_id_field: None,
@@ -1196,7 +1241,43 @@ impl INode for TwitchEventNode {
             _ => {}
           },
           ResponseType::Ready => {
-            //godot_print!("Twitch is ready!");
+            if self.show_connected_notification {
+              let r = 1.0;
+              let g = 1.0;
+              let b = 1.0;
+              let coloured = Color::from_rgba(r, g, b, 1.0);
+              let uncoloured = Color::from_rgba(r, g, b, 0.0);
+
+              let mut panel = Panel::new_alloc();
+              panel.set_size(Vector2::new(146.0, 31.0));
+              panel.set_position(Vector2::new(6.0, 9.0));
+              panel.add_theme_color_override("grey", Color::from_rgb(0.8, 0.8, 0.8));
+
+              let mut label = Label::new_alloc();
+              label.set_text("Twitch Connected!");
+              label.set_size(Vector2::new(143.0, 23.0));
+              label.set_position(Vector2::new(1.0, 3.0));
+
+              panel.add_child(&label);
+
+              self.base_mut().add_child(&panel);
+              if let Some(mut tween) = self.base_mut().create_tween() {
+                tween.tween_property(&panel, "modulate", &uncoloured.to_variant(), 0.0);
+
+                tween.set_ease(EaseType::IN);
+                tween.set_trans(TransitionType::QUINT);
+
+                tween.tween_property(&panel, "modulate", &coloured.to_variant(), 0.6);
+
+                tween.tween_interval(2.0);
+
+                tween.set_ease(EaseType::OUT);
+                tween.set_trans(TransitionType::QUINT);
+                tween.tween_property(&panel, "modulate", &uncoloured.to_variant(), 3.0);
+                tween.tween_callback(&panel.callable("queue_free"));
+                tween.play();
+              }
+            }
           }
           ResponseType::Error(error) => match error {
             EventSubError::InvalidOauthToken(_exact_error) => {
