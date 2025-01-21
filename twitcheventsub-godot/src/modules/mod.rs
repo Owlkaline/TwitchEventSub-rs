@@ -1,4 +1,5 @@
 pub mod adbreak;
+pub mod badges;
 pub mod banned;
 pub mod cheer;
 pub mod emote;

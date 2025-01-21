@@ -4,7 +4,7 @@ use twitcheventsub::*;
 
 use crate::modules::{cheer::GCheerMote, emote::GEmote, GUser};
 
-#[derive(GodotClass, Debug)]
+#[derive(GodotClass, Debug, Clone)]
 #[class(init)]
 pub struct GBadge {
   #[var]
@@ -122,6 +122,16 @@ impl From<Badge> for GBadge {
       set_id: badge.set_id.to_owned().into(),
       id: badge.id.to_owned().into(),
       info: badge.info.to_owned().into(),
+    }
+  }
+}
+
+impl Into<Badge> for GBadge {
+  fn into(self) -> Badge {
+    Badge {
+      set_id: self.set_id.into(),
+      id: self.id.into(),
+      info: self.info.into(),
     }
   }
 }

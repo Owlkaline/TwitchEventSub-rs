@@ -21,9 +21,10 @@ func _on_twitch_event_node_chat_message(message_data: GMessageData) -> void:
 	label.add_text("%02d:%02d " % [time["hour"], time["minute"]])
 	label.pop()
 	label.push_font_size(14)
-	var badges : Array[Texture2D]
-	#for badge in senderdata.tags["badges"].split(",", false):
-	#	label.add_image(await(iconloader.get_badge(badge, senderdata.tags["room-id"])), 0, 0, Color.WHITE, INLINE_ALIGNMENT_CENTER)
+#	
+	var badges: Array[GBadgeVersion] = %TwitchEventNode.get_badges_urls(message_data.badges);
+	for badge in badges:
+		label.add_image(%TwitchEventNode.get_static_texture_from_url(badge.images.url_1x));
 	label.push_bold()
 	
 	if (message_data.colour != ""):

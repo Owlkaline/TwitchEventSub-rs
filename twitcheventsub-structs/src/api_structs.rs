@@ -1,4 +1,5 @@
 use serde::{Deserialize as Deserialise, Serialize as Serialise};
+use serde_with::with_prefix;
 
 use crate::{prefix_broadcaster, User};
 
@@ -446,4 +447,28 @@ impl EmoteScale {
 pub struct EmoteUrl {
   pub url: String,
   pub animated: bool,
+}
+
+with_prefix!(pub prefix_image "image_");
+
+#[derive(Debug, Clone, Deserialise)]
+pub struct BadgeVersion {
+  pub id: String,
+  #[serde(flatten, with = "prefix_image")]
+  pub images: EmoteStaticImages,
+  pub title: String,
+  pub description: String,
+  pub click_action: Option<String>,
+  pub click_url: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialise)]
+pub struct BadgeData {
+  pub set_id: String,
+  pub versions: Vec<BadgeVersion>,
+}
+
+#[derive(Debug, Clone, Deserialise)]
+pub struct SetOfBadges {
+  pub data: Vec<BadgeData>,
 }

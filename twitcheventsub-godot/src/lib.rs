@@ -22,6 +22,8 @@ use godot::{
 };
 use image::{EncodableLayout, ImageDecoder};
 use log::LevelFilter;
+use modules::badges::GBadgeVersion;
+use modules::badges::GSetOfBadges;
 use modules::banned::GUserBanned;
 use twitcheventsub::*;
 
@@ -363,6 +365,23 @@ impl TwitchEventNode {
     let texture = ImageTexture::create_from_image(&image);
 
     return texture.unwrap();
+  }
+
+  #[func]
+  fn get_badges_urls(&mut self, badges: Array<Gd<GBadge>>) -> Array<Gd<GBadgeVersion>> {
+    let mut requested_badges = Array::new();
+
+    let badges: Vec<Badge> = badges
+      .iter_shared()
+      .map(|b| (*b.bind()).clone().into())
+      .collect::<Vec<_>>();
+    if let Some(twitch) = &mut self.twitch {
+      for badge in twitch.get_badge_urls_from_badges(badges) {
+        requested_badges.push(&Gd::from_object(GBadgeVersion::from(badge)));
+      }
+    }
+
+    requested_badges
   }
 
   #[func]
@@ -987,7 +1006,7 @@ impl INode for TwitchEventNode {
       permission_ban_timeout_user: false,
       permission_delete_message: false,
       permission_read_chatters: false,
-      env_file_name: "secrets".to_godot(),
+      env_file_name: "example".to_godot(),
       client_id_field: None,
       client_secret_field: None,
       broadcaster_id_field: None,
