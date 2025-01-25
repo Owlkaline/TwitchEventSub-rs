@@ -468,26 +468,26 @@ pub struct MessageDeletedData {
 #[cfg_attr(not(feature = "bevy"), derive(Serialise, Deserialise, Debug, Clone))]
 pub struct ShoutoutReceiveData {
   #[serde(flatten, with = "prefix_broadcaster")]
-  broadcaster: User,
+  pub broadcaster: User,
   #[serde(flatten, with = "prefix_from_broadcaster")]
-  from_broadcaster: User,
-  viewer_count: u32,
-  started_at: String,
+  pub from_broadcaster: User,
+  pub viewer_count: u32,
+  pub started_at: String,
 }
 
 #[cfg_attr(feature = "bevy", derive(Serialise, Deserialise, Debug, Clone, Event))]
 #[cfg_attr(not(feature = "bevy"), derive(Serialise, Deserialise, Debug, Clone))]
 pub struct ShoutoutCreateData {
   #[serde(flatten, with = "prefix_broadcaster")]
-  broadcaster: User,
+  pub broadcaster: User,
   #[serde(flatten, with = "prefix_moderator")]
-  moderator: User,
+  pub moderator: User,
   #[serde(flatten, with = "prefix_to_broadcaster")]
-  to_broadcaster: User,
-  started_at: String,
-  viewer_count: u32,
-  cooldown_ends_at: String,
-  target_cooldown_ends_at: String,
+  pub to_broadcaster: User,
+  pub started_at: String,
+  pub viewer_count: u32,
+  pub cooldown_ends_at: String,
+  pub target_cooldown_ends_at: String,
 }
 
 #[derive(Serialise, Deserialise, Clone, Debug)]
