@@ -26,11 +26,14 @@ use super::irc_bot::IRCChat;
 
 #[cfg(feature = "only_raw_responses")]
 pub fn events(
-  client: WebSocket<MaybeTlsStream<TcpStream>>,
+  mut client: WebSocket<MaybeTlsStream<TcpStream>>,
   message_sender: SyncSender<ResponseType>,
   subscriptions: Vec<Subscription>,
   mut custom_subscriptions: Vec<String>,
   twitch_keys: TwitchKeys,
+  save_locations: Option<(String, String)>,
+  irc: Option<IRCChat>,
+  bttv: BTTV,
 ) {
   loop {
     let message = match client.read() {
