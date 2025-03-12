@@ -108,18 +108,20 @@ struct BttvEmote {
   #[serde(rename = "imageType")]
   _image_type: String,
   animated: bool,
+  #[serde(rename = "userId")]
+  _user_id: Option<String>,
   #[serde(rename = "user")]
-  _user: BttvUser,
+  _user: Option<BttvUser>,
 }
 
 #[derive(Deserialise, Debug, Clone)]
 struct BttvUser {
   #[serde(rename = "id")]
-  _id: Option<String>,
+  _id: String,
   #[serde(rename = "name")]
-  _name: Option<String>,
+  _name: String,
   #[serde(rename = "displayName")]
-  _display_name: Option<String>,
+  _display_name: String,
   #[serde(rename = "providerId")]
-  _provider_id: Option<String>,
+  _provider_id: String,
 }
