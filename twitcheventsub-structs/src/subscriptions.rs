@@ -67,6 +67,8 @@ pub enum Subscription {
   PermissionSendAnnouncements,
   PermissionIRCRead,
   PermissionIRCWrite,
+  StreamOnline,
+  StreamOffline,
   Custom((String, String, EventSubscription)),
 }
 
@@ -178,6 +180,8 @@ impl Subscription {
 
   fn details(&self) -> (String, String, String) {
     let details = match self {
+      Subscription::StreamOnline => ("stream.online", "", "1"),
+      Subscription::StreamOffline => ("stream.offline", "", "1"),
       Subscription::UserUpdate => ("user.update", "", "1"),
       Subscription::ChannelFollow => ("channel.follow", "moderator:read:followers", "2"),
       Subscription::ChannelRaid => ("channel.raid", "", "1"),
@@ -360,6 +364,8 @@ impl Subscription {
       | Subscription::ChannelUpdate
       | Subscription::ChannelUserBanned
       | Subscription::AdBreakBegin
+      | Subscription::StreamOnline
+      | Subscription::StreamOffline
       | Subscription::ChannelPointsCustomRewardRedeem => event_subscription.condition(condition),
       Subscription::Custom((_, _, event)) => event.to_owned().transport(Transport::new(session_id)),
 

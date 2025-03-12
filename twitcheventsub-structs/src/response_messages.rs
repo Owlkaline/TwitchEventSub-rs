@@ -264,6 +264,8 @@ pub enum TwitchEvent {
   ShoutoutReceive(ShoutoutReceiveData),
   ShoutoutCreate(ShoutoutCreateData),
   UserBanned(UserBannedData),
+  StreamOnline(StreamOnlineData),
+  StreamOffline(StreamOfflineData),
 }
 
 #[derive(Serialise, Deserialise, Debug, Clone)]

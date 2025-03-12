@@ -503,3 +503,19 @@ pub struct UserBannedData {
   pub ends_at: Option<String>,
   pub is_permanent: bool,
 }
+
+#[derive(Serialise, Deserialise, Clone, Debug)]
+pub struct StreamOnlineData {
+  pub id: String,
+  #[serde(flatten, with = "prefix_broadcaster")]
+  pub broadcaster: User,
+  #[serde(rename = "type")]
+  pub kind: String,
+  pub started_at: Option<String>,
+}
+
+#[derive(Serialise, Deserialise, Clone, Debug)]
+pub struct StreamOfflineData {
+  #[serde(flatten, with = "prefix_broadcaster")]
+  pub broadcaster: User,
+}
