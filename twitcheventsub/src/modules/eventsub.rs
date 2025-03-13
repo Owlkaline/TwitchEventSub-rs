@@ -277,7 +277,10 @@ pub fn events(
                   {
                     msg.returning_chatter = irc_message.returning_chatter;
                     msg.first_time_chatter = irc_message.first_time_chatter;
-                    msg.moderator = irc_message.moderator;
+                    msg.moderator = msg
+                      .badges
+                      .iter()
+                      .any(|badge| badge.set_id.contains("moderator"));
                     break;
                   }
                 }

@@ -45,31 +45,53 @@ impl From<String> for IRCMessage {
 
     let mut message = IRCMessage::default();
 
-    message.message = elements.last().unwrap().to_string();
+    if let Some(irc_message) = elements.last() {
+      message.message = irc_message.to_string();
+    }
+
     for element in elements {
       if element.contains("first-msg") {
-        message.first_time_chatter =
-          element.split("=").last().unwrap().parse::<u32>().unwrap() == 1;
+        if let Some(number_element) = element.split("=").last() {
+          if let Ok(first_time) = number_element.parse::<u32>() {
+            message.first_time_chatter = first_time == 1;
+          }
+        }
       }
 
       if element.contains("mod=") {
-        message.moderator = element.split("=").last().unwrap().parse::<u32>().unwrap() == 1;
+        if let Some(number_element) = element.split("=").last() {
+          if let Ok(moderator) = number_element.parse::<u32>() {
+            message.moderator = moderator == 1;
+          }
+        }
       }
 
       if element.contains("display-name") {
-        message.display_name = element.split("=").last().unwrap().to_owned();
+        if let Some(display_name) = element.split("=").last() {
+          message.display_name = display_name.to_owned();
+        }
       }
 
       if element.contains("returning-chatter") {
-        message.returning_chatter = element.split("=").last().unwrap().parse::<u32>().unwrap() == 1;
+        if let Some(number_element) = element.split("=").last() {
+          if let Ok(returning_chatter) = number_element.parse::<u32>() {
+            message.returning_chatter = returning_chatter == 1;
+          }
+        }
       }
 
       if element.contains("subscriber=") {
-        message.subscriber = element.split("=").last().unwrap().parse::<u32>().unwrap() == 1;
+        if let Some(number_element) = element.split("=").last() {
+          if let Ok(subscriber) = number_element.parse::<u32>() {
+            message.subscriber = subscriber == 1;
+          }
+        }
       }
 
       if element.contains("color") {
-        message.colour = element.split("=").last().unwrap().to_owned();
+        if let Some(colour) = element.split("=").last() {
+          message.colour = colour.to_owned();
+        }
       }
     }
 
