@@ -266,6 +266,10 @@ pub enum TwitchEvent {
   UserBanned(UserBannedData),
   StreamOnline(StreamOnlineData),
   StreamOffline(StreamOfflineData),
+  #[cfg(feature = "bevy")]
+  Ready,
+  #[cfg(feature = "bevy")]
+  Finished,
 }
 
 #[derive(Serialise, Deserialise, Debug, Clone)]

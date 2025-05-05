@@ -185,6 +185,7 @@ impl TwitchApi {
     redirect_url: T,
     scopes: &Vec<Subscription>,
     is_local: bool,
+    manual_input: bool,
   ) -> Result<String, EventSubError> {
     let redirect_url = redirect_url.into();
 
@@ -203,7 +204,12 @@ impl TwitchApi {
       scope
     );
 
-    match TwitchEventSubApi::open_browser(get_authorisation_code_request, redirect_url, is_local) {
+    match TwitchEventSubApi::open_browser(
+      get_authorisation_code_request,
+      redirect_url,
+      is_local,
+      manual_input,
+    ) {
       Ok(http_response) => {
         if http_response.contains("error") {
           Err(EventSubError::UnhandledError(format!("{}", http_response)))
@@ -224,6 +230,7 @@ impl TwitchApi {
     redirect_url: T,
     scopes: &Vec<Subscription>,
     is_local: bool,
+    manual_input: bool,
   ) -> Result<String, EventSubError> {
     let redirect_url = redirect_url.into();
 
@@ -242,15 +249,24 @@ impl TwitchApi {
       scope
     );
 
-    match TwitchEventSubApi::open_browser(get_authorisation_code_request, redirect_url, is_local) {
+    match TwitchEventSubApi::open_browser(
+      get_authorisation_code_request,
+      redirect_url,
+      is_local,
+      manual_input,
+    ) {
       Ok(http_response) => {
         if http_response.contains("error") {
           Err(EventSubError::UnhandledError(format!("{}", http_response)))
         } else {
-          let auth_code = http_response.split('&').collect::<Vec<_>>()[0]
-            .split('=')
-            .collect::<Vec<_>>()[1];
-          Ok(auth_code.to_string())
+          if manual_input {
+            Ok(http_response)
+          } else {
+            let auth_code = http_response.split('&').collect::<Vec<_>>()[0]
+              .split('=')
+              .collect::<Vec<_>>()[1];
+            Ok(auth_code.to_string())
+          }
         }
       }
       e => e,
@@ -262,6 +278,7 @@ impl TwitchApi {
     client_secret: T,
     redirect_url: V,
     is_local: bool,
+    manual_input: bool,
     subscriptions: &Vec<Subscription>,
   ) -> Result<Token, EventSubError> {
     let client_id = client_id.into();
@@ -281,6 +298,7 @@ impl TwitchApi {
       redirect_url.to_owned(),
       &subscriptions,
       is_local,
+      manual_input,
     )
     .and_then(|authorisation_code| {
       TwitchApi::get_user_token_from_authorisation_code(
@@ -298,6 +316,7 @@ impl TwitchApi {
     redirect_url: T,
     scopes: &Vec<Subscription>,
     is_local: bool,
+    manual_input: bool,
   ) -> Result<String, EventSubError> {
     let redirect_url = redirect_url.into();
 
@@ -316,7 +335,12 @@ impl TwitchApi {
       scope
     );
 
-    match TwitchEventSubApi::open_browser(get_authorisation_token_request, redirect_url, is_local) {
+    match TwitchEventSubApi::open_browser(
+      get_authorisation_token_request,
+      redirect_url,
+      is_local,
+      manual_input,
+    ) {
       Ok(http_response) => {
         if http_response.contains("error") {
           Err(EventSubError::UnhandledError(format!("{}", http_response)))

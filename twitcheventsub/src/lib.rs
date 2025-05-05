@@ -1,7 +1,7 @@
 //#![doc = include_str!("../../../../README.md")]
 
-use std::fs;
-use std::io::Write;
+use std::fs::{self, read};
+use std::io::{stdin, BufRead, Write};
 use std::iter;
 use std::sync::mpsc::{channel, Receiver as SyncReceiver};
 use std::thread::{self, JoinHandle};
@@ -57,6 +57,7 @@ pub struct TwitchEventSubApiBuilder {
   redirect_url: Option<String>,
 
   bot_is_local: bool,
+  manual_input: bool,
   generate_token_if_none: bool,
   generate_token_on_scope_error: bool,
   generate_access_token_on_expire: bool,
@@ -73,6 +74,7 @@ impl TwitchEventSubApiBuilder {
       redirect_url: None,
 
       bot_is_local: true,
+      manual_input: false,
       generate_token_if_none: false,
       generate_token_on_scope_error: false,
       generate_access_token_on_expire: false,
@@ -93,6 +95,11 @@ impl TwitchEventSubApiBuilder {
 
   pub fn is_run_remotely(mut self) -> TwitchEventSubApiBuilder {
     self.bot_is_local = false;
+    self
+  }
+
+  pub fn manual_input(mut self) -> TwitchEventSubApiBuilder {
+    self.manual_input = true;
     self
   }
 
@@ -253,6 +260,7 @@ impl TwitchEventSubApiBuilder {
                 self.twitch_keys.client_secret.to_owned(),
                 self.redirect_url.clone().unwrap(),
                 self.bot_is_local,
+                self.manual_input,
                 &self.subscriptions,
               ) {
                 Ok(user_token) => {
@@ -293,6 +301,7 @@ impl TwitchEventSubApiBuilder {
               self.twitch_keys.client_secret.to_owned(),
               self.redirect_url.clone().unwrap(),
               self.bot_is_local,
+              self.manual_input,
               &self.subscriptions,
             ) {
               Ok(user_token) => {
@@ -629,6 +638,7 @@ impl TwitchEventSubApi {
     browser_url: S,
     redirect_url: T,
     is_local: bool,
+    manual_input: bool,
   ) -> Result<String, EventSubError> {
     let browser_url = browser_url.into();
 
@@ -660,20 +670,32 @@ impl TwitchEventSubApi {
         .to_string();
     }
 
-    #[cfg(feature = "logging")]
-    info!("Starting local tcp listener for token generation");
-    let listener = TcpListener::bind(&redirect_url).expect("Failed to create tcp listener.");
-
-    // accept connections and process them serially
-    match listener.accept() {
-      Ok((mut stream, _b)) => {
-        let mut http_output = String::new();
-        stream
-          .read_to_string(&mut http_output)
-          .expect("Failed to read tcp stream.");
-        Ok(http_output)
+    if manual_input {
+      let stdin = stdin();
+      for line in stdin.lock().lines() {
+        let code = line.unwrap();
+        return Ok(code);
       }
-      Err(e) => Err(EventSubError::UnhandledError(e.to_string())),
+
+      Err(EventSubError::UnhandledError(
+        "twitch token code input valid.".to_string(),
+      ))
+    } else {
+      #[cfg(feature = "logging")]
+      info!("Starting local tcp listener for token generation");
+      let listener = TcpListener::bind(&redirect_url).expect("Failed to create tcp listener.");
+
+      // accept connections and process them serially
+      match listener.accept() {
+        Ok((mut stream, _b)) => {
+          let mut http_output = String::new();
+          stream
+            .read_to_string(&mut http_output)
+            .expect("Failed to read tcp stream.");
+          Ok(http_output)
+        }
+        Err(e) => Err(EventSubError::UnhandledError(e.to_string())),
+      }
     }
   }
 

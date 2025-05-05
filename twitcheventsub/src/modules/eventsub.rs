@@ -24,40 +24,55 @@ use crate::{
 
 use super::irc_bot::IRCChat;
 
-#[cfg(feature = "only_raw_responses")]
-pub fn events(
-  mut client: WebSocket<MaybeTlsStream<TcpStream>>,
-  message_sender: SyncSender<ResponseType>,
-  subscriptions: Vec<Subscription>,
-  mut custom_subscriptions: Vec<String>,
-  twitch_keys: TwitchKeys,
-  save_locations: Option<(String, String)>,
-  irc: Option<IRCChat>,
-  bttv: BTTV,
-) {
-  loop {
-    let message = match client.read() {
-      Ok(m) => m,
-      Err(Error::Io(e)) if e.kind() == ErrorKind::WouldBlock => {
-        continue;
-      }
-      Err(e) => {
-        error!("recv message error: {:?}", e);
-        let _ = client.send(NetworkMessage::Close(None));
-        let _ = message_sender.send(ResponseType::Close);
+//#[cfg(feature = "only_raw_responses")]
+//pub fn events(
+//  mut client: WebSocket<MaybeTlsStream<TcpStream>>,
+//  message_sender: SyncSender<ResponseType>,
+//  subscriptions: Vec<Subscription>,
+//  mut custom_subscriptions: Vec<String>,
+//  twitch_keys: TwitchKeys,
+//  save_locations: Option<(String, String)>,
+//  irc: Option<IRCChat>,
+//  bttv: BTTV,
+//) {
+//  loop {
+//    let message = match client.read() {
+//      Ok(m) => m,
+//      Err(Error::Io(e)) if e.kind() == ErrorKind::WouldBlock => {
+//        continue;
+//      }
+//      Err(Error::ConnectionClosed) | Err(Error::AlreadyClosed) => {
+//        #[cfg(feature = "logging")]
+//        error!("EventSub: Connected closed or already closed");
+//        let _ = client.send(NetworkMessage::Close(None));
+//        let _ = message_sender.send(ResponseType::Close);
+//        thread::sleep(Duration::from_secs(30));
+//        #[cfg(feature = "logging")]
+//        warn!("EventSub: Attempting reconnect.");
+//        let (new_client, _) = connect(CONNECTION_EVENTS)
+//          .expect("Failed to reconnect to new url after receiving reconnect message from twitch");
+//        client = new_client;
+//        last_message = Instant::now();
+//        is_reconnecting = false;
+//        continue;
+//      }
+//      Err(e) => {
+//        error!("recv message error: {:?}", e);
+//        let _ = client.send(NetworkMessage::Close(None));
+//        let _ = message_sender.send(ResponseType::Close);
+//
+//        return;
+//      }
+//    };
+//
+//    if let NetworkMessage::Text(msg) = message.clone() {
+//      let _ = message_sender.send(ResponseType::RawResponse(msg));
+//      continue;
+//    }
+//  }
+//}
 
-        return;
-      }
-    };
-
-    if let NetworkMessage::Text(msg) = message.clone() {
-      let _ = message_sender.send(ResponseType::RawResponse(msg));
-      continue;
-    }
-  }
-}
-
-#[cfg(not(feature = "only_raw_responses"))]
+//#[cfg(not(feature = "only_raw_responses"))]
 pub fn events(
   mut client: WebSocket<MaybeTlsStream<TcpStream>>, //Client<TlsStream<TcpStream>>>>,
   message_sender: SyncSender<ResponseType>,
@@ -160,12 +175,17 @@ pub fn events(
 
     match message {
       NetworkMessage::Text(msg) => {
+        #[cfg(feature = "only_raw_responses")]
+        {
+          let _ = message_sender.send(ResponseType::RawResponse(msg.clone()));
+        }
+
         let message = serde_json::from_str(&msg);
 
         if let Err(e) = message {
           #[cfg(feature = "logging")]
           error!("EventSub: Unimplemented twitch response: {}\n{}", msg, e);
-          let _ = message_sender.send(ResponseType::RawResponse(msg));
+          let _ = message_sender.send(ResponseType::RawResponse(msg.clone()));
           continue;
         }
 
@@ -234,6 +254,8 @@ pub fn events(
               }
 
               twitch_keys = clone_twitch_keys;
+              #[cfg(feature = "logging")]
+              info!("Twitch Event loop is ready!");
               message_sender
                 .send(ResponseType::Ready)
                 .expect("Failed to send ready back to main thread.");
@@ -266,6 +288,9 @@ pub fn events(
             client = new_client;
           }
           EventMessageType::Notification => {
+            #[cfg(feature = "only_raw_responses")]
+            continue;
+
             last_message = Instant::now();
             let mut message = message.payload.unwrap().event.unwrap();
 

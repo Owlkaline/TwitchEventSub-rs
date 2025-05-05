@@ -17,4 +17,4 @@ bevy = ["dep:bevy_ecs"]
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
 serde_with.workspace = true
-bevy_ecs = { version = "0.14.2", optional = true }
+bevy_ecs = { version = "0.16", optional = true }
