@@ -21,3 +21,4 @@ pub const GET_GLOBAL_BADGES_URL: &str = "https://api.twitch.tv/helix/chat/badges
 pub const GET_EMOTE_SETS_URL: &str = "https://api.twitch.tv/helix/chat/emotes/set";
 //pub const GET_USER_EMOTES_URL: &str = " https://api.twitch.tv/helix/chat/emotes/user";
 pub const CUSTOM_REWARDS_URL: &str = "https://api.twitch.tv/helix/channel_points/custom_rewards";
+pub const GET_CLIPS_URL: &str = "https://api.twitch.tv/helix/clips";

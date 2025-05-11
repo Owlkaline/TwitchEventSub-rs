@@ -1014,6 +1014,26 @@ impl TwitchEventSubApi {
     .and_then(|_| Ok(()))
   }
 
+  pub fn get_clips_for_broadcaster<T: Into<String>>(
+    &mut self,
+    broadcaster_id: T,
+  ) -> Result<Clips, EventSubError> {
+    let access_token = self
+      .twitch_keys
+      .access_token
+      .clone()
+      .expect("Access token not set")
+      .get_token();
+    let client_id = self.twitch_keys.client_id.to_string();
+
+    TwitchEventSubApi::regen_token_if_401(
+      TwitchApi::get_clips(access_token, client_id, broadcaster_id),
+      &mut self.twitch_keys,
+      &self.save_locations,
+    )
+    .and_then(|x| serde_json::from_str(&x).map_err(|e| EventSubError::ParseError(e.to_string())))
+  }
+
   pub fn api_user_id(&self) -> String {
     self
       .twitch_keys
