@@ -177,15 +177,15 @@ pub fn events(
       NetworkMessage::Text(msg) => {
         #[cfg(feature = "only_raw_responses")]
         {
-          let _ = message_sender.send(ResponseType::RawResponse(msg.clone()));
+          let _ = message_sender.send(ResponseType::RawResponse(msg.to_string()));
         }
 
-        let message = serde_json::from_str(&msg);
+        let message = serde_json::from_str(msg.as_str());
 
         if let Err(e) = message {
           #[cfg(feature = "logging")]
           error!("EventSub: Unimplemented twitch response: {}\n{}", msg, e);
-          let _ = message_sender.send(ResponseType::RawResponse(msg.clone()));
+          let _ = message_sender.send(ResponseType::RawResponse(msg.to_string()));
           continue;
         }
 
@@ -358,7 +358,7 @@ pub fn events(
             warn!("EventSub: Unknown message type: {}", msg);
             last_message = Instant::now();
             //if !custom_subscriptions.is_empty() {
-            let _ = message_sender.send(ResponseType::RawResponse(msg));
+            let _ = message_sender.send(ResponseType::RawResponse(msg.to_string()));
             //}
           }
         }
@@ -376,7 +376,7 @@ pub fn events(
       NetworkMessage::Ping(_) => {
         #[cfg(feature = "logging")]
         info!("EventSub: ping recieved");
-        match client.send(NetworkMessage::Pong(Vec::new())) {
+        match client.send(NetworkMessage::Pong(Vec::new().into())) {
           // Send a pong in response
           Ok(()) => {}
           Err(e) => {

@@ -1,6 +1,6 @@
 //#![doc = include_str!("../../../../README.md")]
 
-use std::fs::{self, read};
+use std::fs;
 use std::io::{stdin, BufRead, Write};
 use std::iter;
 use std::sync::mpsc::{channel, Receiver as SyncReceiver};
@@ -16,8 +16,8 @@ use modules::irc_bot::IRCChat;
 use open;
 
 use std::io::Read;
+use tungstenite::connect;
 use tungstenite::Error;
-use tungstenite::{connect, http};
 
 use serde_json;
 
@@ -536,11 +536,11 @@ impl TwitchEventSubApi {
     redirect_url: T,
     is_local: bool,
   ) -> Result<String, EventSubError> {
-    let mut minimal_html = "HTTP/1.1 404
+    let minimal_html = "HTTP/1.1 404
     Content-Length: 0
 ";
 
-    let mut js_disgust = "
+    let js_disgust = "
     <!DOCTYPE html><html><head></head><body><script>
     var url_parts = String(window.location).split(\"#\");
     console.log(url_parts);
@@ -596,7 +596,7 @@ impl TwitchEventSubApi {
     info!("Starting local tcp listener for token generation");
     let listener = TcpListener::bind(&redirect_url).expect("Failed to create tcp listener.");
 
-    let mut redirected = 0;
+    let redirected = 0;
 
     // accept connections and process them serially
     match listener.accept() {
