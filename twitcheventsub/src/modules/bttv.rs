@@ -17,6 +17,7 @@ pub const BTTV_EMOTE_URL: &str = "https://cdn.betterttv.net/emote/{id}/{scale}";
 
 //825175324
 
+#[allow(clippy::upper_case_acronyms)]
 #[derive(Clone, Debug)]
 pub struct BTTV {
   pub response: Option<BttvUserResponse>,
@@ -71,7 +72,7 @@ impl BTTV {
           .collect::<Vec<_>>(),
       );
 
-      for emote in emote {
+      if let Some(emote) = emote.into_iter().next() {
         return Some(EmoteUrl {
           url: BTTV_EMOTE_URL
             .replace("{id}", &emote.id)

@@ -1,3 +1,5 @@
+use core::fmt;
+
 use serde::{Deserialize as Deserialise, Serialize as Serialise};
 use serde_with::with_prefix;
 
@@ -388,34 +390,34 @@ pub struct Moderators {
   pub pagination: Pagination,
 }
 
-impl Into<EmoteData> for ChannelEmoteData {
-  fn into(self) -> EmoteData {
+impl From<ChannelEmoteData> for EmoteData {
+  fn from(emote: ChannelEmoteData) -> EmoteData {
     EmoteData {
-      id: self.id,
-      name: self.name,
-      images: self.images,
-      tier: Some(self.tier),
-      emote_type: Some(self.emote_type),
-      emote_set_id: Some(self.emote_set_id),
-      format: self.format,
-      scale: self.scale,
-      theme_mode: self.theme_mode,
+      id: emote.id,
+      name: emote.name,
+      images: emote.images,
+      tier: Some(emote.tier),
+      emote_type: Some(emote.emote_type),
+      emote_set_id: Some(emote.emote_set_id),
+      format: emote.format,
+      scale: emote.scale,
+      theme_mode: emote.theme_mode,
     }
   }
 }
 
-impl Into<EmoteData> for GlobalEmoteData {
-  fn into(self) -> EmoteData {
+impl From<GlobalEmoteData> for EmoteData {
+  fn from(emote: GlobalEmoteData) -> EmoteData {
     EmoteData {
-      id: self.id,
-      name: self.name,
-      images: self.images,
+      id: emote.id,
+      name: emote.name,
+      images: emote.images,
       tier: None,
       emote_type: None,
       emote_set_id: None,
-      format: self.format,
-      scale: self.scale,
-      theme_mode: self.theme_mode,
+      format: emote.format,
+      scale: emote.scale,
+      theme_mode: emote.theme_mode,
     }
   }
 }
@@ -438,14 +440,19 @@ impl EmoteScale {
       EmoteScale::Size3 => 2,
     }
   }
+}
 
-  pub fn to_string(&self) -> String {
-    match self {
-      EmoteScale::Size1 => "1x",
-      EmoteScale::Size2 => "2x",
-      EmoteScale::Size3 => "3x",
-    }
-    .to_string()
+impl fmt::Display for EmoteScale {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    write!(
+      f,
+      "{}",
+      match self {
+        EmoteScale::Size1 => "1x",
+        EmoteScale::Size2 => "2x",
+        EmoteScale::Size3 => "3x",
+      },
+    )
   }
 }
 

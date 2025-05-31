@@ -73,6 +73,7 @@ use super::irc_bot::IRCChat;
 //}
 
 //#[cfg(not(feature = "only_raw_responses"))]
+#[allow(clippy::too_many_arguments)]
 pub fn events(
   mut client: WebSocket<MaybeTlsStream<TcpStream>>, //Client<TlsStream<TcpStream>>>>,
   message_sender: SyncSender<ResponseType>,
@@ -145,12 +146,10 @@ pub fn events(
       }
     };
 
-    if let Some(irc_reciever) = &messages_from_irc {
-      loop {
-        match irc_reciever.recv_timeout(Duration::ZERO) {
-          Ok(IRCResponse::IRCMessage(msg)) => irc_messages.push((Instant::now(), msg)),
-          _ => break,
-        }
+    while let Some(irc_reciever) = &messages_from_irc {
+      match irc_reciever.recv_timeout(Duration::ZERO) {
+        Ok(IRCResponse::IRCMessage(msg)) => irc_messages.push((Instant::now(), msg)),
+        _ => break,
       }
     }
 
@@ -294,61 +293,58 @@ pub fn events(
             last_message = Instant::now();
             let mut message = message.payload.unwrap().event.unwrap();
 
-            match &mut message {
-              TwitchEvent::ChatMessage(ref mut msg) => {
-                for (_, irc_message) in irc_messages.iter() {
-                  if irc_message.display_name == msg.chatter.name
-                    && irc_message.message.contains(&msg.message.text)
-                  {
-                    msg.returning_chatter = irc_message.returning_chatter;
-                    msg.first_time_chatter = irc_message.first_time_chatter;
-                    msg.moderator = msg
-                      .badges
-                      .iter()
-                      .any(|badge| badge.set_id.contains("moderator"));
-                    break;
-                  }
+            if let TwitchEvent::ChatMessage(ref mut msg) = &mut message {
+              for (_, irc_message) in irc_messages.iter() {
+                if irc_message.display_name == msg.chatter.name
+                  && irc_message.message.contains(&msg.message.text)
+                {
+                  msg.returning_chatter = irc_message.returning_chatter;
+                  msg.first_time_chatter = irc_message.first_time_chatter;
+                  msg.moderator = msg
+                    .badges
+                    .iter()
+                    .any(|badge| badge.set_id.contains("moderator"));
+                  break;
                 }
-
-                let mut fragments: Vec<Fragments> = Vec::new();
-                for fragment in &mut msg.message.fragments {
-                  // Only check plain text for bttv emotes
-                  if fragment.kind == FragmentType::Text {
-                    let mut new_fragment: Fragments = fragment.clone();
-                    new_fragment.text = String::new();
-                    let text_particles = fragment.text.split(' ').collect::<Vec<_>>();
-
-                    for test_text in text_particles {
-                      if bttv.emote_names.contains(&test_text.to_lowercase()) {
-                        if !new_fragment.text.is_empty() {
-                          fragments.push(new_fragment);
-                        }
-
-                        new_fragment = fragment.clone();
-                        // is BTTV emote
-                        new_fragment.kind = FragmentType::BttvEmote;
-                        new_fragment.text = format!("{}", test_text.to_lowercase());
-
-                        fragments.push(new_fragment);
-
-                        new_fragment = fragment.clone();
-                        new_fragment.text = String::new();
-                      } else {
-                        new_fragment.text = format!("{}{} ", new_fragment.text, test_text);
-                      }
-                    }
-
-                    if !new_fragment.text.is_empty() {
-                      fragments.push(new_fragment);
-                    }
-                  } else {
-                    fragments.push(fragment.clone());
-                  }
-                }
-
-                msg.message.fragments = fragments;
               }
-              _ => {}
+
+              let mut fragments: Vec<Fragments> = Vec::new();
+              for fragment in &mut msg.message.fragments {
+                // Only check plain text for bttv emotes
+                if fragment.kind == FragmentType::Text {
+                  let mut new_fragment: Fragments = fragment.clone();
+                  new_fragment.text = String::new();
+                  let text_particles = fragment.text.split(' ').collect::<Vec<_>>();
+
+                  for test_text in text_particles {
+                    if bttv.emote_names.contains(&test_text.to_lowercase()) {
+                      if !new_fragment.text.is_empty() {
+                        fragments.push(new_fragment);
+                      }
+
+                      new_fragment = fragment.clone();
+                      // is BTTV emote
+                      new_fragment.kind = FragmentType::BttvEmote;
+                      new_fragment.text = test_text.to_lowercase().to_string();
+
+                      fragments.push(new_fragment);
+
+                      new_fragment = fragment.clone();
+                      new_fragment.text = String::new();
+                    } else {
+                      new_fragment.text = format!("{}{} ", new_fragment.text, test_text);
+                    }
+                  }
+
+                  if !new_fragment.text.is_empty() {
+                    fragments.push(new_fragment);
+                  }
+                } else {
+                  fragments.push(fragment.clone());
+                }
+              }
+
+              msg.message.fragments = fragments;
             }
 
             let _ = message_sender.send(ResponseType::Event(message));

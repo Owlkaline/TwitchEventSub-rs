@@ -123,10 +123,8 @@ impl IRCChat {
 
     let mut welcome_recieved = false;
     while !welcome_recieved {
-      if let Ok(message) = &irc_client.read() {
-        if let NetworkMessage::Text(text) = message {
-          welcome_recieved = text.as_str().contains("Welcome");
-        }
+      if let Ok(NetworkMessage::Text(text)) = &irc_client.read() {
+        welcome_recieved = text.as_str().contains("Welcome");
       }
     }
 
@@ -165,7 +163,7 @@ impl IRCChat {
             let _ = self.client.send(NetworkMessage::Text("PONG".into()));
             None
           } else {
-            return Some(IRCMessage::from(text.as_str()));
+            Some(IRCMessage::from(text.as_str()))
           }
         }
         NetworkMessage::Ping(data) => {

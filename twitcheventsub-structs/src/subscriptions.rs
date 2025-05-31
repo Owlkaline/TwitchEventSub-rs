@@ -84,18 +84,18 @@ pub struct EventSubscription {
 
 impl Subscription {
   pub fn is_permission_subscription(&self) -> bool {
-    match self {
+    matches!(
+      self,
       Subscription::PermissionBanTimeoutUser
-      | Subscription::PermissionDeleteMessage
-      | Subscription::PermissionReadChatters
-      | Subscription::PermissionReadModerator
-      | Subscription::PermissionManageRewards
-      | Subscription::PermissionSendAnnouncements
-      | Subscription::PermissionIRCRead
-      | Subscription::PermissionIRCWrite
-      | Subscription::PermissionWriteToChat => true,
-      _ => false,
-    }
+        | Subscription::PermissionDeleteMessage
+        | Subscription::PermissionReadChatters
+        | Subscription::PermissionReadModerator
+        | Subscription::PermissionManageRewards
+        | Subscription::PermissionSendAnnouncements
+        | Subscription::PermissionIRCRead
+        | Subscription::PermissionIRCWrite
+        | Subscription::PermissionWriteToChat
+    )
   }
 
   from_string!(Subscription {

@@ -13,13 +13,10 @@ use crate::modules::consts::*;
 
 use modules::bttv::BTTV;
 use modules::irc_bot::IRCChat;
-use open;
 
 use std::io::Read;
 use tungstenite::connect;
 use tungstenite::Error;
-
-use serde_json;
 
 use std::net::TcpListener;
 
@@ -428,10 +425,7 @@ impl TwitchEventSubApi {
 
     #[cfg(feature = "logging")]
     info!("Starting websocket client.");
-    let (client, _) = match connect(CONNECTION_EVENTS) {
-      Ok(a) => a,
-      Err(e) => return Err(e),
-    };
+    let (client, _) = connect(CONNECTION_EVENTS)?;
 
     let receiver = client;
 
@@ -539,34 +533,32 @@ impl TwitchEventSubApi {
     let minimal_html = "HTTP/1.1 404
     Content-Length: 0
 ";
-
+    /*
     let js_disgust = "
     <!DOCTYPE html><html><head></head><body><script>
     var url_parts = String(window.location).split(\"#\");
     console.log(url_parts);
-							  if(url_parts.length > 1) {
-								  var redirect_url = url_parts[0] + \"?\" + url_parts[1];
-								  window.location = redirect_url;
-							  }
-						</script></body></html>";
+                if(url_parts.length > 1) {
+                  var redirect_url = url_parts[0] + \"?\" + url_parts[1];
+                  window.location = redirect_url;
+                }
+            </script></body></html>";
 
     let html = format!(
       "
       HTTP/1.1 200 OK
      Content-Type: text/html; charset=utf-8
-		Content-Length: {}
-		Connection: close
-		Cache-Control: max-age=0\n
+    Content-Length: {}
+    Connection: close
+    Cache-Control: max-age=0\n
       {}",
       js_disgust.len(),
       js_disgust
-    );
+    ); */
 
     let browser_url = browser_url.into();
 
-    if let Err(response) = TwitchHttpRequest::new(&browser_url).run() {
-      return Err(response);
-    }
+    TwitchHttpRequest::new(&browser_url).run()?;
 
     if is_local {
       if let Err(e) = open::that_detached(browser_url) {
@@ -596,7 +588,7 @@ impl TwitchEventSubApi {
     info!("Starting local tcp listener for token generation");
     let listener = TcpListener::bind(&redirect_url).expect("Failed to create tcp listener.");
 
-    let redirected = 0;
+    // let redirected = 0;
 
     // accept connections and process them serially
     match listener.accept() {
@@ -607,8 +599,8 @@ impl TwitchEventSubApi {
             .read_to_string(&mut http_output_b)
             .expect("Failed to read tcp stream.");
           dbg!(&http_output_b);
-          stream.write(minimal_html.as_bytes());
-          stream.flush();
+          let _ = stream.write(minimal_html.as_bytes());
+          let _ = stream.flush();
           //if redirected > 0 {
           //  let mut http_output_b = String::new();
           //  stream
@@ -628,9 +620,7 @@ impl TwitchEventSubApi {
           //}
         }
       }
-      Err(e) => {
-        return Err(EventSubError::UnhandledError(e.to_string()));
-      }
+      Err(e) => Err(EventSubError::UnhandledError(e.to_string())),
     }
   }
 
@@ -642,9 +632,7 @@ impl TwitchEventSubApi {
   ) -> Result<String, EventSubError> {
     let browser_url = browser_url.into();
 
-    if let Err(response) = TwitchHttpRequest::new(&browser_url).run() {
-      return Err(response);
-    }
+    TwitchHttpRequest::new(&browser_url).run()?;
 
     if is_local {
       if let Err(e) = open::that_detached(browser_url) {
@@ -672,7 +660,7 @@ impl TwitchEventSubApi {
 
     if manual_input {
       let stdin = stdin();
-      for line in stdin.lock().lines() {
+      if let Some(line) = stdin.lock().lines().next() {
         let code = line.unwrap();
         return Ok(code);
       }
@@ -1011,7 +999,7 @@ impl TwitchEventSubApi {
       &mut self.twitch_keys,
       &self.save_locations,
     )
-    .and_then(|_| Ok(()))
+    .map(|_| ())
   }
 
   pub fn get_clips_for_broadcaster<T: Into<String>>(
@@ -1048,11 +1036,7 @@ impl TwitchEventSubApi {
     ids: Vec<S>,
   ) -> Result<Users, EventSubError> {
     self.get_users(
-      ids
-        .into_iter()
-        .map(|a| a.into())
-        .collect::<Vec<String>>()
-        .into(),
+      ids.into_iter().map(|a| a.into()).collect::<Vec<String>>(),
       Vec::with_capacity(0),
     )
   }
@@ -1066,8 +1050,7 @@ impl TwitchEventSubApi {
       logins
         .into_iter()
         .map(|a| a.into())
-        .collect::<Vec<String>>()
-        .into(),
+        .collect::<Vec<String>>(),
     )
   }
 
@@ -1149,7 +1132,7 @@ impl TwitchEventSubApi {
     let client_id = self.twitch_keys.client_id.to_string();
 
     let broadcaster_id: String = broadcaster_id.into();
-    if let Err(_) = broadcaster_id.parse::<u32>() {
+    if broadcaster_id.parse::<u32>().is_err() {
       return Err(EventSubError::UnhandledError(
         "Broadcaster id must be numeric!".to_string(),
       ));
@@ -1197,7 +1180,7 @@ impl TwitchEventSubApi {
     let client_id = self.twitch_keys.client_id.to_string();
 
     let broadcaster_id: String = broadcaster_id.into();
-    if let Err(_) = broadcaster_id.parse::<u32>() {
+    if broadcaster_id.parse::<u32>().is_err() {
       return Err(EventSubError::UnhandledError(
         "Broadcaster id must be numeric!".to_string(),
       ));

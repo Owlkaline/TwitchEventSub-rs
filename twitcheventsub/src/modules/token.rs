@@ -30,7 +30,7 @@ impl Token {
       .open(format!("./{}", token_file.into()))
     {
       Ok(mut writer) => {
-        if let Err(e) = writer.write(format!("{}", self.access.get_token()).as_bytes()) {
+        if let Err(e) = writer.write(self.access.get_token().as_bytes()) {
           #[cfg(feature = "logging")]
           info!("Saving token failed: {}", e);
           return Err(EventSubError::WriteError(e.to_string()));
@@ -49,7 +49,7 @@ impl Token {
       .truncate(true)
       .open(refresh_file.into())
     {
-      if let Err(e) = writer.write(format!("{}", self.refresh).as_bytes()) {
+      if let Err(e) = writer.write(self.refresh.as_bytes()) {
         #[cfg(feature = "logging")]
         info!("Saving token failed: {}", e);
         return Err(EventSubError::WriteError(e.to_string()));

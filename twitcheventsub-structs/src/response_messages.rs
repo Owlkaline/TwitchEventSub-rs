@@ -152,9 +152,9 @@ impl FragmentType {
   }
 }
 
-impl Into<String> for FragmentType {
-  fn into(self) -> String {
-    match self {
+impl From<FragmentType> for String {
+  fn from(frag: FragmentType) -> String {
+    match frag {
       FragmentType::Text => "text",
       FragmentType::CheerMote => "cheermote",
       FragmentType::Emote => "emote",
