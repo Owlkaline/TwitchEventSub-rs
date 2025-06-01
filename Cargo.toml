@@ -4,6 +4,8 @@ members = [
   "twitcheventsub-godot",
   "twitcheventsub-unity",
   "twitcheventsub-structs",
+  "twitcheventsub-tokens",
+  "twitcheventsub-api",
 ]
 default-members = ["twitcheventsub"]
 resolver = "2"
@@ -53,3 +55,11 @@ path = "twitcheventsub-unity"
 [workspace.dependencies.twitcheventsub-structs]
 version = "0.1.5"
 path = "twitcheventsub-structs"
+
+[workspace.dependencies.twitcheventsub-tokens]
+version = "0.1.5"
+path = "twitcheventsub-tokens"
+
+[workspace.dependencies.twitcheventsub-api]
+version = "0.1.5"
+path = "twitcheventsub-api"

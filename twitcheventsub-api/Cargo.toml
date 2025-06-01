@@ -1,0 +1,25 @@
+[package]
+name = "twitcheventsub-api"
+version = "0.1.5"
+edition = { workspace = true }
+categories = { workspace = true }
+keywords = { workspace = true }
+license = { workspace = true }
+authors.workspace = true
+repository.workspace = true
+description.workspace = true
+exclude = ["examples/*"]
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[features]
+logging = ["dep:log"]
+
+
+[dependencies]
+log = { workspace = true, optional = true }
+enum_all_variants.workspace = true
+curl.workspace = true
+attohttpc.workspace = true
+serde_json.workspace = true
+twitcheventsub-structs.workspace = true
+open.workspace = true

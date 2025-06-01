@@ -67,6 +67,7 @@ pub enum Subscription {
   PermissionSendAnnouncements,
   PermissionIRCRead,
   PermissionIRCWrite,
+  PermissionWriteToChat,
   StreamOnline,
   StreamOffline,
   Custom((String, String, EventSubscription)),
@@ -91,7 +92,8 @@ impl Subscription {
       | Subscription::PermissionManageRewards
       | Subscription::PermissionSendAnnouncements
       | Subscription::PermissionIRCRead
-      | Subscription::PermissionIRCWrite => true,
+      | Subscription::PermissionIRCWrite
+      | Subscription::PermissionWriteToChat => true,
       _ => false,
     }
   }
@@ -132,6 +134,7 @@ impl Subscription {
     PermissionReadModerator,
     PermissionManageRewards,
     PermissionSendAnnouncements,
+    PermissionWriteToChat,
     PermissionIRCRead,
     PermissionIRCWrite,
     AdBreakBegin
@@ -173,6 +176,7 @@ impl Subscription {
     PermissionReadModerator,
     PermissionManageRewards,
     PermissionSendAnnouncements,
+    PermissionWriteToChat,
     PermissionIRCRead,
     PermissionIRCWrite,
     AdBreakBegin
@@ -290,6 +294,7 @@ impl Subscription {
       Subscription::PermissionSendAnnouncements => ("", "moderator:manage:announcements", ""),
       Subscription::PermissionIRCRead => ("", "chat:read", ""),
       Subscription::PermissionIRCWrite => ("", "chat:edit", ""),
+      Subscription::PermissionWriteToChat => ("", "user:write:chat", ""),
       Subscription::Custom((tag, scope, ..)) => (tag.as_str(), scope.as_str(), ""),
     };
 

@@ -1,0 +1,29 @@
+[package]
+name = "twitcheventsub-tokens"
+version = "0.1.5"
+edition = { workspace = true }
+categories = { workspace = true }
+keywords = { workspace = true }
+license = { workspace = true }
+authors.workspace = true
+repository.workspace = true
+description.workspace = true
+exclude = ["examples/*"]
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[features]
+
+[dependencies]
+env-file-reader = "0.3.0"
+log.workspace = true
+tungstenite = { workspace = true, features = ["native-tls"] }
+enum_all_variants.workspace = true
+curl.workspace = true
+open.workspace = true
+simple_env_load.workspace = true
+attohttpc.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+twitcheventsub-structs.workspace = true
+twitcheventsub-api.workspace = true
+serde_with.workspace = true

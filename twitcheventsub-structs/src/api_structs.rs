@@ -89,6 +89,12 @@ pub enum BroadcasterType {
 
 #[repr(C)]
 #[derive(Serialise, Deserialise, Clone, Debug)]
+pub struct UserDataSet {
+  pub data: Vec<UserData>,
+}
+
+#[repr(C)]
+#[derive(Serialise, Deserialise, Clone, Debug)]
 pub struct UserData {
   pub id: String,
   pub login: String,
