@@ -478,3 +478,29 @@ pub struct BadgeData {
 pub struct SetOfBadges {
   pub data: Vec<BadgeData>,
 }
+
+#[derive(Debug, Clone, Deserialise)]
+pub struct ClipDetails {
+  pub r#id: String,
+  pub url: String,
+  pub embed_url: String,
+  pub broadcaster_id: String,
+  pub broadcaster_name: String,
+  pub creator_id: String,
+  pub creator_name: String,
+  pub video_id: String,
+  pub game_id: String,
+  pub language: String,
+  pub title: String,
+  pub view_count: u32,
+  pub created_at: String,
+  pub thumbnail_url: String,
+  pub duration: u32,
+  pub vod_offset: u32,
+  pub is_featured: bool,
+}
+
+#[derive(Debug, Clone, Deserialise)]
+pub struct Clips {
+  pub data: Vec<ClipDetails>,
+}
