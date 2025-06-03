@@ -106,7 +106,7 @@ impl EmoteBuilder {
             .filter_map(|d| if d.id == real_id { Some(d) } else { None })
             .collect::<Vec<_>>();
 
-          if valid_emotes.len() > 0 {
+          if !valid_emotes.is_empty() {
             emote_data = Some(valid_emotes.remove(0).into());
           }
         }
@@ -122,7 +122,7 @@ impl EmoteBuilder {
               .into_iter()
               .filter_map(|d| if d.id == real_id { Some(d) } else { None })
               .collect::<Vec<_>>();
-            if valid_emotes.len() > 0 {
+            if !valid_emotes.is_empty() {
               emote_data = Some(valid_emotes.remove(0).into());
             }
           }
@@ -135,7 +135,7 @@ impl EmoteBuilder {
                 .into_iter()
                 .filter_map(|d| if d.id == real_id { Some(d) } else { None })
                 .collect::<Vec<_>>();
-              if valid_emotes.len() > 0 {
+              if !valid_emotes.is_empty() {
                 emote_data = Some(valid_emotes.remove(0).into());
               }
             }

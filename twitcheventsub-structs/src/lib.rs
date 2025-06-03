@@ -1,5 +1,4 @@
 use serde::{Deserialize as Deserialise, Serialize as Serialise};
-use serde_with;
 
 mod api_structs;
 mod eventsub_structs;
