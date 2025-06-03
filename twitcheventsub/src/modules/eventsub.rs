@@ -237,7 +237,6 @@ pub fn events(
             let mut message = message.payload.unwrap().event.unwrap();
 
             if let TwitchEvent::ChatMessage(ref mut msg) = &mut message {
-              println!("Got chat message: {:?}", msg);
               for (_, irc_message) in irc_messages.iter() {
                 if irc_message.display_name == msg.chatter.name &&
                   irc_message.message.contains(&msg.message.text)
