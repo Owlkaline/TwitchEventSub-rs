@@ -1,7 +1,7 @@
 use curl::easy::{Easy, List};
 #[cfg(feature = "logging")]
 use log::{error, info};
-use twitcheventsub_structs::{Subscription, Validation};
+use twitcheventsub_structs::prelude::{Subscription, Validation};
 
 use crate::TwitchApiError;
 

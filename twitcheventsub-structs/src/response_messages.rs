@@ -1,9 +1,8 @@
-use crate::{Deserialise, Serialise};
-
-use crate::*;
-
 #[cfg(feature = "bevy")]
 use bevy_ecs::prelude::Event as BevyEvent;
+
+use crate::prelude::*;
+use crate::{Deserialise, Serialise};
 
 #[derive(Deserialise, Debug, Clone)]
 pub struct NewAccessTokenResponse {

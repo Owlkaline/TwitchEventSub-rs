@@ -5,7 +5,9 @@ mod eventsub_structs;
 mod response_messages;
 mod subscriptions;
 
-pub use api_structs::*;
-pub use eventsub_structs::*;
-pub use response_messages::*;
-pub use subscriptions::*;
+pub mod prelude {
+  pub use crate::api_structs::*;
+  pub use crate::eventsub_structs::*;
+  pub use crate::response_messages::*;
+  pub use crate::subscriptions::*;
+}

@@ -1,10 +1,6 @@
 //#![doc = include_str!("../../../../README.md")]
 
-use std::fs;
-use std::io::Read;
-use std::io::{stdin, BufRead, Write};
 use std::iter;
-use std::net::TcpListener;
 use std::sync::mpsc::{channel, Receiver as SyncReceiver, Sender};
 use std::thread::{self, JoinHandle};
 use std::time::Duration;
@@ -12,16 +8,22 @@ use std::time::Duration;
 use modules::bttv::BTTV;
 pub use modules::errors::LOG_FILE;
 use modules::irc_bot::IRCChat;
-use serde_json;
 use tungstenite::connect;
-use tungstenite::Error;
 use twitcheventsub_api::TwitchApiError;
-pub use twitcheventsub_structs::*;
+use twitcheventsub_structs::prelude::*;
 use twitcheventsub_tokens::TokenHandler;
 
 use crate::modules::consts::*;
 
 mod modules;
+
+pub mod prelude {
+  pub use twitcheventsub_api;
+  pub use twitcheventsub_structs::prelude::*;
+  pub use twitcheventsub_tokens;
+
+  pub use crate::modules::{bttv::*, emotebuilder::*};
+}
 
 #[cfg(feature = "logging")]
 pub use log::{error, info, warn};
@@ -197,6 +199,7 @@ impl TwitchEventSubApi {
     let custom_subscription_data_clone = custom_subscription_data.clone();
 
     let broadcaster_id = broadcaster_user.id.clone();
+    println!("Broadcaster id : {}", broadcaster_id);
     let receive_thread = thread::spawn(move || {
       eventsub::events(
         client,
@@ -205,7 +208,6 @@ impl TwitchEventSubApi {
         subscriptions_clone,
         custom_subscription_data_clone,
         thread_token,
-        None,
         irc,
         bttv,
         &broadcaster_id,

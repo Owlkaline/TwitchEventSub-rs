@@ -4,7 +4,7 @@
 use serde::Deserialize as Deserialise;
 use serde_json;
 use twitcheventsub_api::TwitchHttpRequest;
-use twitcheventsub_structs::{EmoteScale, EmoteUrl};
+use twitcheventsub_structs::prelude::{EmoteScale, EmoteUrl};
 
 pub const _BTTV_GLOBAL_EMOTES: &str = "https://api.betterttv.net/3/cached/emotes/global";
 pub const _BTTV_CHANNEL_EMOTES: &str =

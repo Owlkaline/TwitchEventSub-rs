@@ -14,7 +14,9 @@ use tungstenite::{
   client, connect, stream::MaybeTlsStream, Error, Message as NetworkMessage, WebSocket,
 };
 use twitcheventsub_api::TwitchHttpRequest;
-use twitcheventsub_structs::{EventMessageType, GenericMessage, Subscription, TwitchEvent};
+use twitcheventsub_structs::prelude::{
+  EventMessageType, GenericMessage, Subscription, TwitchEvent,
+};
 use twitcheventsub_tokens::TokenHandler;
 
 use super::irc_bot::IRCChat;
@@ -29,7 +31,6 @@ pub fn events(
   subscriptions: Vec<Subscription>,
   mut custom_subscriptions: Vec<String>,
   mut tokens: TokenHandler,
-  save_locations: Option<(String, String)>,
   irc: Option<IRCChat>,
   bttv: BTTV,
   broadcasters_users_id: &str,
@@ -43,7 +44,7 @@ pub fn events(
 
   use std::sync::mpsc::channel;
 
-  use twitcheventsub_structs::{FragmentType, Fragments};
+  use twitcheventsub_structs::prelude::{FragmentType, Fragments};
 
   use crate::modules::irc_bot::{IRCMessage, IRCResponse};
 
@@ -138,6 +139,7 @@ pub fn events(
         if let Err(e) = message {
           #[cfg(feature = "logging")]
           error!("EventSub: Unimplemented twitch response: {}\n{}", msg, e);
+
           let _ = message_sender.send(ResponseType::RawResponse(msg.to_string()));
           continue;
         }
@@ -152,12 +154,16 @@ pub fn events(
 
             if !is_reconnecting {
               let user_token = tokens.user_token.clone();
-              let refresh_token = tokens.refresh_token.clone();
+              let token_user_id = tokens
+                .get_token_user_id()
+                .expect("Failed to get tokens user id.");
               let client_id = tokens.client_id.clone();
 
               let mut sub_data = subscriptions
                 .iter()
-                .filter_map(|s| s.construct_data(&session_id, broadcasters_users_id, &user_token))
+                .filter_map(|s| {
+                  s.construct_data(&session_id, broadcasters_users_id, &token_user_id)
+                })
                 .filter_map(|s| serde_json::to_string(&s).ok())
                 .collect::<Vec<_>>();
               sub_data.append(&mut custom_subscriptions);
@@ -231,6 +237,7 @@ pub fn events(
             let mut message = message.payload.unwrap().event.unwrap();
 
             if let TwitchEvent::ChatMessage(ref mut msg) = &mut message {
+              println!("Got chat message: {:?}", msg);
               for (_, irc_message) in irc_messages.iter() {
                 if irc_message.display_name == msg.chatter.name &&
                   irc_message.message.contains(&msg.message.text)

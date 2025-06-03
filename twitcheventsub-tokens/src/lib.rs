@@ -8,7 +8,7 @@ use env_file_reader::read_file;
 use env_handler::EnvHandler;
 use log::{error, info, warn};
 use twitcheventsub_api::{self, TwitchApiError};
-use twitcheventsub_structs::{Subscription, UserData, UserDataSet};
+use twitcheventsub_structs::prelude::{Subscription, UserData, UserDataSet};
 
 mod builder;
 mod env_handler;
@@ -142,7 +142,7 @@ impl TokenHandler {
       })
   }
 
-  fn get_token_user_id(&mut self) -> Result<String, TwitchApiError> {
+  pub fn get_token_user_id(&mut self) -> Result<String, TwitchApiError> {
     self
       .get_users(vec![] as Vec<String>, vec![] as Vec<String>)
       .and_then(|user| {

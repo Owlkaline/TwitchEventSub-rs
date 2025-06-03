@@ -1,13 +1,14 @@
-use serde_with::with_prefix;
 use std::fmt;
 
 #[cfg(feature = "bevy")]
 use bevy_ecs::prelude::Event;
+use serde_with::with_prefix;
 
-use crate::*;
+use crate::prelude::*;
 use crate::{Deserialise, Serialise};
 
 with_prefix!(pub prefix_broadcaster "broadcaster_");
+with_prefix!(pub prefix_source_broadcaster "source_broadcaster_");
 with_prefix!(pub prefix_from_broadcaster "from_broadcaster_");
 with_prefix!(pub prefix_to_broadcaster "to_broadcaster_");
 with_prefix!(pub prefix_requester "requester_");
@@ -358,7 +359,11 @@ pub struct MessageData {
   pub reply: Option<Reply>,
   pub channel_points_custom_reward_id: Option<String>,
   pub channel_points_animation_id: Option<String>,
-  // Adding afterwards with data from irc
+  #[serde(flatten, with = "prefix_source_broadcaster")]
+  pub source_broadcaster: OptionalUser,
+  pub source_message_id: Option<String>,
+  pub source_badges: Option<Vec<Badge>>,
+  pub is_source_only: Option<bool>,
   #[serde(skip)]
   pub first_time_chatter: bool,
   #[serde(skip)]

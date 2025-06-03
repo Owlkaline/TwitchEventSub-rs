@@ -3,7 +3,7 @@ use core::fmt;
 use serde::{Deserialize as Deserialise, Serialize as Serialise};
 use serde_with::with_prefix;
 
-use crate::{prefix_broadcaster, User};
+use crate::prelude::{prefix_broadcaster, User};
 
 #[derive(Serialise, Deserialise, Debug, Default, Clone)]
 pub struct UpdateCustomReward {

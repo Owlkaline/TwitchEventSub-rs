@@ -5,10 +5,7 @@ use std::{
 
 use curl::Error;
 use request::*;
-use twitcheventsub_structs::{
-  ChannelEmotes, GlobalEmotes, NewAccessTokenResponse, SendMessage, Subscription, UserDataSet,
-  Validation,
-};
+use twitcheventsub_structs::prelude::*;
 
 pub const GET_USERS_URL: &str = "https://api.twitch.tv/helix/users";
 pub const TWITCH_AUTHORISE_URL: &str = "https://id.twitch.tv/oauth2/";

@@ -1,10 +1,9 @@
-use twitcheventsub_structs::{
+use twitcheventsub_structs::prelude::{
   EmoteData, EmoteFormat, EmoteScale, EmoteUrl, FragmentType, Fragments, ThemeMode,
 };
 use twitcheventsub_tokens::TokenHandler;
 
 use super::bttv::BTTV;
-use crate::TwitchEventSubApi;
 
 pub struct EmoteBuilder {
   scale: EmoteScale,

@@ -1,6 +1,6 @@
 use std::{io::stdin, process::exit};
 
-use twitcheventsub_structs::Subscription;
+use twitcheventsub_structs::prelude::Subscription;
 
 use crate::{env_handler::EnvHandler, TokenHandler};
 
