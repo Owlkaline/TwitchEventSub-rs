@@ -1,4 +1,10 @@
+//#![doc = include_str!("../../../../README.md")]
+
+use std::fs;
+use std::io::Read;
+use std::io::{stdin, BufRead, Write};
 use std::iter;
+use std::net::TcpListener;
 use std::sync::mpsc::{channel, Receiver as SyncReceiver, Sender};
 use std::thread::{self, JoinHandle};
 use std::time::Duration;
@@ -8,6 +14,7 @@ pub use modules::errors::LOG_FILE;
 use modules::irc_bot::IRCChat;
 use serde_json;
 use tungstenite::connect;
+use tungstenite::Error;
 use twitcheventsub_api::TwitchApiError;
 pub use twitcheventsub_structs::*;
 use twitcheventsub_tokens::TokenHandler;
@@ -198,10 +205,7 @@ impl TwitchEventSubApi {
 
     #[cfg(feature = "logging")]
     info!("Starting websocket client.");
-    let (twitch_receiver, _) = match connect(CONNECTION_EVENTS) {
-      Ok(a) => a,
-      Err(e) => return Err(EventSubError::WebSocketFailed(e.to_string())),
-    };
+    let (client, _) = connect(CONNECTION_EVENTS).unwrap();
 
     dbg!("After websocket start");
 
@@ -215,7 +219,7 @@ impl TwitchEventSubApi {
     let broadcaster_id = broadcaster_user.id.clone();
     let receive_thread = thread::spawn(move || {
       eventsub::events(
-        twitch_receiver,
+        client,
         transmit_messages,
         receive_quit_message,
         subscriptions_clone,

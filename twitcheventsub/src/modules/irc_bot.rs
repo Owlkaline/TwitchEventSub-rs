@@ -38,8 +38,8 @@ pub struct IRCMessage {
   pub colour: String,
 }
 
-impl From<String> for IRCMessage {
-  fn from(value: String) -> Self {
+impl From<&str> for IRCMessage {
+  fn from(value: &str) -> Self {
     let elements = value.split(";").collect::<Vec<_>>();
 
     let mut message = IRCMessage::default();
@@ -116,11 +116,8 @@ impl IRCChat {
 
     let mut welcome_recieved = false;
     while !welcome_recieved {
-      if let Ok(message) = &irc_client.read() {
-        dbg!(&message);
-        if let NetworkMessage::Text(text) = message {
-          welcome_recieved = text.contains("Welcome");
-        }
+      if let Ok(NetworkMessage::Text(text)) = &irc_client.read() {
+        welcome_recieved = text.as_str().contains("Welcome");
       }
     }
 
@@ -147,19 +144,19 @@ impl IRCChat {
     match self.client.read() {
       Ok(message) => match message {
         NetworkMessage::Text(text) => {
-          if text.contains("PING :tmi.twitch.tv") {
+          if text.as_str().contains("PING :tmi.twitch.tv") {
             #[cfg(feature = "logging")]
             info!("IRC: ping recieved, sending pong back");
             let _ = self
               .client
-              .send(NetworkMessage::Pong(Vec::with_capacity(0)));
+              .send(NetworkMessage::Pong(Vec::with_capacity(0).into()));
             let _ = self
               .client
-              .send(NetworkMessage::Text("PONG :tmi.twitch.tv".to_owned()));
-            let _ = self.client.send(NetworkMessage::Text("PONG".to_owned()));
+              .send(NetworkMessage::Text("PONG :tmi.twitch.tv".into()));
+            let _ = self.client.send(NetworkMessage::Text("PONG".into()));
             None
           } else {
-            return Some(IRCMessage::from(text));
+            Some(IRCMessage::from(text.as_str()))
           }
         }
         NetworkMessage::Ping(data) => {

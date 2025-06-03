@@ -1,3 +1,5 @@
+use std::fmt;
+
 use curl::easy::{Easy, List};
 #[cfg(feature = "logging")]
 use log::{error, info};
@@ -68,7 +70,7 @@ impl TwitchApi {
         serde_json::to_string(&SendMessage {
           broadcaster_id: broadcaster_account_id.to_owned(),
           sender_id: sender_account_id.into(),
-          message: message.into(),
+          message,
           reply_parent_message_id: is_reply_parent_message_id,
         })
         .unwrap(),
@@ -109,7 +111,7 @@ impl TwitchApi {
       .is_post(
         serde_json::to_string(&AnnouncementMessage {
           message,
-          colour: colour.and_then(|c| Some(c.into())),
+          colour: colour.map(|c| c.into()),
         })
         .unwrap(),
       )
@@ -183,7 +185,7 @@ impl TwitchApi {
   pub fn get_implicit_code<S: Into<String>, T: Into<String>>(
     client_id: S,
     redirect_url: T,
-    scopes: &Vec<Subscription>,
+    scopes: &[Subscription],
     is_local: bool,
     manual_input: bool,
   ) -> Result<String, EventSubError> {
@@ -212,7 +214,7 @@ impl TwitchApi {
     ) {
       Ok(http_response) => {
         if http_response.contains("error") {
-          Err(EventSubError::UnhandledError(format!("{}", http_response)))
+          Err(EventSubError::UnhandledError(http_response))
         } else {
           dbg!(&http_response);
           let auth_code = http_response.split('&').collect::<Vec<_>>()[0]
@@ -228,7 +230,7 @@ impl TwitchApi {
   pub fn get_authorisation_code<S: Into<String>, T: Into<String>>(
     client_id: S,
     redirect_url: T,
-    scopes: &Vec<Subscription>,
+    scopes: &[Subscription],
     is_local: bool,
     manual_input: bool,
   ) -> Result<String, EventSubError> {
@@ -257,16 +259,14 @@ impl TwitchApi {
     ) {
       Ok(http_response) => {
         if http_response.contains("error") {
-          Err(EventSubError::UnhandledError(format!("{}", http_response)))
+          Err(EventSubError::UnhandledError(http_response))
+        } else if manual_input {
+          Ok(http_response)
         } else {
-          if manual_input {
-            Ok(http_response)
-          } else {
-            let auth_code = http_response.split('&').collect::<Vec<_>>()[0]
-              .split('=')
-              .collect::<Vec<_>>()[1];
-            Ok(auth_code.to_string())
-          }
+          let auth_code = http_response.split('&').collect::<Vec<_>>()[0]
+            .split('=')
+            .collect::<Vec<_>>()[1];
+          Ok(auth_code.to_string())
         }
       }
       e => e,
@@ -279,7 +279,7 @@ impl TwitchApi {
     redirect_url: V,
     is_local: bool,
     manual_input: bool,
-    subscriptions: &Vec<Subscription>,
+    subscriptions: &[Subscription],
   ) -> Result<Token, EventSubError> {
     let client_id = client_id.into();
     let client_secret = client_secret.into();
@@ -296,7 +296,7 @@ impl TwitchApi {
     TwitchApi::get_authorisation_code(
       client_id.to_owned(),
       redirect_url.to_owned(),
-      &subscriptions,
+      subscriptions,
       is_local,
       manual_input,
     )
@@ -314,7 +314,7 @@ impl TwitchApi {
   pub fn generate_bot_access_token<S: Into<String>, T: Into<String>>(
     client_id: S,
     redirect_url: T,
-    scopes: &Vec<Subscription>,
+    scopes: &[Subscription],
     is_local: bool,
     manual_input: bool,
   ) -> Result<String, EventSubError> {
@@ -343,7 +343,7 @@ impl TwitchApi {
     ) {
       Ok(http_response) => {
         if http_response.contains("error") {
-          Err(EventSubError::UnhandledError(format!("{}", http_response)))
+          Err(EventSubError::UnhandledError(http_response))
         } else {
           dbg!(&http_response);
           let auth_code = http_response.split('&').collect::<Vec<_>>()[0]
@@ -648,13 +648,16 @@ pub enum AuthType {
   OAuth,
 }
 
-impl AuthType {
-  pub fn to_string(&self) -> String {
-    match self {
-      AuthType::Bearer => "Bearer",
-      AuthType::OAuth => "OAuth",
-    }
-    .into()
+impl fmt::Display for AuthType {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    write!(
+      f,
+      "{}",
+      match self {
+        AuthType::Bearer => "Bearer",
+        AuthType::OAuth => "OAuth",
+      }
+    )
   }
 }
 
@@ -718,17 +721,13 @@ impl Header {
   pub fn generate(&self) -> String {
     match self {
       Header::Auth((auth_type, token)) => {
-        format!("Authorization: {} {}", auth_type.to_string(), token)
+        format!("Authorization: {} {}", auth_type, token)
       }
       Header::ClientId(id) => {
         format!("Client-Id: {}", id)
       }
-      Header::ContentJson => {
-        format!("Content-Type: application/json")
-      }
-      Header::ContentUrlEncoded => {
-        format!("Content-Type: application/x-www-form-urlencoded")
-      }
+      Header::ContentJson => "Content-Type: application/json".to_string(),
+      Header::ContentUrlEncoded => "Content-Type: application/x-www-form-urlencoded".to_string(),
     }
   }
 }

@@ -1,4 +1,5 @@
 use serde_with::with_prefix;
+use std::fmt;
 
 #[cfg(feature = "bevy")]
 use bevy_ecs::prelude::Event;
@@ -322,17 +323,20 @@ pub enum MessageType {
   PowerUpsGigantifiedEmote,
 }
 
-impl ToString for MessageType {
-  fn to_string(&self) -> String {
-    match self {
-      MessageType::Text => "text",
-      MessageType::ChannelPointsHighlighted => "channel_points_highlighted",
-      MessageType::ChannelPointsSubOnly => "channel_points_sub_only",
-      MessageType::UserIntro => "user_intro",
-      MessageType::PowerUpsMessageEffect => "power_ups_message_effect",
-      MessageType::PowerUpsGigantifiedEmote => "power_ups_gigantified_emote",
-    }
-    .to_string()
+impl fmt::Display for MessageType {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    write!(
+      f,
+      "{}",
+      match self {
+        MessageType::Text => "text",
+        MessageType::ChannelPointsHighlighted => "channel_points_highlighted",
+        MessageType::ChannelPointsSubOnly => "channel_points_sub_only",
+        MessageType::UserIntro => "user_intro",
+        MessageType::PowerUpsMessageEffect => "power_ups_message_effect",
+        MessageType::PowerUpsGigantifiedEmote => "power_ups_gigantified_emote",
+      }
+    )
   }
 }
 

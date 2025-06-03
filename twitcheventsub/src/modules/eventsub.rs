@@ -10,7 +10,9 @@ use std::{
 use log::warn;
 #[cfg(feature = "logging")]
 use log::{error, info};
-use tungstenite::{connect, stream::MaybeTlsStream, Error, Message as NetworkMessage, WebSocket};
+use tungstenite::{
+  client, connect, stream::MaybeTlsStream, Error, Message as NetworkMessage, WebSocket,
+};
 use twitcheventsub_api::TwitchHttpRequest;
 use twitcheventsub_structs::{EventMessageType, GenericMessage, Subscription, TwitchEvent};
 use twitcheventsub_tokens::TokenHandler;
@@ -19,6 +21,7 @@ use super::irc_bot::IRCChat;
 use super::{bttv::BTTV, irc_bot};
 use crate::{EventSubError, ResponseType, TwitchEventSubApi, CONNECTION_EVENTS, SUBSCRIBE_URL};
 
+#[allow(clippy::too_many_arguments)]
 pub fn events(
   mut twitch_receiver: WebSocket<MaybeTlsStream<TcpStream>>, //Client<TlsStream<TcpStream>>>>,
   message_sender: SyncSender<ResponseType>,
@@ -97,12 +100,10 @@ pub fn events(
       }
     };
 
-    if let Some(irc_reciever) = &messages_from_irc {
-      loop {
-        match irc_reciever.recv_timeout(Duration::ZERO) {
-          Ok(IRCResponse::IRCMessage(msg)) => irc_messages.push((Instant::now(), msg)),
-          _ => break,
-        }
+    while let Some(irc_reciever) = &messages_from_irc {
+      match irc_reciever.recv_timeout(Duration::ZERO) {
+        Ok(IRCResponse::IRCMessage(msg)) => irc_messages.push((Instant::now(), msg)),
+        _ => break,
       }
     }
 
@@ -129,15 +130,15 @@ pub fn events(
       NetworkMessage::Text(msg) => {
         #[cfg(feature = "only_raw_responses")]
         {
-          let _ = message_sender.send(ResponseType::RawResponse(msg.clone()));
+          let _ = message_sender.send(ResponseType::RawResponse(msg.to_string()));
         }
 
-        let message = serde_json::from_str(&msg);
+        let message = serde_json::from_str(msg.as_str());
 
         if let Err(e) = message {
           #[cfg(feature = "logging")]
           error!("EventSub: Unimplemented twitch response: {}\n{}", msg, e);
-          let _ = message_sender.send(ResponseType::RawResponse(msg.clone()));
+          let _ = message_sender.send(ResponseType::RawResponse(msg.to_string()));
           continue;
         }
 
@@ -229,61 +230,58 @@ pub fn events(
             last_message = Instant::now();
             let mut message = message.payload.unwrap().event.unwrap();
 
-            match &mut message {
-              TwitchEvent::ChatMessage(ref mut msg) => {
-                for (_, irc_message) in irc_messages.iter() {
-                  if irc_message.display_name == msg.chatter.name &&
-                    irc_message.message.contains(&msg.message.text)
-                  {
-                    msg.returning_chatter = irc_message.returning_chatter;
-                    msg.first_time_chatter = irc_message.first_time_chatter;
-                    msg.moderator = msg
-                      .badges
-                      .iter()
-                      .any(|badge| badge.set_id.contains("moderator"));
-                    break;
-                  }
+            if let TwitchEvent::ChatMessage(ref mut msg) = &mut message {
+              for (_, irc_message) in irc_messages.iter() {
+                if irc_message.display_name == msg.chatter.name &&
+                  irc_message.message.contains(&msg.message.text)
+                {
+                  msg.returning_chatter = irc_message.returning_chatter;
+                  msg.first_time_chatter = irc_message.first_time_chatter;
+                  msg.moderator = msg
+                    .badges
+                    .iter()
+                    .any(|badge| badge.set_id.contains("moderator"));
+                  break;
                 }
-
-                let mut fragments: Vec<Fragments> = Vec::new();
-                for fragment in &mut msg.message.fragments {
-                  // Only check plain text for bttv emotes
-                  if fragment.kind == FragmentType::Text {
-                    let mut new_fragment: Fragments = fragment.clone();
-                    new_fragment.text = String::new();
-                    let text_particles = fragment.text.split(' ').collect::<Vec<_>>();
-
-                    for test_text in text_particles {
-                      if bttv.emote_names.contains(&test_text.to_lowercase()) {
-                        if !new_fragment.text.is_empty() {
-                          fragments.push(new_fragment);
-                        }
-
-                        new_fragment = fragment.clone();
-                        // is BTTV emote
-                        new_fragment.kind = FragmentType::BttvEmote;
-                        new_fragment.text = format!("{}", test_text.to_lowercase());
-
-                        fragments.push(new_fragment);
-
-                        new_fragment = fragment.clone();
-                        new_fragment.text = String::new();
-                      } else {
-                        new_fragment.text = format!("{}{} ", new_fragment.text, test_text);
-                      }
-                    }
-
-                    if !new_fragment.text.is_empty() {
-                      fragments.push(new_fragment);
-                    }
-                  } else {
-                    fragments.push(fragment.clone());
-                  }
-                }
-
-                msg.message.fragments = fragments;
               }
-              _ => {}
+
+              let mut fragments: Vec<Fragments> = Vec::new();
+              for fragment in &mut msg.message.fragments {
+                // Only check plain text for bttv emotes
+                if fragment.kind == FragmentType::Text {
+                  let mut new_fragment: Fragments = fragment.clone();
+                  new_fragment.text = String::new();
+                  let text_particles = fragment.text.split(' ').collect::<Vec<_>>();
+
+                  for test_text in text_particles {
+                    if bttv.emote_names.contains(&test_text.to_lowercase()) {
+                      if !new_fragment.text.is_empty() {
+                        fragments.push(new_fragment);
+                      }
+
+                      new_fragment = fragment.clone();
+                      // is BTTV emote
+                      new_fragment.kind = FragmentType::BttvEmote;
+                      new_fragment.text = test_text.to_lowercase().to_string();
+
+                      fragments.push(new_fragment);
+
+                      new_fragment = fragment.clone();
+                      new_fragment.text = String::new();
+                    } else {
+                      new_fragment.text = format!("{}{} ", new_fragment.text, test_text);
+                    }
+                  }
+
+                  if !new_fragment.text.is_empty() {
+                    fragments.push(new_fragment);
+                  }
+                } else {
+                  fragments.push(fragment.clone());
+                }
+              }
+
+              msg.message.fragments = fragments;
             }
 
             let _ = message_sender.send(ResponseType::Event(message));
@@ -293,7 +291,7 @@ pub fn events(
             warn!("EventSub: Unknown message type: {}", msg);
             last_message = Instant::now();
             //if !custom_subscriptions.is_empty() {
-            let _ = message_sender.send(ResponseType::RawResponse(msg));
+            let _ = message_sender.send(ResponseType::RawResponse(msg.to_string()));
             //}
           }
         }
@@ -311,7 +309,7 @@ pub fn events(
       NetworkMessage::Ping(_) => {
         #[cfg(feature = "logging")]
         info!("EventSub: ping recieved");
-        match twitch_receiver.send(NetworkMessage::Pong(Vec::new())) {
+        match twitch_receiver.send(NetworkMessage::Pong(Vec::new().into())) {
           // Send a pong in response
           Ok(()) => {}
           Err(e) => {
