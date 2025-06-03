@@ -2,7 +2,7 @@
 members = [
   "twitcheventsub",
   "twitcheventsub-godot",
-  "twitcheventsub-unity",
+  #"twitcheventsub-unity",
   "twitcheventsub-structs",
   "twitcheventsub-tokens",
   "twitcheventsub-api",
@@ -48,9 +48,9 @@ path = "twitcheventsub"
 version = "0.1.5"
 path = "twitcheventsub-godot"
 
-[workspace.dependencies.twitcheventsub-unity]
-version = "0.1.5"
-path = "twitcheventsub-unity"
+#[workspace.dependencies.twitcheventsub-unity]
+#version = "0.1.5"
+#path = "twitcheventsub-unity"
 
 [workspace.dependencies.twitcheventsub-structs]
 version = "0.1.5"

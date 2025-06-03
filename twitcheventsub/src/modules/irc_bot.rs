@@ -1,3 +1,4 @@
+use std::sync::mpsc::Sender as SyncSender;
 use std::{net::TcpStream, thread, time::Duration};
 
 #[cfg(feature = "logging")]
@@ -6,8 +7,6 @@ use tungstenite::{
   connect, error::ProtocolError, stream::MaybeTlsStream, Error, Message as NetworkMessage,
   WebSocket,
 };
-
-use std::sync::mpsc::Sender as SyncSender;
 
 pub const PRIV_MESSAGE: &str = "PRIVMSG";
 pub const PASS: &str = "PASS";
@@ -24,8 +23,8 @@ pub enum IRCResponse {
 pub struct IRCChat {
   pub client: WebSocket<MaybeTlsStream<TcpStream>>,
   pub joined_channel: Option<String>,
-  pub oauth: String,
-  pub bot_name: String,
+  pub user_token: String,
+  pub user_login: String,
 }
 
 #[derive(Default)]
@@ -100,9 +99,8 @@ impl From<String> for IRCMessage {
 }
 
 impl IRCChat {
-  pub fn new<T: Into<String>, S: Into<String>>(bot_name: T, oauth_token: S) -> IRCChat {
-    let bot_name = bot_name.into();
-    let oauth_token = oauth_token.into();
+  pub fn new(user_login: &str, user_token: &str) -> IRCChat {
+    println!("irc name: {}, oauth token: {}", user_login, user_token);
 
     let (mut irc_client, _) = connect(IRC_URL).unwrap();
 
@@ -112,18 +110,14 @@ impl IRCChat {
 
     let _ = irc_client.send(NetworkMessage::text(format!(
       "{} oauth:{}",
-      PASS,
-      oauth_token.to_owned()
+      PASS, &user_token
     )));
-    let _ = irc_client.send(NetworkMessage::text(format!(
-      "{} {}",
-      NICK,
-      bot_name.to_owned()
-    )));
+    let _ = irc_client.send(NetworkMessage::text(format!("{} {}", NICK, &user_login)));
 
     let mut welcome_recieved = false;
     while !welcome_recieved {
       if let Ok(message) = &irc_client.read() {
+        dbg!(&message);
         if let NetworkMessage::Text(text) = message {
           welcome_recieved = text.contains("Welcome");
         }
@@ -133,8 +127,8 @@ impl IRCChat {
     IRCChat {
       client: irc_client,
       joined_channel: None,
-      oauth: oauth_token,
-      bot_name,
+      user_token: user_token.to_owned(),
+      user_login: user_login.to_owned(),
     }
   }
 
@@ -194,7 +188,7 @@ impl IRCChat {
 
         #[cfg(feature = "logging")]
         warn!("Attempting reconnect with IRC");
-        *self = IRCChat::new(self.bot_name.to_owned(), self.oauth.to_owned());
+        *self = IRCChat::new(&self.user_login, &self.user_token);
         None
       }
       Err(e) => {

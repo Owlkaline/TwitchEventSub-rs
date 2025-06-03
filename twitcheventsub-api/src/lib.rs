@@ -5,15 +5,24 @@ use std::{
 
 use curl::Error;
 use request::*;
-use twitcheventsub_structs::{NewAccessTokenResponse, Subscription};
+use twitcheventsub_structs::{
+  ChannelEmotes, GlobalEmotes, NewAccessTokenResponse, SendMessage, Subscription, UserDataSet,
+  Validation,
+};
 
 pub const GET_USERS_URL: &str = "https://api.twitch.tv/helix/users";
 pub const TWITCH_AUTHORISE_URL: &str = "https://id.twitch.tv/oauth2/";
 pub const TWITCH_TOKEN_URL: &str = "https://id.twitch.tv/oauth2/token";
+pub const VALIDATION_TOKEN_URL: &str = "https://id.twitch.tv/oauth2/validate";
+pub const GET_GLOBAL_EMOTES_URL: &str = "https://api.twitch.tv/helix/chat/emotes/global";
+pub const GET_EMOTE_SETS_URL: &str = "https://api.twitch.tv/helix/chat/emotes/set";
+pub const GET_CHANNEL_EMOTES_URL: &str = "https://api.twitch.tv/helix/chat/emotes";
+pub const SEND_MESSAGE_URL: &str = "https://api.twitch.tv/helix/chat/messages";
 
 mod request;
+pub use request::TwitchHttpRequest;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum TwitchApiError {
   CurlFailed(Error),
   MaximumWebsocketTransmissionsExceeded(String),
@@ -25,6 +34,7 @@ pub enum TwitchApiError {
   BrowserError(String),
   HttpError(String),
   InputError(String),
+  DeserialisationError(String),
 }
 
 pub fn get_users<T: Into<String>, I: Into<String>, S: Into<String>, V: Into<String>>(
@@ -61,15 +71,13 @@ pub fn get_users<T: Into<String>, I: Into<String>, S: Into<String>, V: Into<Stri
     .run()
 }
 
-pub fn get_implicit_grant_flow_user_token<S: Into<String>, T: Into<String>>(
-  client_id: S,
-  redirect_url: T,
-  scopes: &Vec<Subscription>,
+pub fn get_implicit_grant_flow_user_token(
+  client_id: &str,
+  redirect_url: &str,
+  scopes: &[Subscription],
   auto_open_browser: bool,
   manual_code_input: bool,
 ) -> Result<String, TwitchApiError> {
-  let redirect_url = redirect_url.into();
-
   let scope = &scopes
     .iter()
     .map(|s| s.required_scope())
@@ -80,7 +88,7 @@ pub fn get_implicit_grant_flow_user_token<S: Into<String>, T: Into<String>>(
   let get_authorisation_code_request = format!(
     "{}authorize?response_type=token&client_id={}&redirect_uri={}&scope={}&force_verify=true",
     TWITCH_AUTHORISE_URL,
-    client_id.into(),
+    client_id,
     redirect_url.to_owned(),
     scope
   );
@@ -113,7 +121,7 @@ pub fn get_implicit_grant_flow_user_token<S: Into<String>, T: Into<String>>(
 pub fn get_authorisation_code_grant_flow_user_token<S: Into<String>, T: Into<String>>(
   client_id: S,
   redirect_url: T,
-  scopes: &Vec<Subscription>,
+  scopes: &[Subscription],
   auto_open_browser: bool,
   manual_code_input: bool,
 ) -> Result<String, TwitchApiError> {
@@ -177,8 +185,39 @@ pub fn get_user_and_refresh_token_from_authorisation_code<
     redirect_url.into()
   );
 
-  process_token_query(post_data)
+  create_user_and_refresh_token(&post_data)
 }
+
+pub fn validate_token<S: Into<String>>(token: S) -> Result<Validation, TwitchApiError> {
+  TwitchHttpRequest::new(VALIDATION_TOKEN_URL)
+    .header_authorisation(token.into(), AuthType::OAuth)
+    .run()
+    .and_then(|data| {
+      serde_json::from_str::<Validation>(&data)
+        .map_err(|e| TwitchApiError::DeserialisationError(e.to_string()))
+    })
+}
+
+//fn create_user_and_refresh_token_from_data(post_data: &str) -> Result<(String, String), TwitchApiError> {
+//  TwitchHttpRequest::new(TWITCH_TOKEN_URL)
+//    .url_encoded_content()
+//    .is_post(post_data)
+//    .run()
+//    .and_then(|twitch_response| {
+//      serde_json::from_str::<NewAccessTokenResponse>(&twitch_response)
+//        .map_err(|_|
+//          TwitchApiError::FailedToCreateFre(twitch_response)
+//        .map(|new_token_data| {
+//          // Token::new_user_token(
+//          (
+//            new_token_data.access_token,
+//            new_token_data.refresh_token.unwrap(),
+//          )
+//          //  new_token_data.expires_in as f32,
+//          // )
+//        })
+//    })
+//}
 
 pub fn open_browser<S: Into<String>, T: Into<String>>(
   browser_url: S,
@@ -230,7 +269,10 @@ pub fn open_browser<S: Into<String>, T: Into<String>>(
   } else {
     println!("Starting local tcp listener for token generation");
     println!("Please click the blue redirect link if browser doesn't redirect.");
+    dbg!(&redirect_url);
     let listener = TcpListener::bind(&redirect_url).expect("Failed to create tcp listener.");
+
+    dbg!("After listener");
 
     // accept connections and process them serially
     match listener.accept() {
@@ -239,6 +281,7 @@ pub fn open_browser<S: Into<String>, T: Into<String>>(
         stream
           .read_to_string(&mut http_output)
           .expect("Failed to read tcp stream.");
+        dbg!(&http_output);
         Ok(http_output)
       }
       Err(e) => Err(TwitchApiError::HttpError(e.to_string())),
@@ -246,14 +289,14 @@ pub fn open_browser<S: Into<String>, T: Into<String>>(
   }
 }
 
-fn process_token_query<S: Into<String>>(post_data: S) -> Result<(String, String), TwitchApiError> {
+pub fn create_user_and_refresh_token(post_data: &str) -> Result<(String, String), TwitchApiError> {
   TwitchHttpRequest::new(TWITCH_TOKEN_URL)
     .url_encoded_content()
     .is_post(post_data)
     .run()
     .and_then(|twitch_response| {
       serde_json::from_str::<NewAccessTokenResponse>(&twitch_response)
-        .map_err(|_| TwitchApiError::InvalidAuthorisationCode(twitch_response))
+        .map_err(|_| TwitchApiError::DeserialisationError(twitch_response))
         .map(|new_token_data| {
           (
             new_token_data.access_token,
@@ -261,4 +304,104 @@ fn process_token_query<S: Into<String>>(post_data: S) -> Result<(String, String)
           )
         })
     })
+}
+
+pub fn get_channel_emotes(
+  access_token: &str,
+  client_id: &str,
+  broadcaster_id: &str,
+) -> Result<ChannelEmotes, TwitchApiError> {
+  let url = RequestBuilder::new()
+    .add_key_value("broadcaster_id", broadcaster_id)
+    .build(GET_CHANNEL_EMOTES_URL);
+
+  TwitchHttpRequest::new(url)
+    .header_authorisation(access_token, AuthType::Bearer)
+    .header_client_id(client_id)
+    .run()
+    .and_then(|data| {
+      serde_json::from_str::<ChannelEmotes>(&data)
+        .map_err(|e| TwitchApiError::DeserialisationError(e.to_string()))
+    })
+}
+
+pub fn get_global_emotes(
+  access_token: &str,
+  client_id: &str,
+) -> Result<GlobalEmotes, TwitchApiError> {
+  let url = RequestBuilder::new().build(GET_GLOBAL_EMOTES_URL);
+
+  TwitchHttpRequest::new(url)
+    .header_authorisation(access_token, AuthType::Bearer)
+    .header_client_id(client_id)
+    .run()
+    .and_then(|data| {
+      serde_json::from_str::<GlobalEmotes>(&data)
+        .map_err(|e| TwitchApiError::DeserialisationError(e.to_string()))
+    })
+}
+
+pub fn get_emote_set(
+  emote_set_id: &str,
+  access_token: &str,
+  client_id: &str,
+) -> Result<GlobalEmotes, TwitchApiError> {
+  let url = RequestBuilder::new()
+    .add_key_value("emote_set_id", emote_set_id)
+    .build(GET_EMOTE_SETS_URL);
+
+  TwitchHttpRequest::new(url)
+    .header_authorisation(access_token, AuthType::Bearer)
+    .header_client_id(client_id)
+    .run()
+    .and_then(|data| {
+      serde_json::from_str::<GlobalEmotes>(&data)
+        .map_err(|e| TwitchApiError::DeserialisationError(e.to_string()))
+    })
+}
+
+pub fn send_chat_message(
+  user_token: &str,
+  client_id: &str,
+  sender_id: &str,
+  broadcaster_id: &str,
+  message: &str,
+) -> Result<String, TwitchApiError> {
+  send_chat_message_with_reply(
+    user_token,
+    client_id,
+    sender_id,
+    broadcaster_id,
+    message,
+    None,
+  )
+}
+
+pub fn send_chat_message_with_reply(
+  user_token: &str,
+  client_id: &str,
+  sender_id: &str,
+  broadcaster_id: &str,
+  message: &str,
+  reply_message_parent_id: Option<String>,
+) -> Result<String, TwitchApiError> {
+  if message.len() > 500 {
+    return Err(TwitchApiError::InputError(String::from(
+      "Message Length is too long.",
+    )));
+  }
+
+  TwitchHttpRequest::new(SEND_MESSAGE_URL)
+    .json_content()
+    .full_auth(user_token, client_id)
+    .is_post(
+      serde_json::to_string(&SendMessage {
+        broadcaster_id: broadcaster_id.to_owned(),
+        sender_id: sender_id.to_owned(),
+        message: message.into(),
+        reply_parent_message_id: reply_message_parent_id,
+      })
+      .unwrap(),
+    )
+    .run()
 }

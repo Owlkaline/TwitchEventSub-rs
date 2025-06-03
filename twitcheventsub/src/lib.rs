@@ -1,45 +1,31 @@
-//#![doc = include_str!("../../../../README.md")]
-
-use std::fs::{self, read};
-use std::io::{stdin, BufRead, Write};
 use std::iter;
-use std::sync::mpsc::{channel, Receiver as SyncReceiver};
+use std::sync::mpsc::{channel, Receiver as SyncReceiver, Sender};
 use std::thread::{self, JoinHandle};
 use std::time::Duration;
 
-use std::sync::{Arc, Mutex};
+use modules::bttv::BTTV;
+pub use modules::errors::LOG_FILE;
+use modules::irc_bot::IRCChat;
+use serde_json;
+use tungstenite::connect;
+use twitcheventsub_api::TwitchApiError;
+pub use twitcheventsub_structs::*;
+use twitcheventsub_tokens::TokenHandler;
 
 use crate::modules::consts::*;
 
-use modules::bttv::BTTV;
-use modules::irc_bot::IRCChat;
-use open;
-
-use std::io::Read;
-use tungstenite::Error;
-use tungstenite::{connect, http};
-
-use serde_json;
-
-use std::net::TcpListener;
-
-pub use modules::errors::LOG_FILE;
-pub use twitcheventsub_structs::*;
-
 mod modules;
-
-use crate::modules::token::Token;
 
 #[cfg(feature = "logging")]
 pub use log::{error, info, warn};
 
-pub use crate::modules::{
-  emotebuilder::*,
-  errors::EventSubError,
-  eventsub,
-  token::{TokenAccess, TwitchKeys},
-  twitch_http::{AuthType, RequestType, TwitchApi, TwitchHttpRequest},
-};
+pub use crate::modules::{emotebuilder::*, errors::EventSubError, eventsub};
+
+impl From<TwitchApiError> for EventSubError {
+  fn from(value: TwitchApiError) -> Self {
+    EventSubError::TwitchApiError(value)
+  }
+}
 
 #[derive(Debug)]
 pub enum ResponseType {
@@ -52,54 +38,29 @@ pub enum ResponseType {
 
 #[must_use]
 pub struct TwitchEventSubApiBuilder {
-  twitch_keys: TwitchKeys,
+  tokens: TokenHandler,
   subscriptions: Vec<Subscription>,
-  redirect_url: Option<String>,
-
-  bot_is_local: bool,
-  manual_input: bool,
-  generate_token_if_none: bool,
-  generate_token_on_scope_error: bool,
-  generate_access_token_on_expire: bool,
-  auto_save_load_created_tokens: Option<(String, String)>,
-  only_raw_responses: bool,
-  enable_irc: Option<(String, String)>,
+  enable_irc: bool,
+  bot_tokens: Option<TokenHandler>,
 }
 
 impl TwitchEventSubApiBuilder {
-  pub fn new(tk: TwitchKeys) -> TwitchEventSubApiBuilder {
+  pub fn new(tokens: TokenHandler) -> TwitchEventSubApiBuilder {
     TwitchEventSubApiBuilder {
-      twitch_keys: tk,
+      tokens,
       subscriptions: Vec::new(),
-      redirect_url: None,
-
-      bot_is_local: true,
-      manual_input: false,
-      generate_token_if_none: false,
-      generate_token_on_scope_error: false,
-      generate_access_token_on_expire: false,
-      auto_save_load_created_tokens: None,
-      only_raw_responses: false,
-      enable_irc: None,
+      enable_irc: false,
+      bot_tokens: None,
     }
   }
 
-  pub fn enable_irc<S: Into<String>, T: Into<String>>(
-    mut self,
-    username: T,
-    channel: S,
-  ) -> TwitchEventSubApiBuilder {
-    self.enable_irc = Some((username.into(), channel.into()));
+  pub fn use_bot_account(mut self, tokens: TokenHandler) -> TwitchEventSubApiBuilder {
+    self.bot_tokens = Some(tokens);
     self
   }
 
-  pub fn is_run_remotely(mut self) -> TwitchEventSubApiBuilder {
-    self.bot_is_local = false;
-    self
-  }
-
-  pub fn manual_input(mut self) -> TwitchEventSubApiBuilder {
-    self.manual_input = true;
+  pub fn enable_irc(mut self) -> TwitchEventSubApiBuilder {
+    self.enable_irc = true;
     self
   }
 
@@ -116,275 +77,19 @@ impl TwitchEventSubApiBuilder {
     self
   }
 
-  pub fn set_redirect_url<S: Into<String>>(mut self, url: S) -> TwitchEventSubApiBuilder {
-    self.redirect_url = Some(url.into());
-    self
-  }
-
-  pub fn generate_new_token_if_insufficent_scope(
-    mut self,
-    should_generate: bool,
-  ) -> TwitchEventSubApiBuilder {
-    self.generate_token_on_scope_error = should_generate;
-    self
-  }
-
-  pub fn generate_new_token_if_none(mut self, should_generate: bool) -> TwitchEventSubApiBuilder {
-    self.generate_token_if_none = should_generate;
-    self
-  }
-
-  pub fn generate_access_token_on_expire(
-    mut self,
-    should_generate_access_token_on_expire: bool,
-  ) -> TwitchEventSubApiBuilder {
-    self.generate_access_token_on_expire = should_generate_access_token_on_expire;
-    self
-  }
-
-  pub fn auto_save_load_created_tokens<S: Into<String>, T: Into<String>>(
-    mut self,
-    user_token_file: S,
-    refresh_token_file: T,
-  ) -> TwitchEventSubApiBuilder {
-    self.auto_save_load_created_tokens = Some((user_token_file.into(), refresh_token_file.into()));
-    self
-  }
-
   pub fn subscriptions(&self) -> Vec<Subscription> {
     self.subscriptions.clone()
   }
 
-  pub fn set_keys(&mut self, keys: TwitchKeys) {
-    self.twitch_keys = keys;
-  }
-
-  pub fn receive_all_responses_raw(&mut self, receive_raw_data: bool) {
-    self.only_raw_responses = receive_raw_data;
-  }
-
-  pub fn build(mut self) -> Result<TwitchEventSubApi, EventSubError> {
-    let mut newly_generated_token = None;
-
-    if self.subscriptions.is_empty() {
-      #[cfg(feature = "logging")]
-      error!("No Subscriptions selected.");
-      return Err(EventSubError::NoSubscriptionsRequested);
-    }
-
-    if (self.generate_token_if_none || self.generate_token_on_scope_error)
-      && self.redirect_url.is_none()
-    {
-      #[cfg(feature = "logging")]
-      error!("No redirect url given when generate token is enabled.");
-      return Err(EventSubError::UnhandledError(
-        "Redirect url was not set, when a generate token setting was enabled.".to_owned(),
-      ));
-    }
-
-    let mut save_new_tokens = false;
-    // If there is no access token
-    if self.twitch_keys.access_token.is_none() {
-      // If auto save and load created tokens is enabled
-      // We check those files for the relevant keys
-      if let Some((ref token_file, ref refresh_file)) = self.auto_save_load_created_tokens {
-        let mut new_token = String::new();
-        let mut refresh_token = String::new();
-
-        if let Ok(mut reader) = fs::OpenOptions::new()
-          .append(false)
-          .create(false)
-          .read(true)
-          .open(token_file)
-        {
-          let _ = reader.read_to_string(&mut new_token);
-        }
-
-        if let Ok(mut reader) = fs::OpenOptions::new()
-          .append(false)
-          .create(false)
-          .read(true)
-          .open(refresh_file)
-        {
-          let _ = reader.read_to_string(&mut refresh_token);
-        }
-
-        if !new_token.is_empty() {
-          #[cfg(feature = "logging")]
-          info!("Found user access token!");
-          self.twitch_keys.access_token = Some(TokenAccess::User(new_token));
-        }
-        if !refresh_token.is_empty() {
-          #[cfg(feature = "logging")]
-          info!("Found refresh token!");
-          self.twitch_keys.refresh_token = Some(refresh_token);
-        }
-
-        let mut generate_token =
-          self.twitch_keys.refresh_token.is_none() || self.twitch_keys.access_token.is_none();
-
-        if self.generate_token_if_none {
-          if generate_token {
-            if let Some(refresh_token) = &self.twitch_keys.refresh_token {
-              #[cfg(feature = "logging")]
-              info!(
-                "No access token provided, attempting to generate access token from refresh token."
-              );
-              // Try to create new token from refresh token
-              if let Ok(token) = TwitchApi::generate_token_from_refresh_token(
-                self.twitch_keys.client_id.to_owned(),
-                self.twitch_keys.client_secret.to_owned(),
-                refresh_token,
-              ) {
-                #[cfg(feature = "logging")]
-                info!("Generated user access token from refresh key.");
-                self.twitch_keys.access_token = Some(token.access.clone());
-                self.twitch_keys.refresh_token = Some(token.refresh.to_owned());
-                newly_generated_token = Some(token);
-                save_new_tokens = true;
-                generate_token = false;
-              } else {
-                #[cfg(feature = "logging")]
-                warn!("Couldn't generate access token from refresh token.");
-              }
-            }
-
-            // If there are no refresh tokens or refresh token could created
-            // a new access token, then get a completely new user token
-            if generate_token {
-              #[cfg(feature = "logging")]
-              info!("Generating new user token.");
-              // Returns app access token
-              match TwitchApi::generate_user_token(
-                self.twitch_keys.client_id.to_owned(),
-                self.twitch_keys.client_secret.to_owned(),
-                self.redirect_url.clone().unwrap(),
-                self.bot_is_local,
-                self.manual_input,
-                &self.subscriptions,
-              ) {
-                Ok(user_token) => {
-                  #[cfg(feature = "logging")]
-                  info!("Token created!");
-                  self.twitch_keys.access_token = Some(user_token.access.clone());
-                  self.twitch_keys.refresh_token = Some(user_token.refresh.to_owned());
-                  newly_generated_token = Some(user_token);
-                  save_new_tokens = true;
-                }
-                Err(e) => {
-                  #[cfg(feature = "logging")]
-                  error!("Failed to generate token: {:?}", e);
-                  return Err(e);
-                }
-              }
-            }
-          }
-        } else {
-          #[cfg(feature = "logging")]
-          error!("No access token provided");
-          return Err(EventSubError::NoAccessTokenProvided);
-        }
-      }
-    }
-
-    match TwitchEventSubApi::check_token_meets_requirements(
-      self.twitch_keys.access_token.clone().unwrap(),
-      &self.subscriptions,
-    ) {
-      Ok(token_meets_requirements) => {
-        if !token_meets_requirements {
-          if self.generate_token_on_scope_error {
-            #[cfg(feature = "logging")]
-            info!("Generating new token because current token doesn't have correct scope.");
-            match TwitchApi::generate_user_token(
-              self.twitch_keys.client_id.to_owned(),
-              self.twitch_keys.client_secret.to_owned(),
-              self.redirect_url.clone().unwrap(),
-              self.bot_is_local,
-              self.manual_input,
-              &self.subscriptions,
-            ) {
-              Ok(user_token) => {
-                #[cfg(feature = "logging")]
-                info!("Token Generated!");
-                self.twitch_keys.refresh_token = Some(user_token.refresh.clone());
-                self.twitch_keys.access_token = Some(user_token.access.to_owned());
-                newly_generated_token = Some(user_token);
-                save_new_tokens = true;
-              }
-              Err(e) => {
-                #[cfg(feature = "logging")]
-                error!("Generating token failed: {:?}", e);
-                return Err(e);
-              }
-            }
-          } else {
-            #[cfg(feature = "logging")]
-            error!("Token missing required scope!");
-            return Err(EventSubError::TokenMissingScope);
-          }
-        }
-      }
-      Err(EventSubError::TokenRequiresRefreshing(http)) => {
-        #[cfg(feature = "logging")]
-        warn!("Checking validation failed as token needs refreshing");
-
-        TwitchEventSubApi::regen_token_if_401(
-          Err(EventSubError::TokenRequiresRefreshing(http)),
-          &mut self.twitch_keys,
-          &self.auto_save_load_created_tokens,
-        )?;
-      }
-      Err(e) => {
-        #[cfg(feature = "logging")]
-        error!("Failed parsing validation response: {:?}", e);
-        return Err(e);
-      }
-    }
-
-    // All main account tokens are valid and correct
-    // Get bot account token now if set
-    //if let Some(ref bot_id) = self.twitch_keys.sender_account_id {
-    //  if bot_id != &self.twitch_keys.broadcaster_account_id {
-    //    // Generate access token from OIDC implicit grant flow
-    //    dbg!(TwitchApi::generate_bot_access_token(
-    //      self.twitch_keys.client_id.to_owned(),
-    //      self.redirect_url.unwrap().to_owned(),
-    //      &self.subscriptions,
-    //      self.bot_is_local,
-    //    ));
-    //  }
-    //}
-
-    if save_new_tokens {
-      if let Some((token_file, refresh_file)) = self.auto_save_load_created_tokens {
-        #[cfg(feature = "logging")]
-        info!("saving tokens");
-        if let Some(new_token) = newly_generated_token {
-          if let Err(e) = new_token.save_to_file(token_file, refresh_file) {
-            #[cfg(feature = "logging")]
-            warn!("Failed to save tokens to file!");
-            return Err(e);
-          }
-        }
-      }
-    }
-
+  pub fn build(self, broadcasters_username: &str) -> Result<TwitchEventSubApi, EventSubError> {
     TwitchEventSubApi::new(
-      self.twitch_keys,
+      self.tokens,
+      self.bot_tokens,
       self.subscriptions,
       Vec::new(),
       self.enable_irc,
+      broadcasters_username,
     )
-    .map(|mut twitch| {
-      if let Ok(users) = twitch.get_users_self() {
-        if let Some(user) = users.data.first() {
-          twitch.twitch_keys.token_user_id = user.id.to_owned();
-        }
-      }
-      twitch
-    })
-    .map_err(|e| EventSubError::UnhandledError(e.to_string()))
   }
 }
 
@@ -392,377 +97,222 @@ impl TwitchEventSubApiBuilder {
 pub struct TwitchEventSubApi {
   _receive_thread: JoinHandle<()>,
   messages_received: SyncReceiver<ResponseType>,
-  twitch_keys: TwitchKeys,
-  _token: Arc<Mutex<Token>>,
-  save_locations: Option<(String, String)>,
+  send_quit_message: Sender<bool>,
+  tokens: TokenHandler,
+  bot_tokens: Option<TokenHandler>,
   subscriptions: Vec<Subscription>,
   subscription_data: Vec<String>,
-  bttv: BTTV,
+  pub bttv: BTTV,
+  pub broadcaster_user: UserData,
 }
 
 impl TwitchEventSubApi {
-  pub fn builder(twitch_keys: TwitchKeys) -> TwitchEventSubApiBuilder {
-    TwitchEventSubApiBuilder::new(twitch_keys)
+  pub fn builder(tokens: TokenHandler) -> TwitchEventSubApiBuilder {
+    TwitchEventSubApiBuilder::new(tokens)
   }
 
   pub fn new(
-    twitch_keys: TwitchKeys,
-    subscriptions: Vec<Subscription>,
+    mut tokens: TokenHandler,
+    bot_tokens: Option<TokenHandler>,
+    mut subscriptions: Vec<Subscription>,
     custom_subscription_data: Vec<String>,
-    irc_channel: Option<(String, String)>,
-  ) -> Result<TwitchEventSubApi, Error> {
-    let bttv = BTTV::new(twitch_keys.broadcaster_account_id.clone());
-    let bttv2 = BTTV::new(twitch_keys.broadcaster_account_id.clone());
+    use_irc_channel: bool,
+    broadcasters_username: &str,
+  ) -> Result<TwitchEventSubApi, EventSubError> {
+    dbg!("Start of twitcheventsubapi new");
+
+    let client_twitch_id = tokens.client_twitch_id.clone();
+    let users = tokens.get_users(vec![&client_twitch_id], vec![broadcasters_username])?;
+
+    //let users = tokens.regen_tokens_on_fail(twitcheventsub_api::get_users(
+    //  &user_token,
+    //  vec![&client_twitch_id],
+    //  vec![broadcasters_username],
+    //  &client_id,
+    //))?;
+    dbg!("after get users");
+
+    // Or not all user details retrieved
+    if users.data.is_empty() ||
+      (users.data.len() < 2 &&
+        (users.data[0].id != tokens.client_twitch_id ||
+          users.data[0].login != broadcasters_username))
+    {
+      // Queried a invalid broadcaster
+      return Err(EventSubError::InvalidBroadcaster);
+    }
+
+    let (broadcaster_user, token_user) = {
+      let mut client_idx = 0;
+      let broadcaster_idx;
+      if users.data[0].id == tokens.client_twitch_id && users.data[0].login == broadcasters_username
+      {
+        broadcaster_idx = 0;
+      } else if users.data[1].id == tokens.client_twitch_id {
+        broadcaster_idx = 0;
+        client_idx = 1;
+      } else if users.data[0].id != tokens.client_twitch_id ||
+        users.data[0].login != broadcasters_username
+      {
+        broadcaster_idx = 1;
+      } else {
+        return Err(EventSubError::InvalidBroadcaster);
+      }
+
+      (
+        users.data[broadcaster_idx].clone(),
+        users.data[client_idx].clone(),
+      )
+    };
+
+    dbg!("start bttv");
+    let bttv = BTTV::new(&broadcaster_user.id);
+    let bttv2 = BTTV::new(&broadcaster_user.id);
+    dbg!("end bttv");
 
     let mut irc = None;
 
-    if let Some((username, channel)) = irc_channel {
-      let mut new_irc = IRCChat::new(
-        username,
-        twitch_keys.access_token.clone().unwrap().get_token(),
-      );
-      new_irc.join_channel(channel);
+    if use_irc_channel {
+      subscriptions.append(&mut vec![
+        Subscription::PermissionIRCRead,
+        Subscription::PermissionIRCWrite,
+      ]);
+    }
+
+    dbg!("Check token has requirement");
+    if let Ok(false) = tokens.check_token_has_required_subscriptions(&subscriptions) {
+      dbg!("Apply subscription tokens");
+      tokens.apply_subscriptions_to_tokens(&subscriptions, true);
+    }
+    dbg!("End check token requirements");
+
+    dbg!("start irc");
+    if use_irc_channel {
+      let mut new_irc = IRCChat::new(&token_user.login, &tokens.user_token);
+      dbg!("after irc new");
+      new_irc.join_channel(&broadcaster_user.login);
 
       irc = Some(new_irc);
     }
+    dbg!("end irc");
 
     #[cfg(feature = "logging")]
     info!("Starting websocket client.");
-    let (client, _) = match connect(CONNECTION_EVENTS) {
+    let (twitch_receiver, _) = match connect(CONNECTION_EVENTS) {
       Ok(a) => a,
-      Err(e) => return Err(e),
+      Err(e) => return Err(EventSubError::WebSocketFailed(e.to_string())),
     };
 
-    let receiver = client;
+    dbg!("After websocket start");
 
     let (transmit_messages, receive_message) = channel();
+    let (send_quit_message, receive_quit_message) = channel();
 
-    let token = Arc::new(Mutex::new(Token::new(
-      twitch_keys
-        .access_token
-        .to_owned()
-        .unwrap_or(TokenAccess::User("".to_owned())),
-      twitch_keys
-        .refresh_token
-        .to_owned()
-        .unwrap_or("".to_owned()),
-      0.0,
-    )));
-
-    let keys_clone = twitch_keys.clone();
+    let thread_token = tokens.clone();
     let subscriptions_clone = subscriptions.clone();
     let custom_subscription_data_clone = custom_subscription_data.clone();
+
+    let broadcaster_id = broadcaster_user.id.clone();
     let receive_thread = thread::spawn(move || {
       eventsub::events(
-        receiver,
+        twitch_receiver,
         transmit_messages,
+        receive_quit_message,
         subscriptions_clone,
         custom_subscription_data_clone,
-        keys_clone,
+        thread_token,
         None,
         irc,
         bttv,
+        &broadcaster_id,
       )
     });
 
     Ok(TwitchEventSubApi {
       _receive_thread: receive_thread,
       messages_received: receive_message,
-      twitch_keys,
-      _token: token,
-      save_locations: None,
+      send_quit_message,
+      tokens,
+      bot_tokens,
       subscriptions,
       subscription_data: custom_subscription_data,
       bttv: bttv2,
+      broadcaster_user,
     })
   }
 
-  pub fn get_twitch_keys(&self) -> TwitchKeys {
-    self.twitch_keys.clone()
+  pub fn get_tokens(&self) -> TokenHandler {
+    self.tokens.clone()
   }
 
   pub fn restart_websockets(&mut self) -> Result<(), EventSubError> {
-    let keys_clone = self.twitch_keys.clone();
+    let _ = self.send_quit_message.send(true);
+
+    let tokens = self.tokens.clone();
+    let bot_tokens = self.bot_tokens.clone();
     let subscriptions = self.subscriptions.clone();
     let custom_subscription_data = self.subscription_data.clone();
-    match TwitchEventSubApi::new(keys_clone, subscriptions, custom_subscription_data, None) {
-      Ok(t) => {
-        *self = t;
-        Ok(())
-      }
-      Err(e) => Err(EventSubError::WebsocketRestartFailed(e.to_string())),
-    }
+    let broadcasters_username = &self.broadcaster_user.login;
+    let new_webscoket = TwitchEventSubApi::new(
+      tokens,
+      bot_tokens,
+      subscriptions,
+      custom_subscription_data,
+      false,
+      broadcasters_username,
+    )?;
+
+    *self = new_webscoket;
+
+    Ok(())
   }
 
-  pub fn validate_token<S: Into<String>>(token: S) -> Result<Validation, EventSubError> {
-    TwitchHttpRequest::new(VALIDATION_TOKEN_URL)
-      .header_authorisation(token.into(), AuthType::OAuth)
-      .run()
-      .and_then(|data| {
-        serde_json::from_str::<Validation>(&data)
-          .map_err(|e| EventSubError::ParseError(e.to_string()))
-      })
-  }
+  // fn regen_token_if_401(
+  //   result: Result<String, EventSubError>,
+  //   twitch_keys: &mut TwitchKeys,
+  //   auto_save_load_created_tokens: &Option<(String, String)>,
+  // ) -> Result<String, EventSubError> {
+  //   if let Err(EventSubError::TokenRequiresRefreshing(mut http_request)) = result {
+  //     #[cfg(feature = "logging")]
+  //     warn!("Token requires refreshing return!");
+  //     if let Ok(token) = TwitchApi::generate_token_from_refresh_token(
+  //       twitch_keys.client_id.to_owned(),
+  //       twitch_keys.client_secret.to_owned(),
+  //       twitch_keys.refresh_token.clone().unwrap().to_owned(),
+  //     ) {
+  //       #[cfg(feature = "logging")]
+  //       info!("Generated new keys as 401 was returned!");
+  //       twitch_keys.access_token = Some(token.access);
+  //       twitch_keys.refresh_token = Some(token.refresh.to_owned());
+  //     }
 
-  pub fn check_token_meets_requirements(
-    access_token: TokenAccess,
-    subs: &[Subscription],
-  ) -> Result<bool, EventSubError> {
-    TwitchEventSubApi::validate_token(access_token.get_token()).map(|validation| {
-      if validation.is_error() {
-        false
-      } else {
-        subs
-          .iter()
-          .filter(|s| !s.required_scope().is_empty())
-          .all(move |s| {
-            let r = s.required_scope();
+  //     // TODO: SAVE
+  //     if let Some((token_file, refresh_file)) = auto_save_load_created_tokens {
+  //       #[cfg(feature = "logging")]
+  //       info!("saving tokens");
+  //       if let Some(new_token) = twitch_keys.token() {
+  //         if let Err(e) = new_token.save_to_file(token_file, refresh_file) {
+  //           #[cfg(feature = "logging")]
+  //           warn!("Failed to save tokens to file!");
+  //           return Err(e);
+  //         }
+  //       }
+  //     }
 
-            let requirements = r.split('+').map(ToString::to_string).collect::<Vec<_>>();
-
-            for req in requirements {
-              if !validation.scopes.as_ref().unwrap().contains(&req) {
-                return false;
-              }
-            }
-            true
-          })
-      }
-    })
-  }
-
-  pub fn implicit_browser_bs<S: Into<String>, T: Into<String>>(
-    browser_url: S,
-    redirect_url: T,
-    is_local: bool,
-  ) -> Result<String, EventSubError> {
-    let mut minimal_html = "HTTP/1.1 404
-    Content-Length: 0
-";
-
-    let mut js_disgust = "
-    <!DOCTYPE html><html><head></head><body><script>
-    var url_parts = String(window.location).split(\"#\");
-    console.log(url_parts);
-							  if(url_parts.length > 1) {
-								  var redirect_url = url_parts[0] + \"?\" + url_parts[1];
-								  window.location = redirect_url;
-							  }
-						</script></body></html>";
-
-    let html = format!(
-      "
-      HTTP/1.1 200 OK
-     Content-Type: text/html; charset=utf-8
-		Content-Length: {}
-		Connection: close
-		Cache-Control: max-age=0\n
-      {}",
-      js_disgust.len(),
-      js_disgust
-    );
-
-    let browser_url = browser_url.into();
-
-    if let Err(response) = TwitchHttpRequest::new(&browser_url).run() {
-      return Err(response);
-    }
-
-    if is_local {
-      if let Err(e) = open::that_detached(browser_url) {
-        #[cfg(feature = "logging")]
-        error!("Failed to open browser: {}", e);
-        return Err(EventSubError::UnhandledError(e.to_string()));
-      }
-    } else {
-      println!(
-        "Please visit the following link to have your token be authorised and generated:\n{}",
-        browser_url
-      );
-    }
-
-    let mut redirect_url = redirect_url.into().to_ascii_lowercase();
-
-    if redirect_url.contains("http") && redirect_url.contains("/") {
-      redirect_url = redirect_url
-        .split('/')
-        .collect::<Vec<_>>()
-        .last()
-        .unwrap()
-        .to_string();
-    }
-
-    #[cfg(feature = "logging")]
-    info!("Starting local tcp listener for token generation");
-    let listener = TcpListener::bind(&redirect_url).expect("Failed to create tcp listener.");
-
-    let mut redirected = 0;
-
-    // accept connections and process them serially
-    match listener.accept() {
-      Ok((mut stream, _b)) => {
-        loop {
-          let mut http_output_b = String::new();
-          stream
-            .read_to_string(&mut http_output_b)
-            .expect("Failed to read tcp stream.");
-          dbg!(&http_output_b);
-          stream.write(minimal_html.as_bytes());
-          stream.flush();
-          //if redirected > 0 {
-          //  let mut http_output_b = String::new();
-          //  stream
-          //    .read_to_string(&mut http_output_b)
-          //    .expect("Failed to read tcp stream.");
-          //  dbg!(&http_output_b);
-          //  return Ok(http_output_b);
-          //} else {
-          //  let mut http_output_a = String::new();
-          //  stream
-          //    .read_to_string(&mut http_output_a)
-          //    .expect("Failed to read tcp stream.");
-          //  dbg!(http_output_a);
-          //  let _ = stream.write(html.as_bytes());
-          //  println!("send bytes");
-          //  redirected += 1;
-          //}
-        }
-      }
-      Err(e) => {
-        return Err(EventSubError::UnhandledError(e.to_string()));
-      }
-    }
-  }
-
-  pub fn open_browser<S: Into<String>, T: Into<String>>(
-    browser_url: S,
-    redirect_url: T,
-    is_local: bool,
-    manual_input: bool,
-  ) -> Result<String, EventSubError> {
-    let browser_url = browser_url.into();
-
-    if let Err(response) = TwitchHttpRequest::new(&browser_url).run() {
-      return Err(response);
-    }
-
-    if is_local {
-      if let Err(e) = open::that_detached(browser_url) {
-        #[cfg(feature = "logging")]
-        error!("Failed to open browser: {}", e);
-        return Err(EventSubError::UnhandledError(e.to_string()));
-      }
-    } else {
-      println!(
-        "Please visit the following link to have your token be authorised and generated:\n{}",
-        browser_url
-      );
-    }
-
-    let mut redirect_url = redirect_url.into().to_ascii_lowercase();
-
-    if redirect_url.contains("http") && redirect_url.contains("/") {
-      redirect_url = redirect_url
-        .split('/')
-        .collect::<Vec<_>>()
-        .last()
-        .unwrap()
-        .to_string();
-    }
-
-    if manual_input {
-      let stdin = stdin();
-      for line in stdin.lock().lines() {
-        let code = line.unwrap();
-        return Ok(code);
-      }
-
-      Err(EventSubError::UnhandledError(
-        "twitch token code input valid.".to_string(),
-      ))
-    } else {
-      #[cfg(feature = "logging")]
-      info!("Starting local tcp listener for token generation");
-      let listener = TcpListener::bind(&redirect_url).expect("Failed to create tcp listener.");
-
-      // accept connections and process them serially
-      match listener.accept() {
-        Ok((mut stream, _b)) => {
-          let mut http_output = String::new();
-          stream
-            .read_to_string(&mut http_output)
-            .expect("Failed to read tcp stream.");
-          Ok(http_output)
-        }
-        Err(e) => Err(EventSubError::UnhandledError(e.to_string())),
-      }
-    }
-  }
-
-  fn regen_token_if_401(
-    result: Result<String, EventSubError>,
-    twitch_keys: &mut TwitchKeys,
-    auto_save_load_created_tokens: &Option<(String, String)>,
-  ) -> Result<String, EventSubError> {
-    if let Err(EventSubError::TokenRequiresRefreshing(mut http_request)) = result {
-      #[cfg(feature = "logging")]
-      warn!("Token requires refreshing return!");
-      if let Ok(token) = TwitchApi::generate_token_from_refresh_token(
-        twitch_keys.client_id.to_owned(),
-        twitch_keys.client_secret.to_owned(),
-        twitch_keys.refresh_token.clone().unwrap().to_owned(),
-      ) {
-        #[cfg(feature = "logging")]
-        info!("Generated new keys as 401 was returned!");
-        twitch_keys.access_token = Some(token.access);
-        twitch_keys.refresh_token = Some(token.refresh.to_owned());
-      }
-
-      // TODO: SAVE
-      if let Some((token_file, refresh_file)) = auto_save_load_created_tokens {
-        #[cfg(feature = "logging")]
-        info!("saving tokens");
-        if let Some(new_token) = twitch_keys.token() {
-          if let Err(e) = new_token.save_to_file(token_file, refresh_file) {
-            #[cfg(feature = "logging")]
-            warn!("Failed to save tokens to file!");
-            return Err(e);
-          }
-        }
-      }
-
-      let access_token = twitch_keys.access_token.as_ref().unwrap();
-      http_request.update_token(access_token.get_token());
-      http_request.run()
-    } else {
-      if result.is_err() {
-        #[cfg(feature = "logging")]
-        warn!(
-          "regen 401 called with result being an error, but wasnt token refresh required: {:?}",
-          result
-        );
-      }
-      result
-    }
-  }
-
-  fn process_token_query<S: Into<String>>(post_data: S) -> Result<Token, EventSubError> {
-    TwitchHttpRequest::new(TWITCH_TOKEN_URL)
-      .url_encoded_content()
-      .is_post(post_data)
-      .run()
-      .and_then(|twitch_response| {
-        serde_json::from_str::<NewAccessTokenResponse>(&twitch_response)
-          .map_err(|_| EventSubError::AuthorisationError(twitch_response))
-          .map(|new_token_data| {
-            Token::new_user_token(
-              new_token_data.access_token,
-              new_token_data.refresh_token.unwrap(),
-              new_token_data.expires_in as f32,
-            )
-          })
-      })
-  }
+  //     let access_token = twitch_keys.access_token.as_ref().unwrap();
+  //     http_request.update_token(access_token.get_token());
+  //     http_request.run()
+  //   } else {
+  //     if result.is_err() {
+  //       #[cfg(feature = "logging")]
+  //       warn!(
+  //         "regen 401 called with result being an error, but wasnt token refresh required: {:?}",
+  //         result
+  //       );
+  //     }
+  //     result
+  //   }
+  // }
 
   /// Collect all pending message immediately
   /// Should be non-blocking
@@ -804,550 +354,541 @@ impl TwitchEventSubApi {
     self.messages_received.recv_timeout(duration).ok()
   }
 
-  pub fn delete_message<S: Into<String>>(
-    &mut self,
-    message_id: S,
-  ) -> Result<String, EventSubError> {
-    let broadcaster_account_id = self.twitch_keys.broadcaster_account_id.to_string();
-    let moderator_account_id = broadcaster_account_id.to_owned();
-    let access_token = self
-      .twitch_keys
-      .access_token
-      .clone()
-      .expect("No Access Token set")
-      .get_token();
-    let client_id = self.twitch_keys.client_id.to_string();
+  //pub fn delete_message<S: Into<String>>(
+  //  &mut self,
+  //  message_id: S,
+  //) -> Result<String, EventSubError> {
+  //  let broadcaster_account_id = self.broadcaster_account_id.to_string();
+  //  let moderator_account_id = broadcaster_account_id.to_owned();
+  //  let access_token = self
+  //    .twitch_keys
+  //    .access_token
+  //    .clone()
+  //    .expect("No Access Token set")
+  //    .get_token();
+  //  let client_id = self.twitch_keys.client_id.to_string();
 
-    TwitchEventSubApi::regen_token_if_401(
-      TwitchApi::delete_message(
-        broadcaster_account_id,
-        moderator_account_id,
-        message_id.into(),
-        access_token,
-        client_id,
-      ),
-      &mut self.twitch_keys,
-      &self.save_locations,
-    )
-  }
+  //  TwitchEventSubApi::regen_token_if_401(
+  //    TwitchApi::delete_message(
+  //      broadcaster_account_id,
+  //      moderator_account_id,
+  //      message_id.into(),
+  //      access_token,
+  //      client_id,
+  //    ),
+  //    &mut self.twitch_keys,
+  //    &self.save_locations,
+  //  )
+  //}
 
-  pub fn timeout_user<S: Into<String>, T: Into<String>>(
-    &mut self,
-    user_id: S,
-    duration: u32,
-    reason: T,
-  ) {
-    let broadcaster_account_id = self.twitch_keys.broadcaster_account_id.to_string();
-    let moderator_account_id = broadcaster_account_id.to_owned();
+  //pub fn timeout_user<S: Into<String>, T: Into<String>>(
+  //  &mut self,
+  //  user_id: S,
+  //  duration: u32,
+  //  reason: T,
+  //) {
+  //  let broadcaster_account_id = self.twitch_keys.broadcaster_account_id.to_string();
+  //  let moderator_account_id = broadcaster_account_id.to_owned();
 
-    let access_token = self
-      .twitch_keys
-      .access_token
-      .clone()
-      .expect("No Access Token set")
-      .get_token();
-    let client_id = self.twitch_keys.client_id.to_string();
-    let _ = TwitchEventSubApi::regen_token_if_401(
-      TwitchApi::timeout_user(
-        access_token,
-        client_id,
-        broadcaster_account_id,
-        moderator_account_id,
-        user_id.into(),
-        duration,
-        reason.into(),
-      ),
-      &mut self.twitch_keys,
-      &self.save_locations,
-    );
-  }
+  //  let access_token = self
+  //    .twitch_keys
+  //    .access_token
+  //    .clone()
+  //    .expect("No Access Token set")
+  //    .get_token();
+  //  let client_id = self.twitch_keys.client_id.to_string();
+  //  let _ = TwitchEventSubApi::regen_token_if_401(
+  //    TwitchApi::timeout_user(
+  //      access_token,
+  //      client_id,
+  //      broadcaster_account_id,
+  //      moderator_account_id,
+  //      user_id.into(),
+  //      duration,
+  //      reason.into(),
+  //    ),
+  //    &mut self.twitch_keys,
+  //    &self.save_locations,
+  //  );
+  //}
 
-  pub fn get_ad_schedule(&mut self) -> Result<AdSchedule, EventSubError> {
-    let access_token = self
-      .twitch_keys
-      .access_token
-      .clone()
-      .expect("Access token not set")
-      .get_token();
-    let client_id = self.twitch_keys.client_id.to_string();
-    let broadcaster_id = self.twitch_keys.broadcaster_account_id.to_string();
+  //pub fn get_ad_schedule(&mut self) -> Result<AdSchedule, EventSubError> {
+  //  let access_token = self
+  //    .twitch_keys
+  //    .access_token
+  //    .clone()
+  //    .expect("Access token not set")
+  //    .get_token();
+  //  let client_id = self.twitch_keys.client_id.to_string();
+  //  let broadcaster_id = self.twitch_keys.broadcaster_account_id.to_string();
 
-    TwitchEventSubApi::regen_token_if_401(
-      TwitchApi::get_ad_schedule(broadcaster_id, access_token, client_id),
-      &mut self.twitch_keys,
-      &self.save_locations,
-    )
-    .and_then(|x| serde_json::from_str(&x).map_err(|e| EventSubError::ParseError(e.to_string())))
-  }
+  //  TwitchEventSubApi::regen_token_if_401(
+  //    TwitchApi::get_ad_schedule(broadcaster_id, access_token, client_id),
+  //    &mut self.twitch_keys,
+  //    &self.save_locations,
+  //  )
+  //  .and_then(|x| serde_json::from_str(&x).map_err(|e| EventSubError::ParseError(e.to_string())))
+  //}
 
-  pub fn get_chatters(&mut self) -> Result<GetChatters, EventSubError> {
-    let access_token = self
-      .twitch_keys
-      .access_token
-      .clone()
-      .expect("Access token not set")
-      .get_token();
-    let broadcaster_id = self.twitch_keys.broadcaster_account_id.to_string();
-    let moderator_id = self.twitch_keys.token_user_id.to_owned();
-    let client_id = self.twitch_keys.client_id.to_string();
+  //pub fn get_chatters(&mut self) -> Result<GetChatters, EventSubError> {
+  //  let access_token = self
+  //    .twitch_keys
+  //    .access_token
+  //    .clone()
+  //    .expect("Access token not set")
+  //    .get_token();
+  //  let broadcaster_id = self.twitch_keys.broadcaster_account_id.to_string();
+  //  let moderator_id = self.twitch_keys.token_user_id.to_owned();
+  //  let client_id = self.twitch_keys.client_id.to_string();
 
-    TwitchEventSubApi::regen_token_if_401(
-      TwitchApi::get_chatters(
-        broadcaster_id.to_owned(),
-        moderator_id,
-        access_token,
-        client_id,
-      ),
-      &mut self.twitch_keys,
-      &self.save_locations,
-    )
-    .and_then(|x| serde_json::from_str(&x).map_err(|e| EventSubError::ParseError(e.to_string())))
-  }
+  //  TwitchEventSubApi::regen_token_if_401(
+  //    TwitchApi::get_chatters(
+  //      broadcaster_id.to_owned(),
+  //      moderator_id,
+  //      access_token,
+  //      client_id,
+  //    ),
+  //    &mut self.twitch_keys,
+  //    &self.save_locations,
+  //  )
+  //  .and_then(|x| serde_json::from_str(&x).map_err(|e| EventSubError::ParseError(e.to_string())))
+  //}
 
-  pub fn get_moderators(&mut self) -> Result<Moderators, EventSubError> {
-    let access_token = self
-      .twitch_keys
-      .access_token
-      .clone()
-      .expect("Access token not set")
-      .get_token();
-    let broadcaster_id = self.twitch_keys.broadcaster_account_id.to_string();
-    let client_id = self.twitch_keys.client_id.to_string();
+  //pub fn get_moderators(&mut self) -> Result<Moderators, EventSubError> {
+  //  let access_token = self
+  //    .twitch_keys
+  //    .access_token
+  //    .clone()
+  //    .expect("Access token not set")
+  //    .get_token();
+  //  let broadcaster_id = self.twitch_keys.broadcaster_account_id.to_string();
+  //  let client_id = self.twitch_keys.client_id.to_string();
 
-    if !self.twitch_keys.token_user_id.is_empty()
-      && !broadcaster_id.eq(&self.twitch_keys.token_user_id)
-    {
-      return Err(EventSubError::TokenDoesntBelongToBroadcaster);
-    }
+  //  if !self.twitch_keys.token_user_id.is_empty() &&
+  //    !broadcaster_id.eq(&self.twitch_keys.token_user_id)
+  //  {
+  //    return Err(EventSubError::TokenDoesntBelongToBroadcaster);
+  //  }
 
-    TwitchEventSubApi::regen_token_if_401(
-      TwitchApi::get_moderators(access_token, client_id, broadcaster_id),
-      &mut self.twitch_keys,
-      &self.save_locations,
-    )
-    .and_then(|x| serde_json::from_str(&x).map_err(|e| EventSubError::ParseError(e.to_string())))
-  }
+  //  TwitchEventSubApi::regen_token_if_401(
+  //    TwitchApi::get_moderators(access_token, client_id, broadcaster_id),
+  //    &mut self.twitch_keys,
+  //    &self.save_locations,
+  //  )
+  //  .and_then(|x| serde_json::from_str(&x).map_err(|e| EventSubError::ParseError(e.to_string())))
+  //}
 
-  pub fn get_custom_rewards(&mut self) -> Result<GetCustomRewards, EventSubError> {
-    let access_token = self
-      .twitch_keys
-      .access_token
-      .clone()
-      .expect("Access token not set")
-      .get_token();
-    let broadcaster_id = self.twitch_keys.broadcaster_account_id.to_string();
-    let client_id = self.twitch_keys.client_id.to_string();
+  //pub fn get_custom_rewards(&mut self) -> Result<GetCustomRewards, EventSubError> {
+  //  let access_token = self
+  //    .twitch_keys
+  //    .access_token
+  //    .clone()
+  //    .expect("Access token not set")
+  //    .get_token();
+  //  let broadcaster_id = self.twitch_keys.broadcaster_account_id.to_string();
+  //  let client_id = self.twitch_keys.client_id.to_string();
 
-    TwitchEventSubApi::regen_token_if_401(
-      TwitchApi::get_custom_rewards(access_token, client_id, broadcaster_id),
-      &mut self.twitch_keys,
-      &self.save_locations,
-    )
-    .and_then(|x| serde_json::from_str(&x).map_err(|e| EventSubError::ParseError(e.to_string())))
-  }
+  //  TwitchEventSubApi::regen_token_if_401(
+  //    TwitchApi::get_custom_rewards(access_token, client_id, broadcaster_id),
+  //    &mut self.twitch_keys,
+  //    &self.save_locations,
+  //  )
+  //  .and_then(|x| serde_json::from_str(&x).map_err(|e| EventSubError::ParseError(e.to_string())))
+  //}
 
-  pub fn update_custom_reward<S: Into<String>>(
-    &mut self,
-    redeem_id: S,
-    update_redeem: UpdateCustomReward,
-  ) -> Result<CreatedCustomRewardResponse, EventSubError> {
-    let access_token = self
-      .twitch_keys
-      .access_token
-      .clone()
-      .expect("Access token not set")
-      .get_token();
-    let broadcaster_id = self.twitch_keys.broadcaster_account_id.to_string();
-    let client_id = self.twitch_keys.client_id.to_string();
+  //pub fn update_custom_reward<S: Into<String>>(
+  //  &mut self,
+  //  redeem_id: S,
+  //  update_redeem: UpdateCustomReward,
+  //) -> Result<CreatedCustomRewardResponse, EventSubError> {
+  //  let access_token = self
+  //    .twitch_keys
+  //    .access_token
+  //    .clone()
+  //    .expect("Access token not set")
+  //    .get_token();
+  //  let broadcaster_id = self.twitch_keys.broadcaster_account_id.to_string();
+  //  let client_id = self.twitch_keys.client_id.to_string();
 
-    TwitchEventSubApi::regen_token_if_401(
-      TwitchApi::update_custom_rewards(
-        access_token,
-        client_id,
-        broadcaster_id,
-        redeem_id.into(),
-        update_redeem,
-      ),
-      &mut self.twitch_keys,
-      &self.save_locations,
-    )
-    .and_then(|x| serde_json::from_str(&x).map_err(|e| EventSubError::ParseError(e.to_string())))
-  }
+  //  TwitchEventSubApi::regen_token_if_401(
+  //    TwitchApi::update_custom_rewards(
+  //      access_token,
+  //      client_id,
+  //      broadcaster_id,
+  //      redeem_id.into(),
+  //      update_redeem,
+  //    ),
+  //    &mut self.twitch_keys,
+  //    &self.save_locations,
+  //  )
+  //  .and_then(|x| serde_json::from_str(&x).map_err(|e| EventSubError::ParseError(e.to_string())))
+  //}
 
-  pub fn create_custom_reward(
-    &mut self,
-    custom_reward: CreateCustomReward,
-  ) -> Result<CreatedCustomRewardResponse, EventSubError> {
-    let access_token = self
-      .twitch_keys
-      .access_token
-      .clone()
-      .expect("Access token not set")
-      .get_token();
-    let broadcaster_id = self.twitch_keys.broadcaster_account_id.to_string();
-    let client_id = self.twitch_keys.client_id.to_string();
+  //pub fn create_custom_reward(
+  //  &mut self,
+  //  custom_reward: CreateCustomReward,
+  //) -> Result<CreatedCustomRewardResponse, EventSubError> {
+  //  let access_token = self
+  //    .twitch_keys
+  //    .access_token
+  //    .clone()
+  //    .expect("Access token not set")
+  //    .get_token();
+  //  let broadcaster_id = self.twitch_keys.broadcaster_account_id.to_string();
+  //  let client_id = self.twitch_keys.client_id.to_string();
 
-    TwitchEventSubApi::regen_token_if_401(
-      TwitchApi::create_custom_reward(access_token, client_id, broadcaster_id, custom_reward),
-      &mut self.twitch_keys,
-      &self.save_locations,
-    )
-    .and_then(|x| serde_json::from_str(&x).map_err(|e| EventSubError::ParseError(e.to_string())))
-  }
+  //  TwitchEventSubApi::regen_token_if_401(
+  //    TwitchApi::create_custom_reward(access_token, client_id, broadcaster_id, custom_reward),
+  //    &mut self.twitch_keys,
+  //    &self.save_locations,
+  //  )
+  //  .and_then(|x| serde_json::from_str(&x).map_err(|e| EventSubError::ParseError(e.to_string())))
+  //}
 
-  // come back later
-  pub fn delete_custom_reward<T: Into<String>>(&mut self, id: T) -> Result<(), EventSubError> {
-    let access_token = self
-      .twitch_keys
-      .access_token
-      .clone()
-      .expect("Access token not set")
-      .get_token();
-    let broadcaster_id = self.twitch_keys.broadcaster_account_id.to_string();
-    let client_id = self.twitch_keys.client_id.to_string();
+  //// come back later
+  //pub fn delete_custom_reward<T: Into<String>>(&mut self, id: T) -> Result<(), EventSubError> {
+  //  let access_token = self
+  //    .twitch_keys
+  //    .access_token
+  //    .clone()
+  //    .expect("Access token not set")
+  //    .get_token();
+  //  let broadcaster_id = self.twitch_keys.broadcaster_account_id.to_string();
+  //  let client_id = self.twitch_keys.client_id.to_string();
 
-    TwitchEventSubApi::regen_token_if_401(
-      TwitchApi::delete_custom_reward(access_token, client_id, broadcaster_id, id),
-      &mut self.twitch_keys,
-      &self.save_locations,
-    )
-    .and_then(|_| Ok(()))
-  }
+  //  TwitchEventSubApi::regen_token_if_401(
+  //    TwitchApi::delete_custom_reward(access_token, client_id, broadcaster_id, id),
+  //    &mut self.twitch_keys,
+  //    &self.save_locations,
+  //  )
+  //  .and_then(|_| Ok(()))
+  //}
 
-  pub fn get_clips_for_broadcaster<T: Into<String>>(
-    &mut self,
-    broadcaster_id: T,
-  ) -> Result<Clips, EventSubError> {
-    let access_token = self
-      .twitch_keys
-      .access_token
-      .clone()
-      .expect("Access token not set")
-      .get_token();
-    let client_id = self.twitch_keys.client_id.to_string();
+  //pub fn get_clips_for_broadcaster<T: Into<String>>(
+  //  &mut self,
+  //  broadcaster_id: T,
+  //) -> Result<Clips, EventSubError> {
+  //  let access_token = self
+  //    .twitch_keys
+  //    .access_token
+  //    .clone()
+  //    .expect("Access token not set")
+  //    .get_token();
+  //  let client_id = self.twitch_keys.client_id.to_string();
 
-    TwitchEventSubApi::regen_token_if_401(
-      TwitchApi::get_clips(access_token, client_id, broadcaster_id),
-      &mut self.twitch_keys,
-      &self.save_locations,
-    )
-    .and_then(|x| serde_json::from_str(&x).map_err(|e| EventSubError::ParseError(e.to_string())))
-  }
+  //  TwitchEventSubApi::regen_token_if_401(
+  //    TwitchApi::get_clips(access_token, client_id, broadcaster_id),
+  //    &mut self.twitch_keys,
+  //    &self.save_locations,
+  //  )
+  //  .and_then(|x| serde_json::from_str(&x).map_err(|e| EventSubError::ParseError(e.to_string())))
+  //}
 
-  pub fn api_user_id(&self) -> String {
-    self
-      .twitch_keys
-      .sender_account_id
-      .as_deref()
-      .unwrap_or(&self.twitch_keys.broadcaster_account_id)
-      .to_owned()
-  }
+  //pub fn api_user_id(&self) -> String {
+  //  self
+  //    .twitch_keys
+  //    .sender_account_id
+  //    .as_deref()
+  //    .unwrap_or(&self.twitch_keys.broadcaster_account_id)
+  //    .to_owned()
+  //}
 
-  pub fn get_users_from_ids<S: Into<String>>(
-    &mut self,
-    ids: Vec<S>,
-  ) -> Result<Users, EventSubError> {
-    self.get_users(
-      ids
-        .into_iter()
-        .map(|a| a.into())
-        .collect::<Vec<String>>()
-        .into(),
-      Vec::with_capacity(0),
-    )
-  }
+  //pub fn get_users_from_ids<S: Into<String>>(
+  //  &mut self,
+  //  ids: Vec<S>,
+  //) -> Result<Users, EventSubError> {
+  //  self.get_users(
+  //    ids
+  //      .into_iter()
+  //      .map(|a| a.into())
+  //      .collect::<Vec<String>>()
+  //      .into(),
+  //    Vec::with_capacity(0),
+  //  )
+  //}
 
-  pub fn get_users_from_logins<S: Into<String>>(
-    &mut self,
-    logins: Vec<S>,
-  ) -> Result<Users, EventSubError> {
-    self.get_users(
-      Vec::with_capacity(0),
-      logins
-        .into_iter()
-        .map(|a| a.into())
-        .collect::<Vec<String>>()
-        .into(),
-    )
-  }
+  //pub fn get_users_from_logins<S: Into<String>>(
+  //  &mut self,
+  //  logins: Vec<S>,
+  //) -> Result<Users, EventSubError> {
+  //  self.get_users(
+  //    Vec::with_capacity(0),
+  //    logins
+  //      .into_iter()
+  //      .map(|a| a.into())
+  //      .collect::<Vec<String>>()
+  //      .into(),
+  //  )
+  //}
 
-  pub fn get_users_self(&mut self) -> Result<Users, EventSubError> {
-    self.get_users(Vec::with_capacity(0), Vec::with_capacity(0))
-  }
+  //pub fn get_users_self(&mut self) -> Result<Users, EventSubError> {
+  //  self.get_users(Vec::with_capacity(0), Vec::with_capacity(0))
+  //}
 
-  ///
-  /// It is recommended to use the get_users_from_* methods instead.
-  ///
-  /// How ever if you wish to use it manuall please
-  /// Refer to https://dev.twitch.tv/docs/api/reference/#get-users for specifics how to use
-  ///
-  pub fn get_users(&mut self, id: Vec<String>, login: Vec<String>) -> Result<Users, EventSubError> {
-    let access_token = self
-      .twitch_keys
-      .access_token
-      .clone()
-      .expect("Access token not set")
-      .get_token();
-    let client_id = self.twitch_keys.client_id.to_string();
+  /////
+  ///// It is recommended to use the get_users_from_* methods instead.
+  /////
+  ///// How ever if you wish to use it manuall please
+  ///// Refer to https://dev.twitch.tv/docs/api/reference/#get-users for specifics how to use
+  /////
+  //pub fn get_users(&mut self, id: Vec<String>, login: Vec<String>) -> Result<Users, EventSubError> {
+  //  let access_token = self
+  //    .twitch_keys
+  //    .access_token
+  //    .clone()
+  //    .expect("Access token not set")
+  //    .get_token();
+  //  let client_id = self.twitch_keys.client_id.to_string();
 
-    TwitchEventSubApi::regen_token_if_401(
-      TwitchApi::get_users(access_token, id, login, client_id),
-      &mut self.twitch_keys,
-      &self.save_locations,
-    )
-    .and_then(|x| serde_json::from_str(&x).map_err(|e| EventSubError::ParseError(e.to_string())))
-  }
+  //  TwitchEventSubApi::regen_token_if_401(
+  //    TwitchApi::get_users(access_token, id, login, client_id),
+  //    &mut self.twitch_keys,
+  //    &self.save_locations,
+  //  )
+  //  .and_then(|x| serde_json::from_str(&x).map_err(|e| EventSubError::ParseError(e.to_string())))
+  //}
 
-  pub fn get_badge_urls_from_badges(&mut self, badges: Vec<Badge>) -> Vec<BadgeVersion> {
-    let mut badges_requested = Vec::new();
+  //pub fn get_badge_urls_from_badges(&mut self, badges: Vec<Badge>) -> Vec<BadgeVersion> {
+  //  let mut badges_requested = Vec::new();
 
-    let broadcaster_id = self.twitch_keys.broadcaster_account_id.clone();
+  //  let broadcaster_id = self.twitch_keys.broadcaster_account_id.clone();
 
-    if let Ok(channel_badges) = self.get_channel_badges(broadcaster_id) {
-      for channel_badge in channel_badges.data {
-        for badge in &badges {
-          if badge.set_id.eq(&channel_badge.set_id) {
-            for version in &channel_badge.versions {
-              if version.id.eq(&badge.id) {
-                // correct url version
-                badges_requested.push(version.clone());
-              }
-            }
-          }
-        }
-      }
-    }
+  //  if let Ok(channel_badges) = self.get_channel_badges(broadcaster_id) {
+  //    for channel_badge in channel_badges.data {
+  //      for badge in &badges {
+  //        if badge.set_id.eq(&channel_badge.set_id) {
+  //          for version in &channel_badge.versions {
+  //            if version.id.eq(&badge.id) {
+  //              // correct url version
+  //              badges_requested.push(version.clone());
+  //            }
+  //          }
+  //        }
+  //      }
+  //    }
+  //  }
 
-    if let Ok(global_badges) = self.get_global_badges() {
-      for global_badge in global_badges.data {
-        for badge in &badges {
-          if badge.set_id.eq(&global_badge.set_id) {
-            for version in &global_badge.versions {
-              if version.id.eq(&badge.id) {
-                // correct url version
-                badges_requested.push(version.clone());
-              }
-            }
-          }
-        }
-      }
-    }
+  //  if let Ok(global_badges) = self.get_global_badges() {
+  //    for global_badge in global_badges.data {
+  //      for badge in &badges {
+  //        if badge.set_id.eq(&global_badge.set_id) {
+  //          for version in &global_badge.versions {
+  //            if version.id.eq(&badge.id) {
+  //              // correct url version
+  //              badges_requested.push(version.clone());
+  //            }
+  //          }
+  //        }
+  //      }
+  //    }
+  //  }
 
-    badges_requested
-  }
+  //  badges_requested
+  //}
 
-  pub fn get_channel_badges<S: Into<String>>(
-    &mut self,
-    broadcaster_id: S,
-  ) -> Result<SetOfBadges, EventSubError> {
-    let access_token = self
-      .twitch_keys
-      .access_token
-      .clone()
-      .expect("Access token not set")
-      .get_token();
-    let client_id = self.twitch_keys.client_id.to_string();
+  //pub fn get_channel_badges<S: Into<String>>(
+  //  &mut self,
+  //  broadcaster_id: S,
+  //) -> Result<SetOfBadges, EventSubError> {
+  //  let access_token = self
+  //    .twitch_keys
+  //    .access_token
+  //    .clone()
+  //    .expect("Access token not set")
+  //    .get_token();
+  //  let client_id = self.twitch_keys.client_id.to_string();
 
-    let broadcaster_id: String = broadcaster_id.into();
-    if let Err(_) = broadcaster_id.parse::<u32>() {
-      return Err(EventSubError::UnhandledError(
-        "Broadcaster id must be numeric!".to_string(),
-      ));
-    }
+  //  let broadcaster_id: String = broadcaster_id.into();
+  //  if let Err(_) = broadcaster_id.parse::<u32>() {
+  //    return Err(EventSubError::UnhandledError(
+  //      "Broadcaster id must be numeric!".to_string(),
+  //    ));
+  //  }
 
-    TwitchEventSubApi::regen_token_if_401(
-      TwitchApi::get_channel_badges(access_token, client_id, broadcaster_id),
-      &mut self.twitch_keys,
-      &self.save_locations,
-    )
-    .and_then(|data| {
-      serde_json::from_str(&data).map_err(|e| EventSubError::ParseError(e.to_string()))
-    })
-  }
+  //  TwitchEventSubApi::regen_token_if_401(
+  //    TwitchApi::get_channel_badges(access_token, client_id, broadcaster_id),
+  //    &mut self.twitch_keys,
+  //    &self.save_locations,
+  //  )
+  //  .and_then(|data| {
+  //    serde_json::from_str(&data).map_err(|e| EventSubError::ParseError(e.to_string()))
+  //  })
+  //}
 
-  pub fn get_global_badges(&mut self) -> Result<SetOfBadges, EventSubError> {
-    let access_token = self
-      .twitch_keys
-      .access_token
-      .clone()
-      .expect("Access token not set")
-      .get_token();
-    let client_id = self.twitch_keys.client_id.to_string();
+  //pub fn get_global_badges(&mut self) -> Result<SetOfBadges, EventSubError> {
+  //  let access_token = self
+  //    .twitch_keys
+  //    .access_token
+  //    .clone()
+  //    .expect("Access token not set")
+  //    .get_token();
+  //  let client_id = self.twitch_keys.client_id.to_string();
 
-    TwitchEventSubApi::regen_token_if_401(
-      TwitchApi::get_global_badges(access_token, client_id),
-      &mut self.twitch_keys,
-      &self.save_locations,
-    )
-    .and_then(|data| {
-      serde_json::from_str(&data).map_err(|e| EventSubError::ParseError(e.to_string()))
-    })
-  }
+  //  TwitchEventSubApi::regen_token_if_401(
+  //    TwitchApi::get_global_badges(access_token, client_id),
+  //    &mut self.twitch_keys,
+  //    &self.save_locations,
+  //  )
+  //  .and_then(|data| {
+  //    serde_json::from_str(&data).map_err(|e| EventSubError::ParseError(e.to_string()))
+  //  })
+  //}
 
-  pub fn get_channel_emotes<S: Into<String>>(
-    &mut self,
-    broadcaster_id: S,
-  ) -> Result<ChannelEmotes, EventSubError> {
-    let access_token = self
-      .twitch_keys
-      .access_token
-      .clone()
-      .expect("Access token not set")
-      .get_token();
-    let client_id = self.twitch_keys.client_id.to_string();
+  //pub fn get_channel_emotes<S: Into<String>>(
+  //  &mut self,
+  //  broadcaster_id: S,
+  //) -> Result<ChannelEmotes, EventSubError> {
+  //  let access_token = self
+  //    .twitch_keys
+  //    .access_token
+  //    .clone()
+  //    .expect("Access token not set")
+  //    .get_token();
+  //  let client_id = self.twitch_keys.client_id.to_string();
 
-    let broadcaster_id: String = broadcaster_id.into();
-    if let Err(_) = broadcaster_id.parse::<u32>() {
-      return Err(EventSubError::UnhandledError(
-        "Broadcaster id must be numeric!".to_string(),
-      ));
-    }
+  //  let broadcaster_id: String = broadcaster_id.into();
+  //  if let Err(_) = broadcaster_id.parse::<u32>() {
+  //    return Err(EventSubError::UnhandledError(
+  //      "Broadcaster id must be numeric!".to_string(),
+  //    ));
+  //  }
 
-    TwitchEventSubApi::regen_token_if_401(
-      TwitchApi::get_channel_emotes(access_token, client_id, broadcaster_id),
-      &mut self.twitch_keys,
-      &self.save_locations,
-    )
-    .and_then(|x| serde_json::from_str(&x).map_err(|e| EventSubError::ParseError(e.to_string())))
-  }
+  //  TwitchEventSubApi::regen_token_if_401(
+  //    TwitchApi::get_channel_emotes(access_token, client_id, broadcaster_id),
+  //    &mut self.twitch_keys,
+  //    &self.save_locations,
+  //  )
+  //  .and_then(|x| serde_json::from_str(&x).map_err(|e| EventSubError::ParseError(e.to_string())))
+  //}
 
-  pub fn get_global_emotes(&mut self) -> Result<GlobalEmotes, EventSubError> {
-    let access_token = self
-      .twitch_keys
-      .access_token
-      .clone()
-      .expect("Access token not set")
-      .get_token();
-    let client_id = self.twitch_keys.client_id.to_string();
+  //pub fn get_global_emotes(&mut self) -> Result<GlobalEmotes, EventSubError> {
+  //  let access_token = self
+  //    .twitch_keys
+  //    .access_token
+  //    .clone()
+  //    .expect("Access token not set")
+  //    .get_token();
+  //  let client_id = self.twitch_keys.client_id.to_string();
 
-    TwitchEventSubApi::regen_token_if_401(
-      TwitchApi::get_global_emotes(access_token, client_id),
-      &mut self.twitch_keys,
-      &self.save_locations,
-    )
-    .and_then(|x| serde_json::from_str(&x).map_err(|e| EventSubError::ParseError(e.to_string())))
-  }
+  //  TwitchEventSubApi::regen_token_if_401(
+  //    TwitchApi::get_global_emotes(access_token, client_id),
+  //    &mut self.twitch_keys,
+  //    &self.save_locations,
+  //  )
+  //  .and_then(|x| serde_json::from_str(&x).map_err(|e| EventSubError::ParseError(e.to_string())))
+  //}
 
-  pub fn get_image_data_from_url<S: Into<String>>(emote_url: S) -> Result<Vec<u8>, EventSubError> {
-    match attohttpc::get(emote_url.into()).send() {
-      Ok(new_image_data) => Ok(new_image_data.bytes().unwrap()),
-      Err(e) => Err(EventSubError::HttpFailed(e.to_string())),
-    }
-  }
+  //pub fn get_image_data_from_url<S: Into<String>>(emote_url: S) -> Result<Vec<u8>, EventSubError> {
+  //  match attohttpc::get(emote_url.into()).send() {
+  //    Ok(new_image_data) => Ok(new_image_data.bytes().unwrap()),
+  //    Err(e) => Err(EventSubError::HttpFailed(e.to_string())),
+  //  }
+  //}
 
-  pub fn get_emote_sets<S: Into<String>>(
-    &mut self,
-    emote_set_id: S,
-  ) -> Result<GlobalEmotes, EventSubError> {
-    let access_token = self
-      .twitch_keys
-      .access_token
-      .clone()
-      .expect("Access token not set")
-      .get_token();
-    let client_id = self.twitch_keys.client_id.to_string();
+  //pub fn get_emote_sets<S: Into<String>>(
+  //  &mut self,
+  //  emote_set_id: S,
+  //) -> Result<GlobalEmotes, EventSubError> {
+  //  let access_token = self
+  //    .twitch_keys
+  //    .access_token
+  //    .clone()
+  //    .expect("Access token not set")
+  //    .get_token();
+  //  let client_id = self.twitch_keys.client_id.to_string();
 
-    TwitchEventSubApi::regen_token_if_401(
-      TwitchApi::get_emote_set(emote_set_id.into(), access_token, client_id),
-      &mut self.twitch_keys,
-      &self.save_locations,
-    )
-    .and_then(|x| serde_json::from_str(&x).map_err(|e| EventSubError::ParseError(e.to_string())))
-  }
+  //  TwitchEventSubApi::regen_token_if_401(
+  //    TwitchApi::get_emote_set(emote_set_id.into(), access_token, client_id),
+  //    &mut self.twitch_keys,
+  //    &self.save_locations,
+  //  )
+  //  .and_then(|x| serde_json::from_str(&x).map_err(|e| EventSubError::ParseError(e.to_string())))
+  //}
 
-  pub fn send_chat_message<S: Into<String>>(
-    &mut self,
-    message: S,
-  ) -> Result<String, EventSubError> {
+  pub fn send_chat_message(&mut self, message: &str) -> Result<String, EventSubError> {
     self.send_chat_message_with_reply(message, None)
   }
 
-  pub fn send_chat_message_with_reply<S: Into<String>>(
+  pub fn send_chat_message_with_reply(
     &mut self,
-    message: S,
+    message: &str,
     reply_message_parent_id: Option<String>,
   ) -> Result<String, EventSubError> {
-    let message: String = message.into();
-    let access_token = self
-      .twitch_keys
-      .access_token
-      .clone()
-      .expect("No Access Token set")
-      .get_token();
-    let client_id = self.twitch_keys.client_id.to_string();
-    let broadcaster_account_id = self.twitch_keys.broadcaster_account_id.to_string();
-    let sender_id = self.twitch_keys.token_user_id.to_owned();
+    let tokens = self.bot_tokens.clone().unwrap_or(self.tokens.clone());
+    let sender_id = &self.tokens.client_twitch_id;
 
-    TwitchEventSubApi::regen_token_if_401(
-      TwitchApi::send_chat_message(
-        message,
-        access_token,
-        client_id,
-        broadcaster_account_id,
-        sender_id,
-        reply_message_parent_id,
-      ),
-      &mut self.twitch_keys,
-      &self.save_locations,
+    //  TwitchEventSubApi::regen_token_if_401(
+    twitcheventsub_api::send_chat_message_with_reply(
+      &message,
+      &tokens.user_token,
+      &tokens.client_id,
+      &self.broadcaster_user.id,
+      &sender_id,
+      reply_message_parent_id,
     )
+    .map_err(EventSubError::from)
+    //,
+    //   &mut self.twitch_keys,
+    //    &self.save_locations,
+    //  )
   }
 
-  pub fn send_announcement<S: Into<String>, T: Into<String>>(
-    &mut self,
-    message: S,
-    colour: Option<T>,
-  ) -> Result<String, EventSubError> {
-    let message: String = message.into();
-    let access_token = self
-      .twitch_keys
-      .access_token
-      .clone()
-      .expect("No Access Token set")
-      .get_token();
-    let client_id = self.twitch_keys.client_id.to_string();
-    let broadcaster_account_id = self.twitch_keys.broadcaster_account_id.to_string();
-    let sender_id = self
-      .twitch_keys
-      .sender_account_id
-      .clone()
-      .unwrap_or(self.twitch_keys.broadcaster_account_id.to_string());
+  //pub fn send_announcement<S: Into<String>, T: Into<String>>(
+  //  &mut self,
+  //  message: S,
+  //  colour: Option<T>,
+  //) -> Result<String, EventSubError> {
+  //  let message: String = message.into();
+  //  let access_token = self
+  //    .twitch_keys
+  //    .access_token
+  //    .clone()
+  //    .expect("No Access Token set")
+  //    .get_token();
+  //  let client_id = self.twitch_keys.client_id.to_string();
+  //  let broadcaster_account_id = self.twitch_keys.broadcaster_account_id.to_string();
+  //  let sender_id = self
+  //    .twitch_keys
+  //    .sender_account_id
+  //    .clone()
+  //    .unwrap_or(self.twitch_keys.broadcaster_account_id.to_string());
 
-    TwitchEventSubApi::regen_token_if_401(
-      TwitchApi::send_announcement(
-        message,
-        access_token,
-        client_id,
-        broadcaster_account_id,
-        sender_id,
-        colour,
-      ),
-      &mut self.twitch_keys,
-      &self.save_locations,
-    )
-  }
+  //  TwitchEventSubApi::regen_token_if_401(
+  //    TwitchApi::send_announcement(
+  //      message,
+  //      access_token,
+  //      client_id,
+  //      broadcaster_account_id,
+  //      sender_id,
+  //      colour,
+  //    ),
+  //    &mut self.twitch_keys,
+  //    &self.save_locations,
+  //  )
+  //}
 
-  pub fn send_shoutout<S: Into<String>>(&mut self, to_broadcaster_id: S) {
-    let broadcaster_account_id = self.twitch_keys.broadcaster_account_id.to_string();
+  //pub fn send_shoutout<S: Into<String>>(&mut self, to_broadcaster_id: S) {
+  //  let broadcaster_account_id = self.twitch_keys.broadcaster_account_id.to_string();
 
-    let access_token = self
-      .twitch_keys
-      .access_token
-      .clone()
-      .expect("No Access Token set")
-      .get_token();
-    let client_id = self.twitch_keys.client_id.to_string();
-    let moderator_id = self.twitch_keys.token_user_id.to_owned();
+  //  let access_token = self
+  //    .twitch_keys
+  //    .access_token
+  //    .clone()
+  //    .expect("No Access Token set")
+  //    .get_token();
+  //  let client_id = self.twitch_keys.client_id.to_string();
+  //  let moderator_id = self.twitch_keys.token_user_id.to_owned();
 
-    let _ = TwitchEventSubApi::regen_token_if_401(
-      TwitchApi::send_shoutout(
-        access_token,
-        client_id,
-        broadcaster_account_id,
-        to_broadcaster_id,
-        moderator_id,
-      ),
-      &mut self.twitch_keys,
-      &self.save_locations,
-    );
-  }
+  //  let _ = TwitchEventSubApi::regen_token_if_401(
+  //    TwitchApi::send_shoutout(
+  //      access_token,
+  //      client_id,
+  //      broadcaster_account_id,
+  //      to_broadcaster_id,
+  //      moderator_id,
+  //    ),
+  //    &mut self.twitch_keys,
+  //    &self.save_locations,
+  //  );
+  //}
 }

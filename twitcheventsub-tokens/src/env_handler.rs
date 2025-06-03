@@ -2,25 +2,30 @@ use std::{fs::OpenOptions, io::Write, process::exit};
 
 use env_file_reader::read_file;
 
-use crate::create_yn_prompt;
-
 pub struct EnvHandler;
 
 impl EnvHandler {
   pub fn load_env(env_file: &str) -> Option<(String, String, String, String)> {
     match read_file(env_file) {
       Ok(vars) => {
-        let client_id = &vars["CLIENT_ID"];
-        let client_secret = &vars["CLIENT_SECRET"];
-        let redirect_url = &vars["REDIRECT_URL"];
-        let twitch_id = &vars["CLIENT_TWITCH_ID"];
+        let client_id = vars
+          .get("CLIENT_ID")
+          .map(String::clone)
+          .unwrap_or(String::new());
+        let client_secret = vars
+          .get("CLIENT_SECRET")
+          .map(String::clone)
+          .unwrap_or(String::new());
+        let redirect_url = vars
+          .get("REDIRECT_URL")
+          .map(String::clone)
+          .unwrap_or(String::new());
+        let twitch_id = vars
+          .get("CLIENT_TWITCH_ID")
+          .map(String::clone)
+          .unwrap_or(String::new());
 
-        Some((
-          client_id.to_owned(),
-          client_secret.to_owned(),
-          redirect_url.to_owned(),
-          twitch_id.to_owned(),
-        ))
+        Some((client_id, client_secret, redirect_url, twitch_id))
       }
       Err(_) => {
         println!("No env file called {:?}", env_file);

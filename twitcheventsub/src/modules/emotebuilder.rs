@@ -1,8 +1,10 @@
-use crate::TwitchEventSubApi;
-
 use twitcheventsub_structs::{
   EmoteData, EmoteFormat, EmoteScale, EmoteUrl, FragmentType, Fragments, ThemeMode,
 };
+use twitcheventsub_tokens::TokenHandler;
+
+use super::bttv::BTTV;
+use crate::TwitchEventSubApi;
 
 pub struct EmoteBuilder {
   scale: EmoteScale,
@@ -63,8 +65,11 @@ impl EmoteBuilder {
 
   pub fn build(
     &mut self,
-    twitch: &mut TwitchEventSubApi,
+    //twitch: &mut TwitchEventSubApi,
+    tokens: &TokenHandler,
+    broadcaser_id: &str,
     fragment: &Fragments,
+    mut bttv: &mut BTTV,
   ) -> Option<EmoteUrl> {
     match fragment.kind {
       FragmentType::Emote => {
@@ -97,7 +102,11 @@ impl EmoteBuilder {
           }
         }
 
-        if let Ok(channel_emotes) = twitch.get_channel_emotes(channel_id) {
+        if let Ok(channel_emotes) = twitcheventsub_api::get_channel_emotes(
+          &tokens.user_token,
+          &tokens.client_id,
+          broadcaser_id,
+        ) {
           template = channel_emotes.template;
 
           let mut valid_emotes = channel_emotes
@@ -112,9 +121,11 @@ impl EmoteBuilder {
         }
 
         if emote_data.is_none() {
-          if let Ok(emote_sets) =
-            twitch.get_emote_sets(fragment.emote.as_ref().unwrap().emote_set_id.to_owned())
-          {
+          if let Ok(emote_sets) = twitcheventsub_api::get_emote_set(
+            &fragment.emote.as_ref().unwrap().emote_set_id.to_owned(),
+            &tokens.user_token,
+            &tokens.client_id,
+          ) {
             template = emote_sets.template;
 
             let mut valid_emotes = emote_sets
@@ -128,7 +139,9 @@ impl EmoteBuilder {
           }
 
           if emote_data.is_none() {
-            if let Ok(global_emotes) = twitch.get_global_emotes() {
+            if let Ok(global_emotes) =
+              twitcheventsub_api::get_global_emotes(&tokens.user_token, &tokens.client_id)
+            {
               template = global_emotes.template;
               let mut valid_emotes = global_emotes
                 .data
@@ -169,7 +182,7 @@ impl EmoteBuilder {
           None
         }
       }
-      FragmentType::BttvEmote => twitch.bttv.get_emote_url(&fragment.text, &self.scale),
+      FragmentType::BttvEmote => bttv.get_emote_url(&fragment.text, &self.scale),
       _ => None,
     }
   }

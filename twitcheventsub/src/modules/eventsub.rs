@@ -1,87 +1,35 @@
-#[cfg(feature = "logging")]
-use log::warn;
-
 use std::{
   io::ErrorKind,
   net::TcpStream,
-  sync::mpsc::Sender as SyncSender,
+  sync::mpsc::{Receiver as SyncReceiver, Sender as SyncSender},
   thread,
   time::{Duration, Instant},
 };
 
-use super::{bttv::BTTV, irc_bot};
-
+#[cfg(feature = "logging")]
+use log::warn;
 #[cfg(feature = "logging")]
 use log::{error, info};
-
 use tungstenite::{connect, stream::MaybeTlsStream, Error, Message as NetworkMessage, WebSocket};
+use twitcheventsub_api::TwitchHttpRequest;
 use twitcheventsub_structs::{EventMessageType, GenericMessage, Subscription, TwitchEvent};
-
-use crate::{
-  EventSubError, ResponseType, TokenAccess, TwitchEventSubApi, TwitchHttpRequest, TwitchKeys,
-  CONNECTION_EVENTS, SUBSCRIBE_URL,
-};
+use twitcheventsub_tokens::TokenHandler;
 
 use super::irc_bot::IRCChat;
+use super::{bttv::BTTV, irc_bot};
+use crate::{EventSubError, ResponseType, TwitchEventSubApi, CONNECTION_EVENTS, SUBSCRIBE_URL};
 
-//#[cfg(feature = "only_raw_responses")]
-//pub fn events(
-//  mut client: WebSocket<MaybeTlsStream<TcpStream>>,
-//  message_sender: SyncSender<ResponseType>,
-//  subscriptions: Vec<Subscription>,
-//  mut custom_subscriptions: Vec<String>,
-//  twitch_keys: TwitchKeys,
-//  save_locations: Option<(String, String)>,
-//  irc: Option<IRCChat>,
-//  bttv: BTTV,
-//) {
-//  loop {
-//    let message = match client.read() {
-//      Ok(m) => m,
-//      Err(Error::Io(e)) if e.kind() == ErrorKind::WouldBlock => {
-//        continue;
-//      }
-//      Err(Error::ConnectionClosed) | Err(Error::AlreadyClosed) => {
-//        #[cfg(feature = "logging")]
-//        error!("EventSub: Connected closed or already closed");
-//        let _ = client.send(NetworkMessage::Close(None));
-//        let _ = message_sender.send(ResponseType::Close);
-//        thread::sleep(Duration::from_secs(30));
-//        #[cfg(feature = "logging")]
-//        warn!("EventSub: Attempting reconnect.");
-//        let (new_client, _) = connect(CONNECTION_EVENTS)
-//          .expect("Failed to reconnect to new url after receiving reconnect message from twitch");
-//        client = new_client;
-//        last_message = Instant::now();
-//        is_reconnecting = false;
-//        continue;
-//      }
-//      Err(e) => {
-//        error!("recv message error: {:?}", e);
-//        let _ = client.send(NetworkMessage::Close(None));
-//        let _ = message_sender.send(ResponseType::Close);
-//
-//        return;
-//      }
-//    };
-//
-//    if let NetworkMessage::Text(msg) = message.clone() {
-//      let _ = message_sender.send(ResponseType::RawResponse(msg));
-//      continue;
-//    }
-//  }
-//}
-
-//#[cfg(not(feature = "only_raw_responses"))]
 pub fn events(
-  mut client: WebSocket<MaybeTlsStream<TcpStream>>, //Client<TlsStream<TcpStream>>>>,
+  mut twitch_receiver: WebSocket<MaybeTlsStream<TcpStream>>, //Client<TlsStream<TcpStream>>>>,
   message_sender: SyncSender<ResponseType>,
+  should_quit_receiver: SyncReceiver<bool>,
   subscriptions: Vec<Subscription>,
   mut custom_subscriptions: Vec<String>,
-  mut twitch_keys: TwitchKeys,
+  mut tokens: TokenHandler,
   save_locations: Option<(String, String)>,
   irc: Option<IRCChat>,
   bttv: BTTV,
+  broadcasters_users_id: &str,
 ) {
   if subscriptions.iter().all(|s| s.is_permission_subscription()) {
     // Don't attempt eventsub things if no event sub events are being subscribed to
@@ -114,7 +62,11 @@ pub fn events(
   let mut irc_messages: Vec<(Instant, IRCMessage)> = Vec::new();
 
   loop {
-    let message = match client.read() {
+    if let Ok(true) = should_quit_receiver.try_recv() {
+      return;
+    }
+
+    let message = match twitch_receiver.read() {
       Ok(m) => m,
       Err(Error::Io(e)) if e.kind() == ErrorKind::WouldBlock => {
         // shouldn't happen
@@ -125,14 +77,14 @@ pub fn events(
       Err(Error::ConnectionClosed) | Err(Error::AlreadyClosed) => {
         #[cfg(feature = "logging")]
         error!("EventSub: Connected closed or already closed");
-        let _ = client.send(NetworkMessage::Close(None));
+        let _ = twitch_receiver.send(NetworkMessage::Close(None));
         let _ = message_sender.send(ResponseType::Close);
         thread::sleep(Duration::from_secs(30));
         #[cfg(feature = "logging")]
         warn!("EventSub: Attempting reconnect.");
         let (new_client, _) = connect(CONNECTION_EVENTS)
           .expect("Failed to reconnect to new url after receiving reconnect message from twitch");
-        client = new_client;
+        twitch_receiver = new_client;
         last_message = Instant::now();
         is_reconnecting = false;
         continue;
@@ -155,13 +107,13 @@ pub fn events(
     }
 
     if last_message.elapsed().as_secs() > 60 {
-      let _ = client.send(NetworkMessage::Close(None));
+      let _ = twitch_receiver.send(NetworkMessage::Close(None));
       thread::sleep(Duration::from_secs(5));
       #[cfg(feature = "logging")]
       info!("Messages not sent within the keep alive timeout restarting websocket");
       let (new_client, _) = connect(CONNECTION_EVENTS)
         .expect("Failed to reconnect to new url after receiving reconnect message from twitch");
-      client = new_client;
+      twitch_receiver = new_client;
       last_message = Instant::now();
       is_reconnecting = false;
       continue;
@@ -198,62 +150,45 @@ pub fn events(
             let session_id = message.clone().payload.unwrap().session.unwrap().id;
 
             if !is_reconnecting {
+              let user_token = tokens.user_token.clone();
+              let refresh_token = tokens.refresh_token.clone();
+              let client_id = tokens.client_id.clone();
+
               let mut sub_data = subscriptions
                 .iter()
-                .filter_map(|s| {
-                  s.construct_data(
-                    &session_id,
-                    &twitch_keys.broadcaster_account_id,
-                    &twitch_keys.token_user_id,
-                  )
-                })
+                .filter_map(|s| s.construct_data(&session_id, broadcasters_users_id, &user_token))
                 .filter_map(|s| serde_json::to_string(&s).ok())
                 .collect::<Vec<_>>();
               sub_data.append(&mut custom_subscriptions);
 
               #[cfg(feature = "logging")]
               info!("EventSub: Subscribing to events!");
-              let mut clone_twitch_keys = twitch_keys.clone();
-              if let Some(TokenAccess::User(ref token)) = twitch_keys.access_token {
-                let failed_to_communicate_with_main_thread = sub_data
-                  .iter()
-                  .map(|sub_data| {
-                    TwitchHttpRequest::new(SUBSCRIBE_URL)
-                      .full_auth(token.to_owned(), twitch_keys.client_id.to_string())
-                      .json_content()
-                      .is_post(sub_data)
-                      .run()
-                  })
-                  .map(|a| {
-                    TwitchEventSubApi::regen_token_if_401(
-                      a,
-                      &mut clone_twitch_keys,
-                      &save_locations,
-                    )
-                  })
-                  .filter_map(Result::err)
-                  .any(|error| {
-                    #[cfg(feature = "logging")]
-                    error!("EventSub: {:?}", error);
-                    let sent_msg = message_sender.send(ResponseType::Error(error));
-                    sent_msg.is_err()
-                  });
-
-                if failed_to_communicate_with_main_thread {
+              let failed_to_communicate_with_main_thread = sub_data
+                .iter()
+                .map(|sub_data| {
+                  TwitchHttpRequest::new(SUBSCRIBE_URL)
+                    .full_auth(&user_token, &client_id)
+                    .json_content()
+                    .is_post(sub_data)
+                    .run()
+                })
+                .map(|a| tokens.regen_tokens_on_fail(a))
+                .filter_map(Result::err)
+                .any(|error| {
                   #[cfg(feature = "logging")]
-                  error!("EventSub: Failed to communicate with main thread, exiting!");
-                  return;
-                }
-              } else {
-                let _ = message_sender.send(ResponseType::Error(
-                  EventSubError::InvalidAccessToken(format!(
-                    "Expected TokenAccess::User(TOKENHERE) but found {:?}",
-                    twitch_keys.access_token
-                  )),
-                ));
+                  error!("EventSub: {:?}", error);
+                  let sent_msg =
+                    message_sender.send(ResponseType::Error(EventSubError::TwitchApiError(error)));
+                  sent_msg.is_err()
+                });
+
+              if failed_to_communicate_with_main_thread {
+                #[cfg(feature = "logging")]
+                error!("EventSub: Failed to communicate with main thread, exiting!");
+                return;
               }
 
-              twitch_keys = clone_twitch_keys;
+              //twitch_keys = clone_twitch_keys;
               #[cfg(feature = "logging")]
               info!("Twitch Event loop is ready!");
               message_sender
@@ -281,11 +216,11 @@ pub fn events(
               .unwrap();
 
             is_reconnecting = true;
-            let _ = client.send(NetworkMessage::Close(None));
+            let _ = twitch_receiver.send(NetworkMessage::Close(None));
             let (new_client, _) = connect(&url).expect(
               "Failed to reconnect to new url after recieving reconnect message from twitch.",
             );
-            client = new_client;
+            twitch_receiver = new_client;
           }
           EventMessageType::Notification => {
             #[cfg(feature = "only_raw_responses")]
@@ -297,8 +232,8 @@ pub fn events(
             match &mut message {
               TwitchEvent::ChatMessage(ref mut msg) => {
                 for (_, irc_message) in irc_messages.iter() {
-                  if irc_message.display_name == msg.chatter.name
-                    && irc_message.message.contains(&msg.message.text)
+                  if irc_message.display_name == msg.chatter.name &&
+                    irc_message.message.contains(&msg.message.text)
                   {
                     msg.returning_chatter = irc_message.returning_chatter;
                     msg.first_time_chatter = irc_message.first_time_chatter;
@@ -367,7 +302,7 @@ pub fn events(
         #[cfg(feature = "logging")]
         warn!("EventSub: Close message received: {:?}", a);
         // Got a close message, so send a close message and return
-        let _ = client.send(NetworkMessage::Close(None));
+        let _ = twitch_receiver.send(NetworkMessage::Close(None));
         let _ = message_sender.send(ResponseType::Close);
 
         // This will trigger attempts to reconnect or resubscribe afterwards
@@ -376,7 +311,7 @@ pub fn events(
       NetworkMessage::Ping(_) => {
         #[cfg(feature = "logging")]
         info!("EventSub: ping recieved");
-        match client.send(NetworkMessage::Pong(Vec::new())) {
+        match twitch_receiver.send(NetworkMessage::Pong(Vec::new())) {
           // Send a pong in response
           Ok(()) => {}
           Err(e) => {

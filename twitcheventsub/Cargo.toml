@@ -29,6 +29,8 @@ attohttpc.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 twitcheventsub-structs.workspace = true
+twitcheventsub-tokens.workspace = true
+twitcheventsub-api.workspace = true
 serde_with.workspace = true
 
 [[example]]

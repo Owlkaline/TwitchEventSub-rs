@@ -83,17 +83,27 @@ pub struct EventSubscription {
 }
 
 impl Subscription {
+  pub fn get_subscriptions_for_bot() -> Vec<Subscription> {
+    vec![
+      Subscription::PermissionWriteToChat,
+      Subscription::PermissionReadChatters,
+      Subscription::PermissionIRCRead,
+      Subscription::PermissionIRCWrite,
+      Subscription::PermissionReadModerator,
+    ]
+  }
+
   pub fn is_permission_subscription(&self) -> bool {
     match self {
-      Subscription::PermissionBanTimeoutUser
-      | Subscription::PermissionDeleteMessage
-      | Subscription::PermissionReadChatters
-      | Subscription::PermissionReadModerator
-      | Subscription::PermissionManageRewards
-      | Subscription::PermissionSendAnnouncements
-      | Subscription::PermissionIRCRead
-      | Subscription::PermissionIRCWrite
-      | Subscription::PermissionWriteToChat => true,
+      Subscription::PermissionBanTimeoutUser |
+      Subscription::PermissionDeleteMessage |
+      Subscription::PermissionReadChatters |
+      Subscription::PermissionReadModerator |
+      Subscription::PermissionManageRewards |
+      Subscription::PermissionSendAnnouncements |
+      Subscription::PermissionIRCRead |
+      Subscription::PermissionIRCWrite |
+      Subscription::PermissionWriteToChat => true,
       _ => false,
     }
   }
@@ -340,38 +350,38 @@ impl Subscription {
         .condition(condition.moderator_user_id(user_id_in_access_token.to_owned())),
       Subscription::ChannelRaid => event_subscription
         .condition(condition.to_broadcaster_user_id(broadcaster_account_id.clone())),
-      Subscription::ChannelMessageDeleted
-      | Subscription::PermissionManageRewards
-      | Subscription::ChatMessage
-      | Subscription::UserUpdate => {
+      Subscription::ChannelMessageDeleted |
+      Subscription::PermissionManageRewards |
+      Subscription::ChatMessage |
+      Subscription::UserUpdate => {
         event_subscription.condition(condition.user_id(user_id_in_access_token.to_owned()))
       }
       Subscription::ChannelShoutoutReceive | Subscription::ChannelShoutoutCreate => {
         event_subscription
           .condition(condition.moderator_user_id(user_id_in_access_token.to_owned()))
       }
-      Subscription::ChannelNewSubscription
-      | Subscription::ChannelSubscriptionEnd
-      | Subscription::ChannelGiftSubscription
-      | Subscription::ChannelResubscription
-      | Subscription::ChannelCheer
-      | Subscription::ChannelPollBegin
-      | Subscription::ChannelPollProgress
-      | Subscription::ChannelPollEnd
-      | Subscription::ChannelPredictionBegin
-      | Subscription::ChannelPredictionProgress
-      | Subscription::ChannelPredictionLock
-      | Subscription::ChannelPredictionEnd
-      | Subscription::ChannelHypeTrainBegin
-      | Subscription::ChannelHypeTrainProgress
-      | Subscription::ChannelHypeTrainEnd
-      | Subscription::ChannelPointsAutoRewardRedeem
-      | Subscription::ChannelUpdate
-      | Subscription::ChannelUserBanned
-      | Subscription::AdBreakBegin
-      | Subscription::StreamOnline
-      | Subscription::StreamOffline
-      | Subscription::ChannelPointsCustomRewardRedeem => event_subscription.condition(condition),
+      Subscription::ChannelNewSubscription |
+      Subscription::ChannelSubscriptionEnd |
+      Subscription::ChannelGiftSubscription |
+      Subscription::ChannelResubscription |
+      Subscription::ChannelCheer |
+      Subscription::ChannelPollBegin |
+      Subscription::ChannelPollProgress |
+      Subscription::ChannelPollEnd |
+      Subscription::ChannelPredictionBegin |
+      Subscription::ChannelPredictionProgress |
+      Subscription::ChannelPredictionLock |
+      Subscription::ChannelPredictionEnd |
+      Subscription::ChannelHypeTrainBegin |
+      Subscription::ChannelHypeTrainProgress |
+      Subscription::ChannelHypeTrainEnd |
+      Subscription::ChannelPointsAutoRewardRedeem |
+      Subscription::ChannelUpdate |
+      Subscription::ChannelUserBanned |
+      Subscription::AdBreakBegin |
+      Subscription::StreamOnline |
+      Subscription::StreamOffline |
+      Subscription::ChannelPointsCustomRewardRedeem => event_subscription.condition(condition),
       Subscription::Custom((_, _, event)) => event.to_owned().transport(Transport::new(session_id)),
 
       _ => event_subscription,
