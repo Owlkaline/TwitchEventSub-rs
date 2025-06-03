@@ -126,18 +126,8 @@ impl TwitchEventSubApi {
     use_irc_channel: bool,
     broadcasters_username: &str,
   ) -> Result<TwitchEventSubApi, EventSubError> {
-    dbg!("Start of twitcheventsubapi new");
-
     let client_twitch_id = tokens.client_twitch_id.clone();
     let users = tokens.get_users(vec![&client_twitch_id], vec![broadcasters_username])?;
-
-    //let users = tokens.regen_tokens_on_fail(twitcheventsub_api::get_users(
-    //  &user_token,
-    //  vec![&client_twitch_id],
-    //  vec![broadcasters_username],
-    //  &client_id,
-    //))?;
-    dbg!("after get users");
 
     // Or not all user details retrieved
     if users.data.is_empty() ||
@@ -172,10 +162,8 @@ impl TwitchEventSubApi {
       )
     };
 
-    dbg!("start bttv");
     let bttv = BTTV::new(&broadcaster_user.id);
     let bttv2 = BTTV::new(&broadcaster_user.id);
-    dbg!("end bttv");
 
     let mut irc = None;
 
@@ -186,28 +174,20 @@ impl TwitchEventSubApi {
       ]);
     }
 
-    dbg!("Check token has requirement");
     if let Ok(false) = tokens.check_token_has_required_subscriptions(&subscriptions) {
-      dbg!("Apply subscription tokens");
       tokens.apply_subscriptions_to_tokens(&subscriptions, true);
     }
-    dbg!("End check token requirements");
 
-    dbg!("start irc");
     if use_irc_channel {
       let mut new_irc = IRCChat::new(&token_user.login, &tokens.user_token);
-      dbg!("after irc new");
       new_irc.join_channel(&broadcaster_user.login);
 
       irc = Some(new_irc);
     }
-    dbg!("end irc");
 
     #[cfg(feature = "logging")]
     info!("Starting websocket client.");
     let (client, _) = connect(CONNECTION_EVENTS).unwrap();
-
-    dbg!("After websocket start");
 
     let (transmit_messages, receive_message) = channel();
     let (send_quit_message, receive_quit_message) = channel();

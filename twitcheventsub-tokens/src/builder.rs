@@ -124,14 +124,12 @@ impl TokenHandlerBuilder {
         "You can get your Client id and secret from https://dev.twitch.tv/console/apps/create"
       );
       while partial_tokens.client_id.is_empty() {
-        println!("Client id: ");
         partial_tokens.client_id = get_input();
       }
       updates = true;
     }
 
     while partial_tokens.client_secret.is_empty() {
-      println!("Client secret: ");
       partial_tokens.client_secret = get_input();
 
       updates = true;
@@ -155,20 +153,16 @@ impl TokenHandlerBuilder {
     let mut has_redirect_url = true;
 
     while partial_tokens.redirect_url.is_empty() {
-      println!("Redirect url: ");
       partial_tokens.redirect_url = get_input();
       has_redirect_url = false;
     }
 
     // if no refresh token force recreation of token flows
     if has_redirect_url {
-      println!("There is redirect url");
       if let Some(user_token) = EnvHandler::load_user_token_env(&partial_tokens.user_token_env) {
-        println!("There is user token");
         partial_tokens.user_token = user_token;
         // Check if theres already user and refresh tokens
         if let Ok(user_id) = partial_tokens.get_token_user_id() {
-          println!("There is client id");
           // This means it is a new client id/secrets so should redo flow
           if partial_tokens.client_twitch_id != user_id {
             // redo

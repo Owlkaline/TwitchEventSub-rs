@@ -129,7 +129,6 @@ impl TokenHandler {
     id: Vec<I>,
     login: Vec<S>,
   ) -> Result<UserDataSet, TwitchApiError> {
-    println!("user: {} client {}", self.user_token, self.client_id);
     self
       .regen_tokens_on_fail(twitcheventsub_api::get_users(
         &self.user_token,
