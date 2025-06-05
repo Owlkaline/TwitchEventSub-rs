@@ -68,17 +68,17 @@ impl EmoteBuilder {
     tokens: &TokenHandler,
     broadcaser_id: &str,
     fragment: &Fragments,
-    mut bttv: &mut BTTV,
+    bttv: &mut BTTV,
   ) -> Option<EmoteUrl> {
     match fragment.kind {
       FragmentType::Emote => {
-        let channel_id: String = fragment
-          .emote
-          .as_ref()
-          .unwrap()
-          .owner_id
-          .to_owned()
-          .unwrap_or("".to_string());
+        // let channel_id: String = fragment
+        //   .emote
+        //   .as_ref()
+        //   .unwrap()
+        //   .owner_id
+        //   .to_owned()
+        //   .unwrap_or("".to_string());
         let mut template = String::new();
 
         let mut emote_data: Option<EmoteData> = None;

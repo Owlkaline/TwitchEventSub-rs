@@ -1,4 +1,3 @@
-use tungstenite::handshake::client::Response;
 use twitcheventsub_api::TwitchApiError;
 
 pub const LOG_FILE: &str = "twitch_events.log";

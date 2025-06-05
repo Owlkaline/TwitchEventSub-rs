@@ -1,4 +1,4 @@
-use std::{fs::OpenOptions, io::Write, process::exit};
+use std::{fs::OpenOptions, io::Write};
 
 use env_file_reader::read_file;
 

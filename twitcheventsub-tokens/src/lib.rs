@@ -1,14 +1,10 @@
-use std::{
-  fs::{self, OpenOptions},
-  io::{stdin, Write},
-  process::exit,
-};
-
-use env_file_reader::read_file;
 use env_handler::EnvHandler;
-use log::{error, info, warn};
+use log::warn;
 use twitcheventsub_api::{self, TwitchApiError};
-use twitcheventsub_structs::prelude::{Subscription, UserData, UserDataSet};
+use twitcheventsub_structs::prelude::{
+  ChannelEmotes, CreateCustomReward, CreatedCustomRewardResponse, GetCustomRewards, GlobalEmotes,
+  Moderators, Subscription, UpdateCustomReward, UserDataSet,
+};
 
 mod builder;
 mod env_handler;
@@ -132,9 +128,9 @@ impl TokenHandler {
     self
       .regen_tokens_on_fail(twitcheventsub_api::get_users(
         &self.user_token,
+        &self.client_id,
         id,
         login,
-        &self.client_id,
       ))
       .and_then(|user_data| match serde_json::from_str(&user_data) {
         Ok(users) => Ok(users),
@@ -153,6 +149,223 @@ impl TokenHandler {
         } else {
           Ok(user.data[0].id.to_owned())
         }
+      })
+  }
+
+  pub fn send_chat_message(
+    &mut self,
+    broadcaster_id: &str,
+    message: &str,
+  ) -> Result<String, TwitchApiError> {
+    self.send_chat_message_with_reply(broadcaster_id, message, None)
+  }
+
+  pub fn send_chat_message_with_reply(
+    &mut self,
+    broadcaster_id: &str,
+    message: &str,
+    reply_message_parent_id: Option<String>,
+  ) -> Result<String, TwitchApiError> {
+    self.regen_tokens_on_fail(twitcheventsub_api::send_chat_message_with_reply(
+      &self.user_token,
+      &self.client_id,
+      &self.client_twitch_id,
+      broadcaster_id,
+      message,
+      reply_message_parent_id,
+    ))
+  }
+
+  pub fn send_announcement<P: Into<String>>(
+    &mut self,
+    broadcaster_id: &str,
+    message: &str,
+    colour: Option<P>,
+  ) -> Result<String, TwitchApiError> {
+    self
+      .regen_tokens_on_fail(twitcheventsub_api::send_announcement(
+        &self.user_token,
+        &self.client_id,
+        &self.client_twitch_id,
+        broadcaster_id,
+        message,
+        colour,
+      ))
+      .and_then(|data| match serde_json::from_str(&data) {
+        Ok(data) => Ok(data),
+        Err(e) => Err(TwitchApiError::DeserialisationError(e.to_string())),
+      })
+  }
+
+  pub fn send_shoutout(
+    &mut self,
+    from_broadcaster_id: &str,
+    to_broadcaster_id: &str,
+  ) -> Result<String, TwitchApiError> {
+    self.regen_tokens_on_fail(twitcheventsub_api::send_shoutout(
+      &self.user_token,
+      &self.client_id,
+      &self.client_twitch_id,
+      from_broadcaster_id,
+      to_broadcaster_id,
+    ))
+  }
+
+  pub fn delete_message(
+    &mut self,
+    broadcaster_id: &str,
+    message_id: &str,
+  ) -> Result<String, TwitchApiError> {
+    self.regen_tokens_on_fail(twitcheventsub_api::delete_message(
+      &self.user_token,
+      &self.client_id,
+      &self.client_twitch_id,
+      broadcaster_id,
+      message_id,
+    ))
+  }
+
+  pub fn timeout_user(
+    &mut self,
+    broadcaster_id: &str,
+    user_id: &str,
+    duration_secs: u32,
+    reason: &str,
+  ) -> Result<String, TwitchApiError> {
+    self.regen_tokens_on_fail(twitcheventsub_api::timeout_user(
+      &self.user_token,
+      &self.client_id,
+      &self.client_twitch_id,
+      broadcaster_id,
+      user_id,
+      duration_secs,
+      reason,
+    ))
+  }
+
+  pub fn get_channel_badges(
+    &mut self,
+    broadcaster_id: &str,
+  ) -> Result<ChannelEmotes, TwitchApiError> {
+    self
+      .regen_tokens_on_fail(twitcheventsub_api::get_channel_badges(
+        &self.user_token,
+        &self.client_id,
+        broadcaster_id,
+      ))
+      .and_then(|data| match serde_json::from_str(&data) {
+        Ok(data) => Ok(data),
+        Err(e) => Err(TwitchApiError::DeserialisationError(e.to_string())),
+      })
+  }
+
+  pub fn get_global_badges(&mut self) -> Result<GlobalEmotes, TwitchApiError> {
+    self
+      .regen_tokens_on_fail(twitcheventsub_api::get_global_badges(
+        &self.user_token,
+        &self.client_id,
+      ))
+      .and_then(|data| match serde_json::from_str(&data) {
+        Ok(data) => Ok(data),
+        Err(e) => Err(TwitchApiError::DeserialisationError(e.to_string())),
+      })
+  }
+
+  pub fn get_moderators(&mut self, broadcaster_id: &str) -> Result<Moderators, TwitchApiError> {
+    self
+      .regen_tokens_on_fail(twitcheventsub_api::get_moderators(
+        &self.user_token,
+        &self.client_id,
+        broadcaster_id,
+      ))
+      .and_then(|data| match serde_json::from_str(&data) {
+        Ok(data) => Ok(data),
+        Err(e) => Err(TwitchApiError::DeserialisationError(e.to_string())),
+      })
+  }
+
+  pub fn get_custom_rewards(
+    &mut self,
+    broadcaster_id: &str,
+  ) -> Result<GetCustomRewards, TwitchApiError> {
+    self
+      .regen_tokens_on_fail(twitcheventsub_api::get_custom_rewards(
+        &self.user_token,
+        &self.client_id,
+        broadcaster_id,
+      ))
+      .and_then(|data| match serde_json::from_str(&data) {
+        Ok(data) => Ok(data),
+        Err(e) => Err(TwitchApiError::DeserialisationError(e.to_string())),
+      })
+  }
+
+  pub fn update_custom_rewards(
+    &mut self,
+    broadcaster_id: &str,
+    redeem_id: &str,
+    update_redeem: UpdateCustomReward,
+  ) -> Result<CreatedCustomRewardResponse, TwitchApiError> {
+    self
+      .regen_tokens_on_fail(twitcheventsub_api::update_custom_rewards(
+        &self.user_token,
+        &self.client_id,
+        broadcaster_id,
+        redeem_id,
+        update_redeem,
+      ))
+      .and_then(|data| match serde_json::from_str(&data) {
+        Ok(data) => Ok(data),
+        Err(e) => Err(TwitchApiError::DeserialisationError(e.to_string())),
+      })
+  }
+
+  pub fn create_custom_reward(
+    &mut self,
+    broadcaster_id: &str,
+    custom_reward_data: CreateCustomReward,
+  ) -> Result<CreatedCustomRewardResponse, TwitchApiError> {
+    self
+      .regen_tokens_on_fail(twitcheventsub_api::create_custom_reward(
+        &self.user_token,
+        &self.client_id,
+        broadcaster_id,
+        custom_reward_data,
+      ))
+      .and_then(|data| match serde_json::from_str(&data) {
+        Ok(data) => Ok(data),
+        Err(e) => Err(TwitchApiError::DeserialisationError(e.to_string())),
+      })
+  }
+
+  pub fn delete_custom_reward(
+    &mut self,
+    broadcaster_id: &str,
+    reward_id: &str,
+  ) -> Result<String, TwitchApiError> {
+    self
+      .regen_tokens_on_fail(twitcheventsub_api::delete_custom_reward(
+        &self.user_token,
+        &self.client_id,
+        broadcaster_id,
+        reward_id,
+      ))
+      .and_then(|data| match serde_json::from_str(&data) {
+        Ok(data) => Ok(data),
+        Err(e) => Err(TwitchApiError::DeserialisationError(e.to_string())),
+      })
+  }
+
+  pub fn get_clips(&mut self, broadcaster_id: &str) -> Result<String, TwitchApiError> {
+    self
+      .regen_tokens_on_fail(twitcheventsub_api::get_clips(
+        &self.user_token,
+        &self.client_id,
+        broadcaster_id,
+      ))
+      .and_then(|data| match serde_json::from_str(&data) {
+        Ok(data) => Ok(data),
+        Err(e) => Err(TwitchApiError::DeserialisationError(e.to_string())),
       })
   }
 }

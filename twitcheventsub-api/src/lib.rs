@@ -50,9 +50,9 @@ pub enum TwitchApiError {
 
 pub fn get_users<I: Into<String>, S: Into<String>>(
   user_token: &str,
+  client_id: &str,
   id: Vec<I>,
   login: Vec<S>,
-  client_id: &str,
 ) -> Result<String, TwitchApiError> {
   let mut url = RequestBuilder::new();
   if !id.is_empty() {
@@ -397,11 +397,11 @@ pub fn send_chat_message_with_reply(
 }
 
 pub fn send_announcement<P: Into<String>>(
-  message: &str,
   user_token: &str,
   client_id: &str,
-  broadcaster_account_id: &str,
   sender_account_id: &str,
+  broadcaster_account_id: &str,
+  message: &str,
   colour: Option<P>,
 ) -> Result<String, TwitchApiError> {
   if message.len() > 500 {
@@ -431,9 +431,9 @@ pub fn send_announcement<P: Into<String>>(
 pub fn send_shoutout(
   user_token: &str,
   client_id: &str,
+  moderator_id: &str,
   from_broadcaster_id: &str,
   to_broadcaster_id: &str,
-  moderator_id: &str,
 ) -> Result<String, TwitchApiError> {
   let url = RequestBuilder::new()
     .add_key_value("from_broadcaster_id", from_broadcaster_id)
@@ -450,15 +450,15 @@ pub fn send_shoutout(
 }
 
 pub fn delete_message(
-  broadcaster_id: &str,
-  moderator_id: &str,
-  message_id: &str,
   user_token: &str,
   client_id: &str,
+  sender_id: &str,
+  broadcaster_id: &str,
+  message_id: &str,
 ) -> Result<String, TwitchApiError> {
   let url = RequestBuilder::new()
     .add_key_value("broadcaster_id", broadcaster_id)
-    .add_key_value("moderator_id", moderator_id)
+    .add_key_value("moderator_id", sender_id)
     .add_key_value("message_id", message_id)
     .build(TWITCH_DELETE_MESSAGE_URL);
 
@@ -472,8 +472,8 @@ pub fn delete_message(
 pub fn timeout_user(
   user_token: &str,
   client_id: &str,
-  broadcaster_id: &str,
   moderator_id: &str,
+  broadcaster_id: &str,
   user_id: &str,
   duration_secs: u32,
   reason: &str,

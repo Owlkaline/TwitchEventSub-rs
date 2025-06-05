@@ -10,9 +10,7 @@ use std::{
 use log::warn;
 #[cfg(feature = "logging")]
 use log::{error, info};
-use tungstenite::{
-  client, connect, stream::MaybeTlsStream, Error, Message as NetworkMessage, WebSocket,
-};
+use tungstenite::{connect, stream::MaybeTlsStream, Error, Message as NetworkMessage, WebSocket};
 use twitcheventsub_api::TwitchHttpRequest;
 use twitcheventsub_structs::prelude::{
   EventMessageType, GenericMessage, Subscription, TwitchEvent,
@@ -21,7 +19,7 @@ use twitcheventsub_tokens::TokenHandler;
 
 use super::irc_bot::IRCChat;
 use super::{bttv::BTTV, irc_bot};
-use crate::{EventSubError, ResponseType, TwitchEventSubApi, CONNECTION_EVENTS, SUBSCRIBE_URL};
+use crate::{EventSubError, ResponseType, CONNECTION_EVENTS, SUBSCRIBE_URL};
 
 #[allow(clippy::too_many_arguments)]
 pub fn events(
