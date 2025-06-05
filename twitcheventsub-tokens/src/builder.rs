@@ -161,18 +161,16 @@ impl TokenHandlerBuilder {
     if has_redirect_url {
       if let Some(user_token) = EnvHandler::load_user_token_env(&partial_tokens.user_token_env) {
         partial_tokens.user_token = user_token;
+        partial_tokens.refresh_token =
+          EnvHandler::load_refresh_token_env(&partial_tokens.refresh_token_env)
+            .unwrap_or(String::new());
+
         // Check if theres already user and refresh tokens
         if let Ok(user_id) = partial_tokens.get_token_user_id() {
           // This means it is a new client id/secrets so should redo flow
           if partial_tokens.client_twitch_id != user_id {
-            // redo
             println!("client twitch id and user id are different");
           } else {
-            let refresh_token =
-              EnvHandler::load_refresh_token_env(&partial_tokens.refresh_token_env)
-                .unwrap_or(String::new());
-
-            partial_tokens.refresh_token = refresh_token;
             return partial_tokens;
           }
         }

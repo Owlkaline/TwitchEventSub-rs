@@ -15,6 +15,20 @@ pub const GET_GLOBAL_EMOTES_URL: &str = "https://api.twitch.tv/helix/chat/emotes
 pub const GET_EMOTE_SETS_URL: &str = "https://api.twitch.tv/helix/chat/emotes/set";
 pub const GET_CHANNEL_EMOTES_URL: &str = "https://api.twitch.tv/helix/chat/emotes";
 pub const SEND_MESSAGE_URL: &str = "https://api.twitch.tv/helix/chat/messages";
+pub const CONNECTION_EVENTS: &str = "wss://eventsub.wss.twitch.tv/ws?keepalive_timeout_seconds=30";
+pub const SUBSCRIBE_URL: &str = "https://api.twitch.tv/helix/eventsub/subscriptions";
+pub const SEND_ANNOUNCEMENT_URL: &str = "https://api.twitch.tv/helix/chat/announcements";
+pub const SEND_SHOUTOUT_URL: &str = "https://api.twitch.tv/helix/chat/shoutouts";
+pub const TWITCH_BOT_AUTHORISE_URL: &str = "https://id.twitch.tv/oauth2/authorize?";
+pub const TWITCH_BAN_URL: &str = "https://api.twitch.tv/helix/moderation/bans";
+pub const TWITCH_DELETE_MESSAGE_URL: &str = "https://api.twitch.tv/helix/moderation/chat";
+pub const GET_AD_SCHEDULE_URL: &str = "https://api.twitch.tv/helix/channels/ads";
+pub const GET_CHATTERS_URL: &str = "https://api.twitch.tv/helix/chat/chatters";
+pub const GET_CHANNEL_BADGES_URL: &str = "https://api.twitch.tv/helix/chat/badges";
+pub const GET_MODERATORS_URL: &str = "https://api.twitch.tv/helix/moderation/moderators";
+pub const GET_GLOBAL_BADGES_URL: &str = "https://api.twitch.tv/helix/chat/badges/global";
+pub const CUSTOM_REWARDS_URL: &str = "https://api.twitch.tv/helix/channel_points/custom_rewards";
+pub const GET_CLIPS_URL: &str = "https://api.twitch.tv/helix/clips";
 
 mod request;
 pub use request::TwitchHttpRequest;
@@ -34,11 +48,11 @@ pub enum TwitchApiError {
   DeserialisationError(String),
 }
 
-pub fn get_users<T: Into<String>, I: Into<String>, S: Into<String>, V: Into<String>>(
-  access_token: T,
+pub fn get_users<I: Into<String>, S: Into<String>>(
+  user_token: &str,
   id: Vec<I>,
   login: Vec<S>,
-  client_id: V,
+  client_id: &str,
 ) -> Result<String, TwitchApiError> {
   let mut url = RequestBuilder::new();
   if !id.is_empty() {
@@ -63,8 +77,8 @@ pub fn get_users<T: Into<String>, I: Into<String>, S: Into<String>, V: Into<Stri
   let url = url.build(GET_USERS_URL);
 
   TwitchHttpRequest::new(url)
-    .header_authorisation(access_token.into(), AuthType::Bearer)
-    .header_client_id(client_id.into())
+    .header_authorisation(user_token, AuthType::Bearer)
+    .header_client_id(client_id)
     .run()
 }
 
@@ -195,27 +209,6 @@ pub fn validate_token<S: Into<String>>(token: S) -> Result<Validation, TwitchApi
     })
 }
 
-//fn create_user_and_refresh_token_from_data(post_data: &str) -> Result<(String, String), TwitchApiError> {
-//  TwitchHttpRequest::new(TWITCH_TOKEN_URL)
-//    .url_encoded_content()
-//    .is_post(post_data)
-//    .run()
-//    .and_then(|twitch_response| {
-//      serde_json::from_str::<NewAccessTokenResponse>(&twitch_response)
-//        .map_err(|_|
-//          TwitchApiError::FailedToCreateFre(twitch_response)
-//        .map(|new_token_data| {
-//          // Token::new_user_token(
-//          (
-//            new_token_data.access_token,
-//            new_token_data.refresh_token.unwrap(),
-//          )
-//          //  new_token_data.expires_in as f32,
-//          // )
-//        })
-//    })
-//}
-
 pub fn open_browser<S: Into<String>, T: Into<String>>(
   browser_url: S,
   redirect_url: T,
@@ -304,7 +297,7 @@ pub fn create_user_and_refresh_token(post_data: &str) -> Result<(String, String)
 }
 
 pub fn get_channel_emotes(
-  access_token: &str,
+  user_token: &str,
   client_id: &str,
   broadcaster_id: &str,
 ) -> Result<ChannelEmotes, TwitchApiError> {
@@ -313,7 +306,7 @@ pub fn get_channel_emotes(
     .build(GET_CHANNEL_EMOTES_URL);
 
   TwitchHttpRequest::new(url)
-    .header_authorisation(access_token, AuthType::Bearer)
+    .header_authorisation(user_token, AuthType::Bearer)
     .header_client_id(client_id)
     .run()
     .and_then(|data| {
@@ -323,13 +316,13 @@ pub fn get_channel_emotes(
 }
 
 pub fn get_global_emotes(
-  access_token: &str,
+  user_token: &str,
   client_id: &str,
 ) -> Result<GlobalEmotes, TwitchApiError> {
   let url = RequestBuilder::new().build(GET_GLOBAL_EMOTES_URL);
 
   TwitchHttpRequest::new(url)
-    .header_authorisation(access_token, AuthType::Bearer)
+    .header_authorisation(user_token, AuthType::Bearer)
     .header_client_id(client_id)
     .run()
     .and_then(|data| {
@@ -340,7 +333,7 @@ pub fn get_global_emotes(
 
 pub fn get_emote_set(
   emote_set_id: &str,
-  access_token: &str,
+  user_token: &str,
   client_id: &str,
 ) -> Result<GlobalEmotes, TwitchApiError> {
   let url = RequestBuilder::new()
@@ -348,7 +341,7 @@ pub fn get_emote_set(
     .build(GET_EMOTE_SETS_URL);
 
   TwitchHttpRequest::new(url)
-    .header_authorisation(access_token, AuthType::Bearer)
+    .header_authorisation(user_token, AuthType::Bearer)
     .header_client_id(client_id)
     .run()
     .and_then(|data| {
@@ -400,5 +393,233 @@ pub fn send_chat_message_with_reply(
       })
       .unwrap(),
     )
+    .run()
+}
+
+pub fn send_announcement<P: Into<String>>(
+  message: &str,
+  user_token: &str,
+  client_id: &str,
+  broadcaster_account_id: &str,
+  sender_account_id: &str,
+  colour: Option<P>,
+) -> Result<String, TwitchApiError> {
+  if message.len() > 500 {
+    return Err(TwitchApiError::InputError(String::from(
+      "Message is too long.",
+    )));
+  }
+
+  let url = RequestBuilder::new()
+    .add_key_value("broadcaster_id", broadcaster_account_id)
+    .add_key_value("moderator_id", sender_account_id)
+    .build(SEND_ANNOUNCEMENT_URL);
+
+  TwitchHttpRequest::new(url)
+    .json_content()
+    .full_auth(user_token, client_id)
+    .is_post(
+      serde_json::to_string(&AnnouncementMessage {
+        message: message.to_owned(),
+        colour: colour.map(|c| c.into()),
+      })
+      .unwrap(),
+    )
+    .run()
+}
+
+pub fn send_shoutout(
+  user_token: &str,
+  client_id: &str,
+  from_broadcaster_id: &str,
+  to_broadcaster_id: &str,
+  moderator_id: &str,
+) -> Result<String, TwitchApiError> {
+  let url = RequestBuilder::new()
+    .add_key_value("from_broadcaster_id", from_broadcaster_id)
+    .add_key_value("to_broadcaster_id", to_broadcaster_id)
+    .add_key_value("moderator_id", moderator_id)
+    .build(SEND_SHOUTOUT_URL);
+
+  TwitchHttpRequest::new(url)
+    .header_authorisation(user_token, AuthType::Bearer)
+    .header_client_id(client_id)
+    .json_content()
+    .is_post("")
+    .run()
+}
+
+pub fn delete_message(
+  broadcaster_id: &str,
+  moderator_id: &str,
+  message_id: &str,
+  user_token: &str,
+  client_id: &str,
+) -> Result<String, TwitchApiError> {
+  let url = RequestBuilder::new()
+    .add_key_value("broadcaster_id", broadcaster_id)
+    .add_key_value("moderator_id", moderator_id)
+    .add_key_value("message_id", message_id)
+    .build(TWITCH_DELETE_MESSAGE_URL);
+
+  TwitchHttpRequest::new(url)
+    .header_authorisation(user_token, AuthType::Bearer)
+    .header_client_id(client_id)
+    .is_delete()
+    .run()
+}
+
+pub fn timeout_user(
+  user_token: &str,
+  client_id: &str,
+  broadcaster_id: &str,
+  moderator_id: &str,
+  user_id: &str,
+  duration_secs: u32,
+  reason: &str,
+) -> Result<String, TwitchApiError> {
+  let url = RequestBuilder::new()
+    .add_key_value("broadcaster_id", broadcaster_id)
+    .add_key_value("moderator_id", moderator_id)
+    .build(TWITCH_BAN_URL);
+
+  let post_data = SendTimeoutRequest {
+    data: TimeoutRequestData {
+      user_id: user_id.to_owned(),
+      duration: duration_secs,
+      reason: reason.to_owned(),
+    },
+  };
+
+  let post_data = serde_json::to_string(&post_data).unwrap();
+
+  TwitchHttpRequest::new(url)
+    .header_authorisation(user_token, AuthType::Bearer)
+    .header_client_id(client_id)
+    .json_content()
+    .is_post(post_data)
+    .run()
+}
+
+pub fn get_channel_badges(
+  user_token: &str,
+  client_id: &str,
+  broadcaster_id: &str,
+) -> Result<String, TwitchApiError> {
+  let url = RequestBuilder::new()
+    .add_key_value("broadcaster_id", broadcaster_id)
+    .build(GET_CHANNEL_BADGES_URL);
+
+  TwitchHttpRequest::new(url)
+    .header_authorisation(user_token, AuthType::Bearer)
+    .header_client_id(client_id)
+    .run()
+}
+
+pub fn get_global_badges(user_token: &str, client_id: &str) -> Result<String, TwitchApiError> {
+  let url = RequestBuilder::new().build(GET_GLOBAL_BADGES_URL);
+
+  TwitchHttpRequest::new(url)
+    .header_authorisation(user_token, AuthType::Bearer)
+    .header_client_id(client_id)
+    .run()
+}
+
+pub fn get_moderators(
+  user_token: &str,
+  client_id: &str,
+  broadcaster_id: &str,
+) -> Result<String, TwitchApiError> {
+  let url = RequestBuilder::new()
+    .add_key_value("broadcaster_id", broadcaster_id)
+    .build(GET_MODERATORS_URL);
+
+  TwitchHttpRequest::new(url)
+    .header_authorisation(user_token, AuthType::Bearer)
+    .header_client_id(client_id)
+    .run()
+}
+
+pub fn get_custom_rewards(
+  user_token: &str,
+  client_id: &str,
+  broadcaster_id: &str,
+) -> Result<String, TwitchApiError> {
+  let url = RequestBuilder::new()
+    .add_key_value("broadcaster_id", broadcaster_id)
+    .build(CUSTOM_REWARDS_URL);
+  TwitchHttpRequest::new(url)
+    .header_authorisation(user_token, AuthType::Bearer)
+    .header_client_id(client_id)
+    .run()
+}
+
+pub fn update_custom_rewards(
+  user_token: &str,
+  client_id: &str,
+  broadcaster_id: &str,
+  redeem_id: &str,
+  update_redeem: UpdateCustomReward,
+) -> Result<String, TwitchApiError> {
+  let url = RequestBuilder::new()
+    .add_key_value("broadcaster_id", broadcaster_id)
+    .add_key_value("id", redeem_id)
+    .build(CUSTOM_REWARDS_URL);
+
+  TwitchHttpRequest::new(url)
+    .header_authorisation(user_token, AuthType::Bearer)
+    .header_client_id(client_id)
+    .json_content()
+    .is_patch(serde_json::to_string(&update_redeem).unwrap())
+    .run()
+}
+
+pub fn create_custom_reward(
+  user_token: &str,
+  client_id: &str,
+  broadcaster_id: &str,
+  custom_reward_data: CreateCustomReward,
+) -> Result<String, TwitchApiError> {
+  let url = RequestBuilder::new()
+    .add_key_value("broadcaster_id", broadcaster_id)
+    .build(CUSTOM_REWARDS_URL);
+  let data = serde_json::to_string(&custom_reward_data).unwrap();
+  TwitchHttpRequest::new(url)
+    .header_authorisation(user_token, AuthType::Bearer)
+    .header_client_id(client_id)
+    .json_content()
+    .is_post(data)
+    .run()
+}
+
+pub fn delete_custom_reward(
+  user_token: &str,
+  client_id: &str,
+  broadcaster_id: &str,
+  reward_id: &str,
+) -> Result<String, TwitchApiError> {
+  let url = RequestBuilder::new()
+    .add_key_value("broadcaster_id", broadcaster_id)
+    .add_key_value("id", reward_id)
+    .build(CUSTOM_REWARDS_URL);
+
+  TwitchHttpRequest::new(url)
+    .header_authorisation(user_token, AuthType::Bearer)
+    .header_client_id(client_id)
+    .is_delete()
+    .run()
+}
+
+pub fn get_clips(
+  user_token: &str,
+  client_id: &str,
+  broadcaster_id: &str,
+) -> Result<String, TwitchApiError> {
+  let url = RequestBuilder::new()
+    .add_key_value("broadcaster_id", broadcaster_id)
+    .build(GET_CLIPS_URL);
+  TwitchHttpRequest::new(url)
+    .header_authorisation(user_token, AuthType::Bearer)
+    .header_client_id(client_id)
     .run()
 }

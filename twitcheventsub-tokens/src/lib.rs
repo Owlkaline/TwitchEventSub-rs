@@ -109,7 +109,7 @@ impl TokenHandler {
   ) -> Result<String, TwitchApiError> {
     if let Err(TwitchApiError::TokenRequiresRefreshing(mut http_request)) = twitch_result {
       self.generate_user_token_from_refresh_token().map(|()| {
-        http_request.update_token(&self.refresh_token);
+        http_request.update_token(&self.user_token);
         http_request.run()
       })?
     } else {
