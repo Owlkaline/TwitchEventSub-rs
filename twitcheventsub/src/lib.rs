@@ -230,6 +230,14 @@ impl TwitchEventSubApi {
     self.tokens.clone()
   }
 
+  pub fn api(&mut self) -> &mut TokenHandler {
+    &mut self.tokens
+  }
+
+  pub fn broadcaster(&self) -> &UserData {
+    &self.broadcaster_user
+  }
+
   pub fn restart_websockets(&mut self) -> Result<(), EventSubError> {
     let _ = self.send_quit_message.send(true);
 

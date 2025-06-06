@@ -559,7 +559,7 @@ pub fn update_custom_rewards(
   client_id: &str,
   broadcaster_id: &str,
   redeem_id: &str,
-  update_redeem: UpdateCustomReward,
+  update_redeem: &UpdateCustomReward,
 ) -> Result<String, TwitchApiError> {
   let url = RequestBuilder::new()
     .add_key_value("broadcaster_id", broadcaster_id)

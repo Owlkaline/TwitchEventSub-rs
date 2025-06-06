@@ -202,7 +202,7 @@ pub struct GlobalCooldownSetting {
 
 #[derive(Serialise, Deserialise, Debug)]
 pub struct CreatedCustomRewardResponse {
-  pub data: Vec<CreatedCustomReward>,
+  pub data: Vec<GetCustomReward>,
 }
 
 #[derive(Serialise, Deserialise, Debug)]

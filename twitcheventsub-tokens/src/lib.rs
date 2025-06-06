@@ -7,9 +7,11 @@ use twitcheventsub_structs::prelude::{
 };
 
 mod builder;
+mod custom_redeems;
 mod env_handler;
 
 pub use builder::TokenHandlerBuilder;
+pub use custom_redeems::*;
 
 use crate::builder::get_user_and_refresh_tokens;
 
@@ -304,7 +306,7 @@ impl TokenHandler {
     &mut self,
     broadcaster_id: &str,
     redeem_id: &str,
-    update_redeem: UpdateCustomReward,
+    update_redeem: &UpdateCustomReward,
   ) -> Result<CreatedCustomRewardResponse, TwitchApiError> {
     self
       .regen_tokens_on_fail(twitcheventsub_api::update_custom_rewards(
