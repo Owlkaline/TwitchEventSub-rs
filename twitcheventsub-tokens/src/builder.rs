@@ -20,8 +20,11 @@ fn create_yn_prompt() -> bool {
 
 fn get_input() -> String {
   let mut user_input = String::new();
-  let _ = stdin().read_line(&mut user_input);
-  user_input = user_input.trim().to_lowercase();
+
+  while user_input.is_empty() {
+    let _ = stdin().read_line(&mut user_input);
+    user_input = user_input.trim().to_lowercase();
+  }
 
   return user_input
 }
@@ -121,13 +124,13 @@ impl TokenHandlerBuilder {
       println!(
         "You can get your Client id and secret from https://dev.twitch.tv/console/apps/create"
       );
-      while partial_tokens.client_id.is_empty() {
+      println!("Input your Client Id:");
         partial_tokens.client_id = get_input();
-      }
       updates = true;
     }
 
-    while partial_tokens.client_secret.is_empty() {
+    if partial_tokens.client_secret.is_empty() {
+      println!("Input your Client Secret:");
       partial_tokens.client_secret = get_input();
 
       updates = true;
@@ -150,7 +153,8 @@ impl TokenHandlerBuilder {
 
     let mut has_redirect_url = true;
 
-    while partial_tokens.redirect_url.is_empty() {
+    if partial_tokens.redirect_url.is_empty() {
+      println!("Please input redirect url:");
       partial_tokens.redirect_url = get_input();
       has_redirect_url = false;
     }
