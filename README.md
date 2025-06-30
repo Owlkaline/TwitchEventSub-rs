@@ -99,7 +99,11 @@ loop {
 ## Building
 
 ```doc
-cargo build --release
+# Build debug binaries
+cargo build --workspace
+
+# Build release binaries
+cargo build --workspace --release
 ```
 
 ## FAQ
