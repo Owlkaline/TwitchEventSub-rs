@@ -1,7 +1,7 @@
 use std::ops::Deref;
 
 use godot::prelude::*;
-use twitcheventsub::{BadgeData, BadgeVersion, EmoteStaticImages, SetOfBadges};
+use twitcheventsub::prelude::{BadgeData, BadgeVersion, EmoteStaticImages, SetOfBadges};
 
 use crate::GEmoteStaticImages;
 

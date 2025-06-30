@@ -1,5 +1,5 @@
 use godot::prelude::*;
-use twitcheventsub::UserBannedData;
+use twitcheventsub::prelude::UserBannedData;
 
 use super::GUser;
 

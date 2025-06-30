@@ -1,5 +1,5 @@
 use godot::prelude::*;
-use twitcheventsub::{
+use twitcheventsub::prelude::{
   BeginOutcome, Outcome, PredictionBeginData, PredictionEndData, PredictionLockData,
   PredictionProgressData, TopPredictors,
 };

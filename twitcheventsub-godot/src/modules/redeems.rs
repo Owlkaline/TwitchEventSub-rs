@@ -1,5 +1,5 @@
 use godot::prelude::*;
-use twitcheventsub::*;
+use twitcheventsub::prelude::*;
 
 use crate::{modules::GUser, GEmoteStaticImages};
 

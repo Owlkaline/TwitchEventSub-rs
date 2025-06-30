@@ -29,7 +29,13 @@ use log::LevelFilter;
 use modules::badges::GBadgeVersion;
 use modules::badges::GSetOfBadges;
 use modules::banned::GUserBanned;
-use twitcheventsub::*;
+use twitcheventsub::prelude::twitcheventsub_tokens::TokenHandler;
+use twitcheventsub::prelude::twitcheventsub_tokens::TokenHandlerBuilder;
+use twitcheventsub::prelude::*;
+use twitcheventsub::EventSubError;
+use twitcheventsub::ResponseType;
+use twitcheventsub::TwitchEventSubApi;
+use twitcheventsub::TwitchEventSubApiBuilder;
 
 mod modules;
 use std::io::Cursor;
@@ -68,6 +74,8 @@ struct TwitchEventNode {
   start_onready: bool,
   #[export]
   show_connected_notification: bool,
+  #[export]
+  broadcaster_username: GString,
   #[export]
   redirect_url: GString,
   #[export]
@@ -143,6 +151,7 @@ struct TwitchEventNode {
   broadcaster_id_field: Option<Gd<LineEdit>>,
   redirect_url_field: Option<Gd<LineEdit>>,
   need_help: Option<Gd<AspectRatioContainer>>,
+  tokens: Option<TokenHandler>,
   twitch: Option<TwitchEventSubApi>,
   base: Base<Node>,
 }
@@ -282,113 +291,115 @@ pub struct GdUserBannedContainer {
 
 #[godot_api]
 impl TwitchEventNode {
-  #[func]
-  fn get_generic_emote_texture_from_url(&mut self, url: Gd<GEmoteUrl>) -> Variant {
-    if url.bind().animated {
-      self
-        .get_animated_texture_from_url(url.bind().url.to_owned())
-        .to_variant()
-    } else {
-      self
-        .get_static_texture_from_url(url.bind().url.to_owned())
-        .to_variant()
-    }
-  }
+  //#[func]
+  //fn get_generic_emote_texture_from_url(&mut self, url: Gd<GEmoteUrl>) -> Variant {
+  //  if url.bind().animated {
+  //    self
+  //      .get_animated_texture_from_url(url.bind().url.to_owned())
+  //      .to_variant()
+  //  } else {
+  //    self
+  //      .get_static_texture_from_url(url.bind().url.to_owned())
+  //      .to_variant()
+  //  }
+  //}
 
-  #[func]
-  fn get_animated_texture_from_url(&mut self, url: GString) -> Gd<AnimatedTexture> {
-    let mut animated_texture = AnimatedTexture::new_gd();
+  //#[func]
+  //fn get_animated_texture_from_url(&mut self, url: GString) -> Gd<AnimatedTexture> {
+  //  let mut animated_texture = AnimatedTexture::new_gd();
 
-    let data = TwitchEventSubApi::get_image_data_from_url(url);
+  //  let data = TwitchEventSubApi::get_image_data_from_url(url);
 
-    if let Ok(gif) = GifDecoder::new(Cursor::new(data.unwrap())) {
-      let (width, height) = gif.dimensions();
-      let frames = gif.into_frames().collect_frames().unwrap();
-      let number_of_frames = frames.len();
+  //  if let Ok(gif) = GifDecoder::new(Cursor::new(data.unwrap())) {
+  //    let (width, height) = gif.dimensions();
+  //    let frames = gif.into_frames().collect_frames().unwrap();
+  //    let number_of_frames = frames.len();
 
-      let mut textures = Vec::new();
-      let mut frame_duartion_ms = Vec::new();
-      for frame in frames.into_iter() {
-        let (n, d) = frame.delay().numer_denom_ms();
+  //    let mut textures = Vec::new();
+  //    let mut frame_duartion_ms = Vec::new();
+  //    for frame in frames.into_iter() {
+  //      let (n, d) = frame.delay().numer_denom_ms();
 
-        let delay = Duration::from_millis(if n == 0 || d == 0 {
-          100
-        } else {
-          n as u64 / d as u64
-        })
-        .as_secs_f32();
+  //      let delay = Duration::from_millis(
+  //        if n == 0 || d == 0 {
+  //          100
+  //        } else {
+  //          n as u64 / d as u64
+  //        },
+  //      )
+  //      .as_secs_f32();
 
-        let data = frame
-          .buffer()
-          .bytes()
-          .map(|a| a.unwrap())
-          .collect::<Vec<_>>();
+  //      let data = frame
+  //        .buffer()
+  //        .bytes()
+  //        .map(|a| a.unwrap())
+  //        .collect::<Vec<_>>();
 
-        let image = Image::create_from_data(
-          width as i32,
-          height as i32,
-          false,
-          classes::image::Format::RGBA8,
-          &PackedByteArray::from(data.as_bytes()),
-        )
-        .unwrap();
-        let texture = ImageTexture::create_from_image(&image).unwrap();
-        textures.push(texture);
-        frame_duartion_ms.push(delay);
-      }
+  //      let image = Image::create_from_data(
+  //        width as i32,
+  //        height as i32,
+  //        false,
+  //        classes::image::Format::RGBA8,
+  //        &PackedByteArray::from(data.as_bytes()),
+  //      )
+  //      .unwrap();
+  //      let texture = ImageTexture::create_from_image(&image).unwrap();
+  //      textures.push(texture);
+  //      frame_duartion_ms.push(delay);
+  //    }
 
-      {
-        animated_texture.set_frames(number_of_frames as i32);
-        for i in 0..number_of_frames {
-          animated_texture.set_frame_texture(i as i32, &textures[i]);
-          animated_texture.set_frame_duration(i as i32, frame_duartion_ms[i]);
-        }
-      }
-    }
+  //    {
+  //      animated_texture.set_frames(number_of_frames as i32);
+  //      for i in 0..number_of_frames {
+  //        animated_texture.set_frame_texture(i as i32, &textures[i]);
+  //        animated_texture.set_frame_duration(i as i32, frame_duartion_ms[i]);
+  //      }
+  //    }
+  //  }
 
-    animated_texture
-  }
+  //  animated_texture
+  //}
 
-  #[func]
-  fn get_static_texture_from_url(&mut self, url: GString) -> Gd<ImageTexture> {
-    let data = TwitchEventSubApi::get_image_data_from_url(url);
-    let image = image::ImageReader::new(Cursor::new(data.unwrap()))
-      .with_guessed_format()
-      .unwrap()
-      .decode()
-      .unwrap()
-      .to_rgba8();
+  //#[func]
+  //fn get_static_texture_from_url(&mut self, url: GString) -> Gd<ImageTexture> {
+  //  let data = TwitchEventSubApi::get_image_data_from_url(url);
+  //  let image = image::ImageReader::new(Cursor::new(data.unwrap()))
+  //    .with_guessed_format()
+  //    .unwrap()
+  //    .decode()
+  //    .unwrap()
+  //    .to_rgba8();
 
-    let image = Image::create_from_data(
-      image.width() as i32,
-      image.height() as i32,
-      false,
-      classes::image::Format::RGBA8,
-      &PackedByteArray::from(image.as_bytes()),
-    )
-    .unwrap();
+  //  let image = Image::create_from_data(
+  //    image.width() as i32,
+  //    image.height() as i32,
+  //    false,
+  //    classes::image::Format::RGBA8,
+  //    &PackedByteArray::from(image.as_bytes()),
+  //  )
+  //  .unwrap();
 
-    let texture = ImageTexture::create_from_image(&image);
+  //  let texture = ImageTexture::create_from_image(&image);
 
-    return texture.unwrap();
-  }
+  //  return texture.unwrap();
+  //}
 
-  #[func]
-  fn get_badges_urls(&mut self, badges: Array<Gd<GBadge>>) -> Array<Gd<GBadgeVersion>> {
-    let mut requested_badges = Array::new();
+  //#[func]
+  //fn get_badges_urls(&mut self, badges: Array<Gd<GBadge>>) -> Array<Gd<GBadgeVersion>> {
+  //  let mut requested_badges = Array::new();
 
-    let badges: Vec<Badge> = badges
-      .iter_shared()
-      .map(|b| (*b.bind()).clone().into())
-      .collect::<Vec<_>>();
-    if let Some(twitch) = &mut self.twitch {
-      for badge in twitch.get_badge_urls_from_badges(badges) {
-        requested_badges.push(&Gd::from_object(GBadgeVersion::from(badge)));
-      }
-    }
+  //  let badges: Vec<Badge> = badges
+  //    .iter_shared()
+  //    .map(|b| (*b.bind()).clone().into())
+  //    .collect::<Vec<_>>();
+  //  if let Some(twitch) = &mut self.twitch {
+  //    for badge in twitch.get_badge_urls_from_badges(badges) {
+  //      requested_badges.push(&Gd::from_object(GBadgeVersion::from(badge)));
+  //    }
+  //  }
 
-    requested_badges
-  }
+  //  requested_badges
+  //}
 
   #[func]
   fn get_emote_url_1x(&mut self, fragment: Gd<GFragments>) -> Gd<GEmoteUrl> {
@@ -425,7 +436,14 @@ impl TwitchEventNode {
         }
       }
 
-      if let Some(emote_url) = builder.build(twitch, &fragment.bind().convert_to_rust()) {
+      let id = twitch.broadcaster().id.clone();
+
+      if let Some(emote_url) = builder.build(
+        &twitch.get_tokens(),
+        &id,
+        &fragment.bind().convert_to_rust(),
+        &mut twitch.bttv,
+      ) {
         url.url = emote_url.url.into(); //.url;
         url.animated = emote_url.animated;
       }
@@ -437,7 +455,8 @@ impl TwitchEventNode {
   #[func]
   fn send_chat_message(&mut self, message: GString) {
     if let Some(twitch) = &mut self.twitch {
-      let _ = twitch.send_chat_message(message);
+      let id = twitch.broadcaster().id.clone();
+      let _ = twitch.api().send_chat_message(&id, &message.to_string());
     }
   }
 
@@ -445,14 +464,20 @@ impl TwitchEventNode {
   fn send_chat_message_with_reply(&mut self, message: GString, message_id: GString) {
     if let Some(twitch) = &mut self.twitch {
       let message: String = message.into();
-      let _ = twitch.send_chat_message_with_reply(message, Some(message_id.into()));
+      let id = twitch.broadcaster().id.clone();
+      let _ = twitch.api().send_chat_message_with_reply(
+        &id,
+        &message.to_string(),
+        Some(message_id.into()),
+      );
     }
   }
 
   #[func]
   fn delete_message(&mut self, message_id: GString) {
     if let Some(twitch) = &mut self.twitch {
-      let _ = twitch.delete_message(message_id.to_string());
+      let id = twitch.broadcaster().id.clone();
+      let _ = twitch.api().delete_message(&id, &message_id.to_string());
     }
   }
 
@@ -461,7 +486,10 @@ impl TwitchEventNode {
     let mut gusers = Array::new();
 
     if let Some(twitch) = &mut self.twitch {
-      if let Ok(users) = twitch.get_users_from_ids(id.iter_shared().collect()) {
+      if let Ok(users) = twitch
+        .api()
+        .get_users(id.iter_shared().collect(), vec![] as Vec<String>)
+      {
         for user in users.data {
           gusers.push(&Gd::from_object(GUserData::from(user)));
         }
@@ -476,7 +504,10 @@ impl TwitchEventNode {
     let mut gusers = Array::new();
 
     if let Some(twitch) = &mut self.twitch {
-      if let Ok(users) = twitch.get_users_from_logins(logins.iter_shared().collect()) {
+      if let Ok(users) = twitch
+        .api()
+        .get_users(vec![] as Vec<String>, logins.iter_shared().collect())
+      {
         for user in users.data {
           gusers.push(&Gd::from_object(GUserData::from(user)));
         }
@@ -491,7 +522,8 @@ impl TwitchEventNode {
     let mut data = Array::new();
 
     if let Some(twitch) = &mut self.twitch {
-      if let Ok(schedule) = twitch.get_ad_schedule() {
+      let id = twitch.broadcaster().id.clone();
+      if let Ok(schedule) = twitch.api().get_ad_schedule(&id) {
         for details in schedule.data {
           data.push(&Gd::from_object(GAdDetails::from(details)));
         }
@@ -507,7 +539,10 @@ impl TwitchEventNode {
     let mut gusers = Array::new();
 
     if let Some(twitch) = &mut self.twitch {
-      if let Ok(users) = twitch.get_users_self() {
+      if let Ok(users) = twitch
+        .api()
+        .get_users(vec![] as Vec<String>, vec![] as Vec<String>)
+      {
         for user in users.data {
           gusers.push(&Gd::from_object(GUserData::from(user)));
         }
@@ -522,7 +557,8 @@ impl TwitchEventNode {
     let mut moderators = Array::new();
 
     if let Some(twitch) = &mut self.twitch {
-      if let Ok(mods) = twitch.get_moderators() {
+      let id = twitch.broadcaster().id.clone();
+      if let Ok(mods) = twitch.api().get_moderators(&id) {
         for user in mods.data {
           moderators.push(&Gd::from_object(GUser::from(user)));
         }
@@ -537,7 +573,8 @@ impl TwitchEventNode {
     let mut rewards = Array::new();
 
     if let Some(twitch) = &mut self.twitch {
-      if let Ok(custom_rewards) = twitch.get_custom_rewards() {
+      let id = twitch.broadcaster().id.clone();
+      if let Ok(custom_rewards) = twitch.api().get_custom_rewards(&id) {
         for reward in custom_rewards.data {
           rewards.push(&Gd::from_object(GGetCustomReward::from(reward)));
         }
@@ -550,14 +587,20 @@ impl TwitchEventNode {
   #[func]
   fn send_announcement(&mut self, message: GString, hex_colour: GString) {
     if let Some(twitch) = &mut self.twitch {
-      let _ = twitch.send_announcement(message.to_string(), hex_colour.into());
+      let id = twitch.broadcaster().id.clone();
+      let _ = twitch
+        .api()
+        .send_announcement(&id, &message.to_string(), hex_colour.into());
     }
   }
 
   #[func]
   fn send_shoutout(&mut self, to_broadcaster_id: GString) {
     if let Some(twitch) = &mut self.twitch {
-      let _ = twitch.send_shoutout(to_broadcaster_id);
+      let id = twitch.broadcaster().id.clone();
+      let _ = twitch
+        .api()
+        .send_shoutout(&id, &to_broadcaster_id.to_string());
     }
   }
 
@@ -623,8 +666,15 @@ impl TwitchEventNode {
 
   #[func]
   pub fn get_chatters(&mut self) -> Gd<GGetChatters> {
+    let id = self.twitch.as_mut().unwrap().broadcaster().id.clone();
     Gd::from_object(GGetChatters::from(
-      self.twitch.as_mut().unwrap().get_chatters().unwrap(),
+      self
+        .twitch
+        .as_mut()
+        .unwrap()
+        .api()
+        .get_chatters(&id)
+        .unwrap(),
     ))
   }
 
@@ -837,53 +887,59 @@ impl TwitchEventNode {
 
   #[func]
   fn start_twitchevents(&mut self) {
-    let keys = match TwitchKeys::from_secrets_env(vec![format!(
-      ".{}.env",
-      self.env_file_name.to_string()
-    )]) {
-      Ok(keys) => keys,
-      Err(_) => match TwitchKeys::from_secrets_env(vec![String::from(".example.env")]) {
-        Ok(keys) => keys,
-        Err(_) => {
-          self.create_popup(None, None, None);
-          return;
-        }
-      },
-    };
+    let token = TokenHandlerBuilder::new()
+      .env_file(&self.env_file_name.to_string())
+      .build();
 
-    if keys.client_id.is_empty() {
-      self.create_popup(
-        Some(String::from("No Id Set")),
-        Some(keys.client_secret),
-        Some(keys.broadcaster_account_id),
-      );
-      return;
-    }
+    let mut twitch = TwitchEventSubApi::builder(token).enable_irc();
 
-    if keys.client_secret.is_empty() {
-      self.create_popup(
-        Some(keys.client_id),
-        Some(String::new()),
-        Some(keys.broadcaster_account_id),
-      );
-      return;
-    }
+    //let keys = match TwitchKeys::from_secrets_env(vec![format!(
+    //  ".{}.env",
+    //  self.env_file_name.to_string()
+    //)]) {
+    //  Ok(keys) => keys,
+    //  Err(_) => match TwitchKeys::from_secrets_env(vec![String::from(".example.env")]) {
+    //    Ok(keys) => keys,
+    //    Err(_) => {
+    //      self.create_popup(None, None, None);
+    //      return;
+    //    }
+    //  },
+    //};
 
-    if keys.client_secret.is_empty() {
-      self.create_popup(
-        Some(keys.client_id),
-        Some(keys.client_secret),
-        Some(String::from("No Broadcaster Set")),
-      );
-      return;
-    }
+    //if keys.client_id.is_empty() {
+    //  self.create_popup(
+    //    Some(String::from("No Id Set")),
+    //    Some(keys.client_secret),
+    //    Some(keys.broadcaster_account_id),
+    //  );
+    //  return;
+    //}
 
-    let mut twitch = TwitchEventSubApi::builder(keys.clone())
-      .set_redirect_url(self.redirect_url.to_string())
-      .generate_new_token_if_insufficent_scope(true)
-      .generate_new_token_if_none(true)
-      .generate_access_token_on_expire(true)
-      .auto_save_load_created_tokens(".user_token.env", ".refresh_token.env");
+    //if keys.client_secret.is_empty() {
+    //  self.create_popup(
+    //    Some(keys.client_id),
+    //    Some(String::new()),
+    //    Some(keys.broadcaster_account_id),
+    //  );
+    //  return;
+    //}
+
+    //if keys.client_secret.is_empty() {
+    //  self.create_popup(
+    //    Some(keys.client_id),
+    //    Some(keys.client_secret),
+    //    Some(String::from("No Broadcaster Set")),
+    //  );
+    //  return;
+    //}
+
+    //let mut twitch = TwitchEventSubApi::builder(keys.clone())
+    //  .set_redirect_url(self.redirect_url.to_string())
+    //  .generate_new_token_if_insufficent_scope(true)
+    //  .generate_new_token_if_none(true)
+    //  .generate_access_token_on_expire(true)
+    //  .auto_save_load_created_tokens(".user_token.env", ".refresh_token.env");
 
     if self.channel_user_update {
       twitch = twitch.add_subscription(Subscription::UserUpdate);
@@ -985,26 +1041,28 @@ impl TwitchEventNode {
       twitch = twitch.add_subscription(Subscription::PermissionReadChatters);
     }
 
-    match twitch.build() {
+    match twitch.build(&self.broadcaster_username.to_string()) {
       Ok(twitch) => {
         self.twitch = Some(twitch);
       }
       Err(e) => match e {
-        EventSubError::InvalidOauthToken(exact_error) => {
-          let mut client_id = keys.client_id;
-          let mut client_secret = keys.client_secret;
-          let broadcaster_id = keys.broadcaster_account_id;
+        //EventSubError::InvalidOauthToken(exact_error) => {
+        //  let mut client_id = keys.client_id;
+        //  let mut client_secret = keys.client_secret;
+        //  let broadcaster_id = keys.broadcaster_account_id;
 
-          if exact_error.contains("400") {
-            client_id = "Invalid ID".to_string();
-          }
-          if exact_error.contains("403") {
-            client_secret = String::new();
-          }
+        //  if exact_error.contains("400") {
+        //    client_id = "Invalid ID".to_string();
+        //  }
+        //  if exact_error.contains("403") {
+        //    client_secret = String::new();
+        //  }
 
-          self.create_popup(Some(client_id), Some(client_secret), Some(broadcaster_id));
+        //  self.create_popup(Some(client_id), Some(client_secret), Some(broadcaster_id));
+        //}
+        e => {
+          panic!("Test fail {:?}", e);
         }
-        _ => {}
       },
     }
   }
@@ -1015,7 +1073,9 @@ impl INode for TwitchEventNode {
   fn init(base: Base<Node>) -> Self {
     Self {
       twitch: None,
+      tokens: None,
       start_onready: true,
+      broadcaster_username: "".to_godot(),
       show_connected_notification: true,
       redirect_url: "http://localhost:3000".to_godot(),
       channel_user_update: false,
@@ -1070,6 +1130,7 @@ impl INode for TwitchEventNode {
   fn process(&mut self, _delta: f64) {
     if let Some(ref mut api) = &mut self.twitch {
       if let Some(message) = api.receive_single_message(Duration::ZERO) {
+        println!("Event: {:?}", message);
         match message {
           ResponseType::Event(event) => match event {
             TwitchEvent::ChatMessage(message_data) => {
@@ -1280,18 +1341,20 @@ impl INode for TwitchEventNode {
             }
           }
           ResponseType::Error(error) => match error {
-            EventSubError::InvalidOauthToken(_exact_error) => {
-              let keys = api.get_twitch_keys();
+            //EventSubError::InvalidOauthToken(_exact_error) => {
+            //  let keys = api.get_twitch_keys();
 
-              self.twitch = None;
+            //  self.twitch = None;
 
-              let client_id = keys.client_id;
-              let client_secret = keys.client_secret;
-              let broadcaster_id = "Invalid Id".to_owned();
+            //  let client_id = keys.client_id;
+            //  let client_secret = keys.client_secret;
+            //  let broadcaster_id = "Invalid Id".to_owned();
 
-              self.create_popup(Some(client_id), Some(client_secret), Some(broadcaster_id));
+            //  self.create_popup(Some(client_id), Some(client_secret), Some(broadcaster_id));
+            //}
+            e => {
+              panic!("Error2: {:?}", e);
             }
-            _ => {}
           },
           _ => {}
         }

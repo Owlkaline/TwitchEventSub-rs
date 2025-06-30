@@ -2,9 +2,9 @@ use env_handler::EnvHandler;
 use log::warn;
 use twitcheventsub_api::{self, TwitchApiError};
 use twitcheventsub_structs::prelude::{
-  ChannelEmotes, CreateCustomReward, CreatedCustomRewardResponse, GetCustomRewards, GlobalEmotes,
-  Moderators, Subscription, UpdateCustomReward, UserDataSet,
-  ClipDetails
+  AdSchedule, ChannelEmotes, ClipDetails, CreateCustomReward, CreatedCustomRewardResponse,
+  GetChatters, GetCustomRewards, GlobalEmotes, Moderators, Subscription, UpdateCustomReward,
+  UserDataSet,
 };
 
 mod builder;
@@ -152,6 +152,20 @@ impl TokenHandler {
         } else {
           Ok(user.data[0].id.to_owned())
         }
+      })
+  }
+
+  pub fn get_chatters(&mut self, broadcaster_id: &str) -> Result<GetChatters, TwitchApiError> {
+    self
+      .regen_tokens_on_fail(twitcheventsub_api::get_chatters(
+        broadcaster_id,
+        &self.client_twitch_id,
+        &self.user_token,
+        &self.client_id,
+      ))
+      .and_then(|data| match serde_json::from_str(&data) {
+        Ok(data) => Ok(data),
+        Err(e) => Err(TwitchApiError::DeserialisationError(e.to_string())),
       })
   }
 
@@ -362,6 +376,19 @@ impl TokenHandler {
   pub fn get_clips(&mut self, broadcaster_id: &str) -> Result<ClipDetails, TwitchApiError> {
     self
       .regen_tokens_on_fail(twitcheventsub_api::get_clips(
+        &self.user_token,
+        &self.client_id,
+        broadcaster_id,
+      ))
+      .and_then(|data| match serde_json::from_str(&data) {
+        Ok(data) => Ok(data),
+        Err(e) => Err(TwitchApiError::DeserialisationError(e.to_string())),
+      })
+  }
+
+  pub fn get_ad_schedule(&mut self, broadcaster_id: &str) -> Result<AdSchedule, TwitchApiError> {
+    self
+      .regen_tokens_on_fail(twitcheventsub_api::get_ad_schedule(
         &self.user_token,
         &self.client_id,
         broadcaster_id,

@@ -350,6 +350,38 @@ pub fn get_emote_set(
     })
 }
 
+pub fn get_ad_schedule(
+  broadcaster_id: &str,
+  access_token: &str,
+  client_id: &str,
+) -> Result<String, TwitchApiError> {
+  let url = RequestBuilder::new()
+    .add_key_value("broadcaster_id", broadcaster_id)
+    .build(GET_AD_SCHEDULE_URL);
+
+  TwitchHttpRequest::new(url)
+    .header_authorisation(access_token, AuthType::Bearer)
+    .header_client_id(client_id)
+    .run()
+}
+
+pub fn get_chatters(
+  broadcaster_id: &str,
+  moderator_id: &str,
+  access_token: &str,
+  client_id: &str,
+) -> Result<String, TwitchApiError> {
+  let url = RequestBuilder::new()
+    .add_key_value("broadcaster_id", broadcaster_id)
+    .add_key_value("moderator_id", moderator_id)
+    .build(GET_CHATTERS_URL);
+
+  TwitchHttpRequest::new(url)
+    .header_authorisation(access_token, AuthType::Bearer)
+    .header_client_id(client_id)
+    .run()
+}
+
 pub fn send_chat_message(
   user_token: &str,
   client_id: &str,

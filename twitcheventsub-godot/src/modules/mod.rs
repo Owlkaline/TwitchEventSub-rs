@@ -13,8 +13,7 @@ pub mod redeems;
 pub mod subscription;
 
 use godot::prelude::*;
-
-use twitcheventsub::*;
+use twitcheventsub::prelude::*;
 
 #[derive(GodotClass, Debug)]
 #[class(init)]
