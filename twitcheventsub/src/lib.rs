@@ -126,16 +126,18 @@ impl TwitchEventSubApi {
     mut subscriptions: Vec<Subscription>,
     custom_subscription_data: Vec<String>,
     use_irc_channel: bool,
-    broadcasters_username: &str,
+    broadcasters_login: &str,
   ) -> Result<TwitchEventSubApi, EventSubError> {
     let client_twitch_id = tokens.client_twitch_id.clone();
-    let users = tokens.get_users(vec![&client_twitch_id], vec![broadcasters_username])?;
+    dbg!(&client_twitch_id);
+    dbg!(&broadcasters_login);
+    let users = tokens.get_users(vec![&client_twitch_id], vec![broadcasters_login])?;
 
     // Or not all user details retrieved
     if users.data.is_empty() ||
       (users.data.len() < 2 &&
         (users.data[0].id != tokens.client_twitch_id ||
-          users.data[0].login != broadcasters_username))
+          users.data[0].login != broadcasters_login))
     {
       // Queried a invalid broadcaster
       return Err(EventSubError::InvalidBroadcaster);
@@ -144,14 +146,13 @@ impl TwitchEventSubApi {
     let (broadcaster_user, token_user) = {
       let mut client_idx = 0;
       let broadcaster_idx;
-      if users.data[0].id == tokens.client_twitch_id && users.data[0].login == broadcasters_username
-      {
+      if users.data[0].id == tokens.client_twitch_id && users.data[0].login == broadcasters_login {
         broadcaster_idx = 0;
       } else if users.data[1].id == tokens.client_twitch_id {
         broadcaster_idx = 0;
         client_idx = 1;
       } else if users.data[0].id != tokens.client_twitch_id ||
-        users.data[0].login != broadcasters_username
+        users.data[0].login != broadcasters_login
       {
         broadcaster_idx = 1;
       } else {

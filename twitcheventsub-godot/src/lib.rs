@@ -29,6 +29,7 @@ use log::LevelFilter;
 use modules::badges::GBadgeVersion;
 use modules::badges::GSetOfBadges;
 use modules::banned::GUserBanned;
+use twitcheventsub::prelude::twitcheventsub_api::TwitchApiError;
 use twitcheventsub::prelude::twitcheventsub_tokens::TokenHandler;
 use twitcheventsub::prelude::twitcheventsub_tokens::TokenHandlerBuilder;
 use twitcheventsub::prelude::*;
@@ -67,6 +68,8 @@ unsafe impl ExtensionLibrary for TwitchApi {
   }
 }
 
+// TODO:
+// Save in godot local area place
 #[derive(GodotClass)]
 #[class(base=Node)]
 struct TwitchEventNode {
@@ -151,7 +154,7 @@ struct TwitchEventNode {
   broadcaster_id_field: Option<Gd<LineEdit>>,
   redirect_url_field: Option<Gd<LineEdit>>,
   need_help: Option<Gd<AspectRatioContainer>>,
-  tokens: Option<TokenHandler>,
+  token: TokenHandler,
   twitch: Option<TwitchEventSubApi>,
   base: Base<Node>,
 }
@@ -680,7 +683,7 @@ impl TwitchEventNode {
 
   #[func]
   pub fn create_secrets(&mut self) {
-    if let (Some(new_id), Some(new_secret), Some(new_broadcaster_id), Some(new_url)) = (
+    if let (Some(new_id), Some(new_secret), new_broadcaster_id, new_url) = (
       &self.client_id_field,
       &self.client_secret_field,
       &self.broadcaster_id_field,
@@ -688,26 +691,32 @@ impl TwitchEventNode {
     ) {
       let new_client_id = new_id.get_text();
       let new_client_secret = new_secret.get_text();
-      let new_broadcaster_id = new_broadcaster_id.get_text();
-      let new_redirect_url = new_url.get_text();
+      //let new_broadcaster_id = new_broadcaster_id.get_text();
+      //let new_redirect_url = new_url.get_text();
 
-      if new_client_id.is_empty() && new_client_secret.is_empty() && new_broadcaster_id.is_empty() {
-        self.create_popup(None, None, None);
+      if new_client_id.is_empty() && new_client_secret.is_empty() {
+        //&& new_broadcaster_id.is_empty() {
+        self.create_popup(None, None);
         return;
       }
 
-      let mut file = fs::File::create(format!(".{}.env", self.env_file_name)).unwrap();
+      self.token.client_id = new_client_id.to_string();
+      self.token.client_secret = new_client_secret.to_string();
 
-      let secrets = format!(
-        "TWITCH_CLIENT_ID = \"{}\"\
-        \nTWITCH_CLIENT_SECRET = \"{}\"\
-        \nTWITCH_BROADCASTER_ID = \"{}\"",
-        new_client_id, new_client_secret, new_broadcaster_id
-      );
+      self.token.save(&format!(".{}.env", self.env_file_name));
 
-      file.write_all(format!("{}\n", secrets).as_bytes()).unwrap();
+      //let mut file = fs::File::create().unwrap();
 
-      self.redirect_url = new_redirect_url;
+      //let secrets = format!(
+      //  "TWITCH_CLIENT_ID = \"{}\"\
+      //  \nTWITCH_CLIENT_SECRET = \"{}\"\
+      //  \nTWITCH_BROADCASTER_ID = \"{}\"",
+      //  new_client_id, new_client_secret, new_broadcaster_id
+      //);
+
+      //file.write_all(format!("{}\n", secrets).as_bytes()).unwrap();
+
+      //self.redirect_url = new_redirect_url;
       self.start_twitchevents();
     }
   }
@@ -724,7 +733,6 @@ impl TwitchEventNode {
     &mut self,
     possible_client_id: Option<String>,
     possible_client_secret: Option<String>,
-    possible_broadcaster_id: Option<String>,
   ) {
     let _ = fs::remove_file(".user_token.env");
     let _ = fs::remove_file(".refresh_token.env");
@@ -792,24 +800,6 @@ impl TwitchEventNode {
     let mut twitch_console_label = Label::new_alloc();
     twitch_console_label.set_text("Get Client ID and Secret here -> ");
 
-    let mut broadcaster_link_label = Label::new_alloc();
-    broadcaster_link_label.set_text("Get Broadcaster ID here -> ");
-    let mut broadcaster_link = LinkButton::new_alloc();
-    broadcaster_link.set_text("Get Broadcaster ID");
-    broadcaster_link
-      .set_uri("https://www.streamweasels.com/tools/convert-twitch-username-%20to-user-id/");
-    broadcaster_link.set_underline_mode(UnderlineMode::ALWAYS);
-    broadcaster_link.set_focus_mode(FocusMode::CLICK);
-
-    let mut broadcaster_id_label = Label::new_alloc();
-    broadcaster_id_label.set_text("Broadcaster Id:");
-
-    let mut broadcaster_id_edit = LineEdit::new_alloc();
-    broadcaster_id_edit.set_placeholder("Broadcaster id");
-    if let Some(assigned_broadcaster_id) = possible_broadcaster_id {
-      broadcaster_id_edit.set_text(&assigned_broadcaster_id);
-    }
-
     let image = image::ImageReader::new(Cursor::new(VISUAL_ERROR))
       .with_guessed_format()
       .unwrap()
@@ -862,10 +852,6 @@ impl TwitchEventNode {
     grid_container.add_child(&client_secret_edit);
     grid_container.add_child(&redirect_url_label);
     grid_container.add_child(&redirect_url_label2);
-    grid_container.add_child(&broadcaster_link_label);
-    grid_container.add_child(&broadcaster_link);
-    grid_container.add_child(&broadcaster_id_label);
-    grid_container.add_child(&broadcaster_id_edit);
     grid_container.add_child(&need_help_button);
     // grid_container.add_child(&error_description);
     // grid_container.add_child(&visual_error);
@@ -878,7 +864,6 @@ impl TwitchEventNode {
 
     self.client_id_field = Some(client_id_edit);
     self.client_secret_field = Some(client_secret_edit);
-    self.broadcaster_id_field = Some(broadcaster_id_edit);
     self.redirect_url_field = Some(redirect_url_edit);
     self.need_help = Some(visual_error);
 
@@ -887,11 +872,35 @@ impl TwitchEventNode {
 
   #[func]
   fn start_twitchevents(&mut self) {
-    let token = TokenHandlerBuilder::new()
-      .env_file(&self.env_file_name.to_string())
-      .build();
+    let mut token_builder = TokenHandlerBuilder::new()
+      .env_file(&format!(".{}.env", self.env_file_name))
+      .override_redirect_url(&self.redirect_url.to_string());
+    if let Some(token) = token_builder.build_from_env_only() {
+      self.token = token.clone();
+      if token.client_id.is_empty() {
+        self.create_popup(
+          Some(String::from("No Id Set")),
+          Some(self.token.client_secret.clone()),
+        );
+        return;
+      }
 
-    let mut twitch = TwitchEventSubApi::builder(token).enable_irc();
+      if token.client_secret.is_empty() {
+        self.create_popup(Some(token.client_id), Some(String::new()));
+        return;
+      }
+    } else {
+      self.create_popup(None, None);
+      return;
+    }
+
+    self.token = token_builder
+      .generate_user_tokens(self.token.clone())
+      .unwrap();
+
+    // TokenHandlerBuilder::new()
+    //   .env_file(&format!(".{}{}", self.env_file_name.to_string(), ".env"))
+    //   .build_unsafe();
 
     //let keys = match TwitchKeys::from_secrets_env(vec![format!(
     //  ".{}.env",
@@ -907,33 +916,7 @@ impl TwitchEventNode {
     //  },
     //};
 
-    //if keys.client_id.is_empty() {
-    //  self.create_popup(
-    //    Some(String::from("No Id Set")),
-    //    Some(keys.client_secret),
-    //    Some(keys.broadcaster_account_id),
-    //  );
-    //  return;
-    //}
-
-    //if keys.client_secret.is_empty() {
-    //  self.create_popup(
-    //    Some(keys.client_id),
-    //    Some(String::new()),
-    //    Some(keys.broadcaster_account_id),
-    //  );
-    //  return;
-    //}
-
-    //if keys.client_secret.is_empty() {
-    //  self.create_popup(
-    //    Some(keys.client_id),
-    //    Some(keys.client_secret),
-    //    Some(String::from("No Broadcaster Set")),
-    //  );
-    //  return;
-    //}
-
+    let mut twitch = TwitchEventSubApi::builder(self.token.clone()).enable_irc();
     //let mut twitch = TwitchEventSubApi::builder(keys.clone())
     //  .set_redirect_url(self.redirect_url.to_string())
     //  .generate_new_token_if_insufficent_scope(true)
@@ -1043,7 +1026,13 @@ impl TwitchEventNode {
 
     match twitch.build(&self.broadcaster_username.to_string()) {
       Ok(twitch) => {
+        self.token.save(&format!(".{}.env", self.env_file_name));
         self.twitch = Some(twitch);
+      }
+      Err(EventSubError::TwitchApiError(TwitchApiError::InvalidOauthToken(error)))
+        if error.contains("are different") =>
+      {
+        panic!("Twitch Id doesnt match token user id: {:?}", error);
       }
       Err(e) => match e {
         //EventSubError::InvalidOauthToken(exact_error) => {
@@ -1073,7 +1062,7 @@ impl INode for TwitchEventNode {
   fn init(base: Base<Node>) -> Self {
     Self {
       twitch: None,
-      tokens: None,
+      token: TokenHandler::new(),
       start_onready: true,
       broadcaster_username: "".to_godot(),
       show_connected_notification: true,

@@ -6,6 +6,7 @@ pub struct EnvHandler;
 
 impl EnvHandler {
   pub fn load_env(env_file: &str) -> Option<(String, String, String, String)> {
+    dbg!(env_file);
     match read_file(env_file) {
       Ok(vars) => {
         let client_id = vars
@@ -27,7 +28,8 @@ impl EnvHandler {
 
         Some((client_id, client_secret, redirect_url, twitch_id))
       }
-      Err(_) => {
+      Err(e) => {
+        dbg!(e);
         println!("No env file called {:?}", env_file);
         None
       }

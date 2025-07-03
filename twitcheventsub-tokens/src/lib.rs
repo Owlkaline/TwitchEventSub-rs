@@ -40,6 +40,16 @@ impl TokenHandler {
     TokenHandler::default()
   }
 
+  pub fn save(&self, env_file: &str) {
+    EnvHandler::save_env(
+      env_file,
+      &self.client_id,
+      &self.client_secret,
+      &self.client_twitch_id,
+      &self.redirect_url,
+    );
+  }
+
   pub fn check_token_has_required_subscriptions(
     &self,
     subs: &[Subscription],
@@ -78,6 +88,7 @@ impl TokenHandler {
       &self.redirect_url,
       scopes,
       open_browser,
+      false,
     );
 
     self.user_token = user_token;
