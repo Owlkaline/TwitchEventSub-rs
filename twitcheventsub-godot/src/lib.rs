@@ -1,6 +1,4 @@
 use std::fs;
-use std::io::Read;
-use std::io::Write;
 use std::panic;
 use std::time::Duration;
 
@@ -14,9 +12,8 @@ use godot::classes::Button;
 use godot::classes::LinkButton;
 use godot::classes::Panel;
 use godot::classes::TextureRect;
-use godot::classes::Tween;
 use godot::classes::VBoxContainer;
-use godot::classes::{AnimatedTexture, ConfirmationDialog, GridContainer, Label, LineEdit};
+use godot::classes::{ConfirmationDialog, GridContainer, Label, LineEdit};
 use godot::init::EditorRunBehavior;
 use godot::meta::ParamType;
 use godot::prelude::*;
@@ -24,10 +21,8 @@ use godot::{
   classes::{self, INode, Image, ImageTexture, Node},
   obj::WithBaseField,
 };
-use image::{EncodableLayout, ImageDecoder};
+use image::EncodableLayout;
 use log::LevelFilter;
-use modules::badges::GBadgeVersion;
-use modules::badges::GSetOfBadges;
 use modules::banned::GUserBanned;
 use twitcheventsub::prelude::twitcheventsub_api::TwitchApiError;
 use twitcheventsub::prelude::twitcheventsub_tokens::TokenHandler;
@@ -36,12 +31,9 @@ use twitcheventsub::prelude::*;
 use twitcheventsub::EventSubError;
 use twitcheventsub::ResponseType;
 use twitcheventsub::TwitchEventSubApi;
-use twitcheventsub::TwitchEventSubApiBuilder;
 
 mod modules;
 use std::io::Cursor;
-
-use image::{codecs::gif::GifDecoder, AnimationDecoder};
 
 use crate::modules::{
   adbreak::*, cheer::*, emote::*, follow::*, getchatters::*, messages::*, poll::*, prediction::*,
@@ -683,7 +675,7 @@ impl TwitchEventNode {
 
   #[func]
   pub fn create_secrets(&mut self) {
-    if let (Some(new_id), Some(new_secret), new_broadcaster_id, new_url) = (
+    if let (Some(new_id), Some(new_secret), _new_broadcaster_id, _new_url) = (
       &self.client_id_field,
       &self.client_secret_field,
       &self.broadcaster_id_field,
@@ -1121,7 +1113,7 @@ impl INode for TwitchEventNode {
       if let Some(message) = api.receive_single_message(Duration::ZERO) {
         println!("Event: {:?}", message);
         match message {
-          ResponseType::Event(event) => match event {
+          ResponseType::Event(event) => match *event {
             TwitchEvent::ChatMessage(message_data) => {
               self.base_mut().emit_signal(
                 match message_data.message_type {
