@@ -188,7 +188,7 @@ impl IRCChat {
       }
       Err(e) => {
         #[cfg(feature = "logging")]
-        error!("IRC: Error: {:?}", e);
+        error!("IRC: Error: {e:?}");
         None
       }
     }
@@ -198,8 +198,7 @@ impl IRCChat {
     if let Some(channel) = &self.joined_channel {
       let m = m.into();
       let _ = self.client.send(NetworkMessage::text(format!(
-        "{} #{} :{}",
-        PRIV_MESSAGE, channel, m
+        "{PRIV_MESSAGE} #{channel} :{m}",
       )));
     }
   }

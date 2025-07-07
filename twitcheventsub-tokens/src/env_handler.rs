@@ -8,6 +8,7 @@ impl EnvHandler {
   pub fn load_env(env_file: &str) -> Option<(String, String, String, String)> {
     dbg!(env_file);
     match read_file(env_file) {
+      #[allow(clippy::map_clone)]
       Ok(vars) => {
         let client_id = vars
           .get("CLIENT_ID")
@@ -30,7 +31,7 @@ impl EnvHandler {
       }
       Err(e) => {
         dbg!(e);
-        println!("No env file called {:?}", env_file);
+        println!("No env file called {env_file:?}");
         None
       }
     }
@@ -44,7 +45,7 @@ impl EnvHandler {
         Some(user_token.to_owned())
       }
       Err(_) => {
-        println!("No env file called {:?}", env_file);
+        println!("No env file called {env_file:?}");
         None
       }
     }
@@ -58,7 +59,7 @@ impl EnvHandler {
         Some(refresh_token.to_owned())
       }
       Err(_) => {
-        println!("No env file called {:?}", env_file);
+        println!("No env file called {env_file:?}");
         None
       }
     }
@@ -73,13 +74,13 @@ impl EnvHandler {
   ) {
     if let Ok(mut file) = OpenOptions::new()
       .create(true)
+      .truncate(true)
       .append(false)
       .write(true)
       .open(env_file)
     {
       let data = format!(
-        "CLIENT_ID={}\nCLIENT_SECRET={}\nCLIENT_TWITCH_ID={}\nREDIRECT_URL={}\n",
-        client_id, client_secret, client_twitch_id, redirect_url
+        "CLIENT_ID={client_id}\nCLIENT_SECRET={client_secret}\nCLIENT_TWITCH_ID={client_twitch_id}\nREDIRECT_URL={redirect_url}\n",
       );
 
       if let Err(e) = file.write_all(data.as_bytes()) {
@@ -92,11 +93,12 @@ impl EnvHandler {
   pub fn save_user_token(env_file: &str, user_token: &str) {
     if let Ok(mut file) = OpenOptions::new()
       .create(true)
+      .truncate(true)
       .append(false)
       .write(true)
       .open(env_file)
     {
-      let data = format!("UserToken={}\n", user_token);
+      let data = format!("UserToken={user_token}\n");
 
       if let Err(e) = file.write_all(data.as_bytes()) {
         panic!("{}", e);
@@ -108,11 +110,12 @@ impl EnvHandler {
   pub fn save_refresh_token(env_file: &str, refresh_token: &str) {
     if let Ok(mut file) = OpenOptions::new()
       .create(true)
+      .truncate(true)
       .append(false)
       .write(true)
       .open(env_file)
     {
-      let data = format!("RefreshToken={}", refresh_token);
+      let data = format!("RefreshToken={refresh_token}");
 
       if let Err(e) = file.write_all(data.as_bytes()) {
         panic!("{}", e);

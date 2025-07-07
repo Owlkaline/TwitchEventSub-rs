@@ -54,8 +54,7 @@ impl TokenHandler {
     &self,
     subs: &[Subscription],
   ) -> Result<bool, TwitchApiError> {
-    twitcheventsub_api::validate_token(&self.user_token).and_then(|validation| {
-      Ok(
+    twitcheventsub_api::validate_token(&self.user_token).map (|validation| 
         subs
           .iter()
           .filter(|s| !s.required_scope().is_empty())
@@ -77,7 +76,6 @@ impl TokenHandler {
             true
           }),
       )
-    })
   }
 
   pub fn apply_subscriptions_to_tokens(&mut self, scopes: &[Subscription], open_browser: bool) {
@@ -125,8 +123,8 @@ impl TokenHandler {
     } else {
       if twitch_result.is_err() {
         warn!(
-          "regen 401 called with result being an error, but wasnt token refresh required: {:?}",
-          twitch_result
+          "regen 401 called with result being an error, but wasnt token refresh required: {twitch_result:?}"
+          
         );
       }
 

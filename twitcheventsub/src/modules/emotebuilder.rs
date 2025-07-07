@@ -156,7 +156,7 @@ impl EmoteBuilder {
 
         if let Some(mut emote_data) = emote_data {
           if !suffix.is_empty() {
-            emote_data.id = format!("{}_{}", real_id, suffix);
+            emote_data.id = format!("{real_id}_{suffix}");
           }
 
           if !emote_data.format.contains(&self.format) {

@@ -93,7 +93,7 @@ pub fn events(
       }
       Err(e) => {
         #[cfg(feature = "logging")]
-        error!("EventSub: Read error: {}", e);
+        error!("EventSub: Read error: {e}");
         thread::sleep(Duration::from_secs(5));
         continue;
       }
@@ -136,7 +136,7 @@ pub fn events(
 
         if let Err(e) = message {
           #[cfg(feature = "logging")]
-          error!("EventSub: Unimplemented twitch response: {}\n{}", msg, e);
+          error!("EventSub: Unimplemented twitch response: {msg}\n{e}");
 
           let _ = message_sender.send(ResponseType::RawResponse(msg.to_string()));
           continue;
@@ -181,7 +181,7 @@ pub fn events(
                 .filter_map(Result::err)
                 .any(|error| {
                   #[cfg(feature = "logging")]
-                  error!("EventSub: {:?}", error);
+                  error!("EventSub: {error:?}");
                   let sent_msg =
                     message_sender.send(ResponseType::Error(EventSubError::TwitchApiError(error)));
                   sent_msg.is_err()
@@ -236,8 +236,8 @@ pub fn events(
 
             if let TwitchEvent::ChatMessage(ref mut msg) = &mut message {
               for (_, irc_message) in irc_messages.iter() {
-                if irc_message.display_name == msg.chatter.name &&
-                  irc_message.message.contains(&msg.message.text)
+                if irc_message.display_name == msg.chatter.name
+                  && irc_message.message.contains(&msg.message.text)
                 {
                   msg.returning_chatter = irc_message.returning_chatter;
                   msg.first_time_chatter = irc_message.first_time_chatter;
@@ -292,7 +292,7 @@ pub fn events(
           }
           EventMessageType::Unknown => {
             #[cfg(feature = "logging")]
-            warn!("EventSub: Unknown message type: {}", msg);
+            warn!("EventSub: Unknown message type: {msg}");
             last_message = Instant::now();
             //if !custom_subscriptions.is_empty() {
             let _ = message_sender.send(ResponseType::RawResponse(msg.to_string()));
@@ -302,7 +302,7 @@ pub fn events(
       }
       NetworkMessage::Close(a) => {
         #[cfg(feature = "logging")]
-        warn!("EventSub: Close message received: {:?}", a);
+        warn!("EventSub: Close message received: {a:?}",);
         // Got a close message, so send a close message and return
         let _ = twitch_receiver.send(NetworkMessage::Close(None));
         let _ = message_sender.send(ResponseType::Close);
@@ -318,17 +318,14 @@ pub fn events(
           Ok(()) => {}
           Err(e) => {
             #[cfg(feature = "logging")]
-            error!(
-              "EventSub: sending Pong Received an Error from Server: {:?}",
-              e
-            );
+            error!("EventSub: sending Pong Received an Error from Server: {e:?}",);
             continue;
           }
         }
       }
       nm => {
         #[cfg(feature = "logging")]
-        info!("EventSub: Other network message recieved: {}", nm);
+        info!("EventSub: Other network message recieved: {nm}");
       }
     }
   }
