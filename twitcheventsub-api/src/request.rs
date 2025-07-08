@@ -32,10 +32,10 @@ impl Header {
   pub fn generate(&self) -> String {
     match self {
       Header::Auth((auth_type, token)) => {
-        format!("Authorization: {auth_type} {token}")
+        format!("Authorization: {} {}", auth_type, token)
       }
       Header::ClientId(id) => {
-        format!("Client-Id: {id}")
+        format!("Client-Id: {}", id)
       }
       Header::ContentJson => "Content-Type: application/json".to_string(),
       Header::ContentUrlEncoded => "Content-Type: application/x-www-form-urlencoded".to_string(),
@@ -94,11 +94,11 @@ impl RequestBuilder {
     let mut request = url.into();
 
     if !self.data.is_empty() {
-      request = format!("{request}?");
+      request = format!("{}?", request);
     }
 
     for (key, value) in self.data {
-      request = format!("{request}&{key}={value}");
+      request = format!("{}&{}={}", request, key, value);
     }
 
     request

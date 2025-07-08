@@ -31,7 +31,7 @@ impl EnvHandler {
       }
       Err(e) => {
         dbg!(e);
-        println!("No env file called {env_file:?}");
+        println!("No env file called {}", env_file);
         None
       }
     }
@@ -45,7 +45,7 @@ impl EnvHandler {
         Some(user_token.to_owned())
       }
       Err(_) => {
-        println!("No env file called {env_file:?}");
+        println!("No env file called {}", env_file);
         None
       }
     }
@@ -59,7 +59,7 @@ impl EnvHandler {
         Some(refresh_token.to_owned())
       }
       Err(_) => {
-        println!("No env file called {env_file:?}");
+        println!("No env file called {}", env_file);
         None
       }
     }
@@ -80,7 +80,8 @@ impl EnvHandler {
       .open(env_file)
     {
       let data = format!(
-        "CLIENT_ID={client_id}\nCLIENT_SECRET={client_secret}\nCLIENT_TWITCH_ID={client_twitch_id}\nREDIRECT_URL={redirect_url}\n",
+        "CLIENT_ID={}\nCLIENT_SECRET={}\nCLIENT_TWITCH_ID={}\nREDIRECT_URL={}\n",
+        client_id, client_secret, client_twitch_id, redirect_url
       );
 
       if let Err(e) = file.write_all(data.as_bytes()) {
@@ -98,7 +99,7 @@ impl EnvHandler {
       .write(true)
       .open(env_file)
     {
-      let data = format!("UserToken={user_token}\n");
+      let data = format!("UserToken={}\n", user_token);
 
       if let Err(e) = file.write_all(data.as_bytes()) {
         panic!("{}", e);
@@ -115,7 +116,7 @@ impl EnvHandler {
       .write(true)
       .open(env_file)
     {
-      let data = format!("RefreshToken={refresh_token}");
+      let data = format!("RefreshToken={}", refresh_token);
 
       if let Err(e) = file.write_all(data.as_bytes()) {
         panic!("{}", e);

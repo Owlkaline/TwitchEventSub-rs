@@ -47,7 +47,7 @@ impl RedeemsHandler {
             //  self.all_redeems.data.push(new_redeem);
           })
         {
-          warn!("error updating twitch reward {e:#?}")
+          warn!("error updating twitch reward {:#?}", e)
         }
       }
     }

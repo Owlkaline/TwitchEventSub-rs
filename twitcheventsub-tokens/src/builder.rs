@@ -216,7 +216,7 @@ impl TokenHandlerBuilder {
     }
 
     if updates {
-      println!("Would you like to save these into the {env_file} Y/N");
+      println!("Would you like to save these into the {} Y/N", env_file);
       let save_details = create_yn_prompt();
 
       if save_details {
@@ -288,7 +288,7 @@ impl TokenHandlerBuilder {
     partial_tokens.client_twitch_id = match partial_tokens.get_token_user_id() {
       Ok(id) => id,
       Err(e) => {
-        panic!("{e:?}");
+        panic!("{:?}", e);
       }
     };
 
@@ -324,7 +324,7 @@ pub fn get_user_and_refresh_tokens(
     ) {
       Ok(code) => code,
       Err(e) => {
-        panic!("{e:?}");
+        panic!("{:?}", e);
       }
     };
 
@@ -347,7 +347,7 @@ pub fn get_user_and_refresh_tokens(
     ) {
       Ok(code) => code,
       Err(e) => {
-        panic!("{e:?}");
+        panic!("{:?}", e);
       }
     };
 
@@ -359,7 +359,7 @@ pub fn get_user_and_refresh_tokens(
     ) {
       Ok(tokens) => tokens,
       Err(e) => {
-        panic!("{e:?}");
+        panic!("{:?}", e);
       }
     }
   }

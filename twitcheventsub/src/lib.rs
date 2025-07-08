@@ -1,4 +1,5 @@
 //#![doc = include_str!("../../../../README.md")]
+#![allow(clippy::uninlined_format_args)]
 
 use std::iter;
 use std::sync::mpsc::{channel, Receiver as SyncReceiver, Sender};
@@ -134,10 +135,10 @@ impl TwitchEventSubApi {
     let users = tokens.get_users(vec![&client_twitch_id], vec![broadcasters_login])?;
 
     // Or not all user details retrieved
-    if users.data.is_empty()
-      || (users.data.len() < 2
-        && (users.data[0].id != tokens.client_twitch_id
-          || users.data[0].login != broadcasters_login))
+    if users.data.is_empty() ||
+      (users.data.len() < 2 &&
+        (users.data[0].id != tokens.client_twitch_id ||
+          users.data[0].login != broadcasters_login))
     {
       // Queried a invalid broadcaster
       return Err(EventSubError::InvalidBroadcaster);
@@ -151,8 +152,8 @@ impl TwitchEventSubApi {
       } else if users.data[1].id == tokens.client_twitch_id {
         broadcaster_idx = 0;
         client_idx = 1;
-      } else if users.data[0].id != tokens.client_twitch_id
-        || users.data[0].login != broadcasters_login
+      } else if users.data[0].id != tokens.client_twitch_id ||
+        users.data[0].login != broadcasters_login
       {
         broadcaster_idx = 1;
       } else {

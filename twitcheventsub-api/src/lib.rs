@@ -1,3 +1,4 @@
+#![allow(clippy::uninlined_format_args)]
 use std::{
   io::{stdin, BufRead, Read},
   net::TcpListener,
@@ -225,7 +226,8 @@ pub fn open_browser<S: Into<String>, T: Into<String>>(
     }
   } else {
     println!(
-      "Please visit the following link to have your token be authorised and generated:\n{browser_url}",
+      "Please visit the following link to have your token be authorised and generated:\n{}",
+      browser_url
     );
   }
 
