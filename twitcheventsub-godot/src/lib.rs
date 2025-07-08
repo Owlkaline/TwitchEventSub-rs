@@ -1122,7 +1122,7 @@ impl INode for TwitchEventNode {
                   _ => "chat_message",
                 },
                 &[GdMessageContainer {
-                  data: Gd::from_object(GMessageData::from(message_data)),
+                  data: Gd::from_object(GMessageData::from(*message_data)),
                 }
                 .to_variant()],
               );
