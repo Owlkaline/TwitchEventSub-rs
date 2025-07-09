@@ -3,9 +3,8 @@ use env_handler::EnvHandler;
 use log::warn;
 use twitcheventsub_api::{self, TwitchApiError};
 use twitcheventsub_structs::prelude::{
-  AdSchedule, ChannelEmotes, ClipDetails, CreateCustomReward, CreatedCustomRewardResponse,
-  GetChatters, GetCustomRewards, GlobalEmotes, Moderators, Subscription, UpdateCustomReward,
-  UserDataSet,
+  AdSchedule, ChannelEmotes, Clips, CreateCustomReward, CreatedCustomRewardResponse, GetChatters,
+  GetCustomRewards, GlobalEmotes, Moderators, Subscription, UpdateCustomReward, UserDataSet,
 };
 
 mod builder;
@@ -383,7 +382,7 @@ impl TokenHandler {
       })
   }
 
-  pub fn get_clips(&mut self, broadcaster_id: &str) -> Result<ClipDetails, TwitchApiError> {
+  pub fn get_clips(&mut self, broadcaster_id: &str) -> Result<Clips, TwitchApiError> {
     self
       .regen_tokens_on_fail(twitcheventsub_api::get_clips(
         &self.user_token,
