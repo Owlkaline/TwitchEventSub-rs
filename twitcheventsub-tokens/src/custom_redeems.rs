@@ -1,3 +1,4 @@
+use log::warn;
 use twitcheventsub_api::TwitchApiError;
 use twitcheventsub_structs::prelude::{GetCustomRewards, UpdateCustomReward};
 
@@ -17,11 +18,11 @@ impl RedeemsHandler {
 
   pub fn create_or_enable_redeem(
     &mut self,
-    mut tokens: &mut TokenHandler,
+    tokens: &mut TokenHandler,
     redeem: ManageRedeem,
   ) -> bool {
     if let Some(title) = &redeem.update.title {
-      for (i, redeem_id) in
+      for (_, redeem_id) in
         self
           .all_redeems
           .data
@@ -37,15 +38,17 @@ impl RedeemsHandler {
       {
         // id
         let twitch_id = tokens.client_twitch_id.to_owned();
-        tokens
+        if let Err(e) = tokens
           .update_custom_rewards(&twitch_id, &redeem_id, &redeem.update)
-          .and_then(|mut updated_reward| {
-            let new_redeem = updated_reward.data.remove(0);
+          .map(|mut updated_reward| {
+            let _new_redeem = updated_reward.data.remove(0);
 
             //  self.all_redeems.data.remove(i);
             //  self.all_redeems.data.push(new_redeem);
-            Ok(())
-          });
+          })
+        {
+          warn!("error updating twitch reward {:#?}", e)
+        }
       }
     }
 
@@ -53,14 +56,7 @@ impl RedeemsHandler {
   }
 }
 
-impl Default for ManageRedeem {
-  fn default() -> Self {
-    ManageRedeem {
-      update: UpdateCustomReward::default(),
-    }
-  }
-}
-
+#[derive(Default)]
 pub struct ManageRedeem {
   update: UpdateCustomReward,
 }

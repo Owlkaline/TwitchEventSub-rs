@@ -239,7 +239,7 @@ pub struct Cheer {
 #[cfg_attr(not(feature = "bevy"), derive(Serialise, Deserialise, Debug, Clone))]
 #[serde(untagged)]
 pub enum TwitchEvent {
-  ChatMessage(MessageData),
+  ChatMessage(Box<MessageData>),
   Raid(RaidData),
   Follow(FollowData),
   PointsCustomRewardRedeem(CustomPointsRewardRedeemData),

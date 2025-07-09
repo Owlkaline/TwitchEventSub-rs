@@ -1,3 +1,4 @@
+#![allow(clippy::uninlined_format_args)]
 use std::{
   io::{stdin, BufRead, Read},
   net::TcpListener,
@@ -112,7 +113,7 @@ pub fn get_implicit_grant_flow_user_token(
   ) {
     Ok(http_response) => {
       if http_response.contains("error") {
-        Err(TwitchApiError::HttpError(format!("{}", http_response)))
+        Err(TwitchApiError::HttpError(http_response.to_string()))
       } else {
         let auth_code = if manual_code_input {
           http_response.trim()
@@ -162,15 +163,13 @@ pub fn get_authorisation_code_grant_flow_user_token<S: Into<String>, T: Into<Str
     Ok(http_response) => {
       if http_response.contains("error") {
         Err(TwitchApiError::HttpError(http_response))
+      } else if manual_code_input {
+        Ok(http_response)
       } else {
-        if manual_code_input {
-          Ok(http_response)
-        } else {
-          let auth_code = http_response.split('&').collect::<Vec<_>>()[0]
-            .split('=')
-            .collect::<Vec<_>>()[1];
-          Ok(auth_code.to_string())
-        }
+        let auth_code = http_response.split('&').collect::<Vec<_>>()[0]
+          .split('=')
+          .collect::<Vec<_>>()[1];
+        Ok(auth_code.to_string())
       }
     }
     e => e,
@@ -217,9 +216,7 @@ pub fn open_browser<S: Into<String>, T: Into<String>>(
 ) -> Result<String, TwitchApiError> {
   let browser_url = browser_url.into();
 
-  if let Err(response) = TwitchHttpRequest::new(&browser_url).run() {
-    return Err(response);
-  }
+  TwitchHttpRequest::new(&browser_url).run()?;
 
   if auto_open_browser {
     if let Err(e) = open::that_detached(browser_url) {
@@ -248,7 +245,7 @@ pub fn open_browser<S: Into<String>, T: Into<String>>(
   if manual_code_input {
     println!("Please input your access token:");
     let stdin = stdin();
-    for line in stdin.lock().lines() {
+    if let Some(line) = stdin.lock().lines().next() {
       let code = line.unwrap();
       return Ok(code);
     }

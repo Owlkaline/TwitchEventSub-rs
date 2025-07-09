@@ -1,3 +1,4 @@
+#![allow(clippy::uninlined_format_args)]
 use env_handler::EnvHandler;
 use log::warn;
 use twitcheventsub_api::{self, TwitchApiError};
@@ -54,29 +55,27 @@ impl TokenHandler {
     &self,
     subs: &[Subscription],
   ) -> Result<bool, TwitchApiError> {
-    twitcheventsub_api::validate_token(&self.user_token).and_then(|validation| {
-      Ok(
-        subs
-          .iter()
-          .filter(|s| !s.required_scope().is_empty())
-          .all(move |s| {
-            let r = s.required_scope();
+    twitcheventsub_api::validate_token(&self.user_token).map(|validation| {
+      subs
+        .iter()
+        .filter(|s| !s.required_scope().is_empty())
+        .all(move |s| {
+          let r = s.required_scope();
 
-            let requirements = r.split('+').map(ToString::to_string).collect::<Vec<_>>();
+          let requirements = r.split('+').map(ToString::to_string).collect::<Vec<_>>();
 
-            for req in requirements {
-              if !validation
-                .scopes
-                .as_ref()
-                .unwrap_or(&Vec::new())
-                .contains(&req)
-              {
-                return false;
-              }
+          for req in requirements {
+            if !validation
+              .scopes
+              .as_ref()
+              .unwrap_or(&Vec::new())
+              .contains(&req)
+            {
+              return false;
             }
-            true
-          }),
-      )
+          }
+          true
+        })
     })
   }
 

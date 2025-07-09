@@ -8,6 +8,7 @@ impl EnvHandler {
   pub fn load_env(env_file: &str) -> Option<(String, String, String, String)> {
     dbg!(env_file);
     match read_file(env_file) {
+      #[allow(clippy::map_clone)]
       Ok(vars) => {
         let client_id = vars
           .get("CLIENT_ID")
@@ -30,7 +31,7 @@ impl EnvHandler {
       }
       Err(e) => {
         dbg!(e);
-        println!("No env file called {:?}", env_file);
+        println!("No env file called {}", env_file);
         None
       }
     }
@@ -44,7 +45,7 @@ impl EnvHandler {
         Some(user_token.to_owned())
       }
       Err(_) => {
-        println!("No env file called {:?}", env_file);
+        println!("No env file called {}", env_file);
         None
       }
     }
@@ -58,7 +59,7 @@ impl EnvHandler {
         Some(refresh_token.to_owned())
       }
       Err(_) => {
-        println!("No env file called {:?}", env_file);
+        println!("No env file called {}", env_file);
         None
       }
     }
@@ -73,6 +74,7 @@ impl EnvHandler {
   ) {
     if let Ok(mut file) = OpenOptions::new()
       .create(true)
+      .truncate(true)
       .append(false)
       .write(true)
       .open(env_file)
@@ -92,6 +94,7 @@ impl EnvHandler {
   pub fn save_user_token(env_file: &str, user_token: &str) {
     if let Ok(mut file) = OpenOptions::new()
       .create(true)
+      .truncate(true)
       .append(false)
       .write(true)
       .open(env_file)
@@ -108,6 +111,7 @@ impl EnvHandler {
   pub fn save_refresh_token(env_file: &str, refresh_token: &str) {
     if let Ok(mut file) = OpenOptions::new()
       .create(true)
+      .truncate(true)
       .append(false)
       .write(true)
       .open(env_file)

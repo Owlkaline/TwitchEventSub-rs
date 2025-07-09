@@ -182,8 +182,9 @@ pub fn events(
                 .any(|error| {
                   #[cfg(feature = "logging")]
                   error!("EventSub: {:?}", error);
-                  let sent_msg =
-                    message_sender.send(ResponseType::Error(EventSubError::TwitchApiError(error)));
+                  let sent_msg = message_sender.send(ResponseType::Error(Box::new(
+                    EventSubError::TwitchApiError(error),
+                  )));
                   sent_msg.is_err()
                 });
 
@@ -288,7 +289,7 @@ pub fn events(
               msg.message.fragments = fragments;
             }
 
-            let _ = message_sender.send(ResponseType::Event(message));
+            let _ = message_sender.send(ResponseType::Event(Box::new(message)));
           }
           EventMessageType::Unknown => {
             #[cfg(feature = "logging")]

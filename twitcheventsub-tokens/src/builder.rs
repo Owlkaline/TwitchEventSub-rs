@@ -27,7 +27,7 @@ fn get_input() -> String {
     user_input = user_input.trim().to_lowercase();
   }
 
-  return user_input
+  user_input
 }
 
 #[derive(Debug)]
@@ -96,10 +96,10 @@ impl TokenHandlerBuilder {
     let mut partial_tokens = TokenHandler {
       user_token: String::new(),
       refresh_token: String::new(),
-      redirect_url: self.override_redirect_url.clone().unwrap_or(String::new()),
+      redirect_url: self.override_redirect_url.clone().unwrap_or_default(),
       client_id: String::new(),
       client_secret: String::new(),
-      client_twitch_id: self.use_specific_account.clone().unwrap_or(String::new()),
+      client_twitch_id: self.use_specific_account.clone().unwrap_or_default(),
       user_token_env: self.env_user_token_file.clone(),
       refresh_token_env: self.env_refresh_token_file.clone(),
     };
@@ -133,13 +133,12 @@ impl TokenHandlerBuilder {
     if let Some(user_token) = EnvHandler::load_user_token_env(&partial_tokens.user_token_env) {
       partial_tokens.user_token = user_token;
       partial_tokens.refresh_token =
-        EnvHandler::load_refresh_token_env(&partial_tokens.refresh_token_env)
-          .unwrap_or(String::new());
+        EnvHandler::load_refresh_token_env(&partial_tokens.refresh_token_env).unwrap_or_default();
 
       // Check if theres already user and refresh tokens
       if let Ok(user_id) = partial_tokens.get_token_user_id() {
         partial_tokens.client_twitch_id = user_id;
-        return Ok(partial_tokens)
+        return Ok(partial_tokens);
       }
     }
 
@@ -171,7 +170,7 @@ impl TokenHandlerBuilder {
       );
     }
 
-    return Ok(partial_tokens);
+    Ok(partial_tokens)
   }
 
   pub fn build(&mut self) -> TokenHandler {
@@ -183,7 +182,7 @@ impl TokenHandlerBuilder {
       redirect_url: String::new(),
       client_id: String::new(),
       client_secret: String::new(),
-      client_twitch_id: self.use_specific_account.clone().unwrap_or(String::new()),
+      client_twitch_id: self.use_specific_account.clone().unwrap_or_default(),
       user_token_env: self.env_user_token_file.clone(),
       refresh_token_env: self.env_refresh_token_file.clone(),
     };
@@ -244,8 +243,7 @@ impl TokenHandlerBuilder {
       if let Some(user_token) = EnvHandler::load_user_token_env(&partial_tokens.user_token_env) {
         partial_tokens.user_token = user_token;
         partial_tokens.refresh_token =
-          EnvHandler::load_refresh_token_env(&partial_tokens.refresh_token_env)
-            .unwrap_or(String::new());
+          EnvHandler::load_refresh_token_env(&partial_tokens.refresh_token_env).unwrap_or_default();
 
         // Check if theres already user and refresh tokens
         if let Ok(user_id) = partial_tokens.get_token_user_id() {
