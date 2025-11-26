@@ -1132,7 +1132,7 @@ impl INode for TwitchEventNode {
             }
             TwitchEvent::GiftSubscription(gift_data) => {
               self.base_mut().emit_signal(
-                "gift_subscription",
+                "subscription_gift",
                 &[GdGiftContainer {
                   data: Gd::from_object(GGift::from(gift_data)),
                 }
