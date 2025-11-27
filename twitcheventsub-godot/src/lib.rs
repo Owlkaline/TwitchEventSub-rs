@@ -30,6 +30,7 @@ use modules::badges::GBadgeVersion;
 use modules::badges::GSetOfBadges;
 use modules::banned::GUserBanned;
 use twitcheventsub::prelude::twitcheventsub_api::TwitchApiError;
+use twitcheventsub::prelude::twitcheventsub_tokens::TokenBuilderError;
 use twitcheventsub::prelude::twitcheventsub_tokens::TokenHandler;
 use twitcheventsub::prelude::twitcheventsub_tokens::TokenHandlerBuilder;
 use twitcheventsub::prelude::*;
@@ -703,7 +704,7 @@ impl TwitchEventNode {
       self.token.client_id = new_client_id.to_string();
       self.token.client_secret = new_client_secret.to_string();
 
-      self.token.save(&format!(".{}.env", self.env_file_name));
+      self.token.save();
 
       //let mut file = fs::File::create().unwrap();
 
@@ -872,57 +873,66 @@ impl TwitchEventNode {
 
   #[func]
   fn start_twitchevents(&mut self) {
-    let mut token_builder = TokenHandlerBuilder::new()
+    let token;
+    match TokenHandlerBuilder::new()
       .env_file(&format!(".{}.env", self.env_file_name))
-      .override_redirect_url(&self.redirect_url.to_string());
-    if let Some(token) = token_builder.build_from_env_only() {
-      self.token = token.clone();
-      if token.client_id.is_empty() {
-        self.create_popup(
-          Some(String::from("No Id Set")),
-          Some(self.token.client_secret.clone()),
-        );
-        return;
-      }
-
-      if token.client_secret.is_empty() {
-        self.create_popup(Some(token.client_id), Some(String::new()));
-        return;
-      }
-    } else {
-      self.create_popup(None, None);
-      return;
+      .override_redirect_url(&self.redirect_url.to_string())
+      .build()
+    {
+      Ok(new_token) => token = new_token,
+      Err(e) => match e {
+        TokenBuilderError::ClientIdNotSet => {
+          self.create_popup(None, Some(self.token.client_secret.clone()));
+          return;
+        }
+        TokenBuilderError::ClientSecretNotSet => {
+          self.create_popup(Some(self.token.client_id.clone()), None);
+          return;
+        }
+        TokenBuilderError::RedirectUrlIncorrect => {
+          panic!("Do something unique");
+        }
+        TokenBuilderError::EnvDoesntExist => {
+          // do nothing?
+        }
+        TokenBuilderError::InvalidClientIdOrSecret => {
+          self.create_popup(None, None);
+          return;
+        }
+        TokenBuilderError::ManuallyInputAuthorisationCode => {
+          panic!("Do something unique now :3");
+        }
+        TokenBuilderError::TwitchApiError(twitch_api_error) => panic!("{:?}", twitch_api_error),
+        TokenBuilderError::InvalidUserToken => panic!("Why did this happen?"),
+      },
     }
+    //let mut token_builder = TokenHandlerBuilder::new()
+    //  .env_file(&format!(".{}.env", self.env_file_name))
+    //  .override_redirect_url(&self.redirect_url.to_string());
+    //if let Some(token) = token_builder.build_from_env_only() {
+    //  self.token = token.clone();
+    //  if token.client_id.is_empty() {
+    //    self.create_popup(
+    //      Some(String::from("No Id Set")),
+    //      Some(self.token.client_secret.clone()),
+    //    );
+    //    return;
+    //  }
 
-    self.token = token_builder
-      .generate_user_tokens(self.token.clone())
-      .unwrap();
+    //  if token.client_secret.is_empty() {
+    //    self.create_popup(Some(token.client_id), Some(String::new()));
+    //    return;
+    //  }
+    //} else {
+    //  self.create_popup(None, None);
+    //  return;
+    //}
 
-    // TokenHandlerBuilder::new()
-    //   .env_file(&format!(".{}{}", self.env_file_name.to_string(), ".env"))
-    //   .build_unsafe();
-
-    //let keys = match TwitchKeys::from_secrets_env(vec![format!(
-    //  ".{}.env",
-    //  self.env_file_name.to_string()
-    //)]) {
-    //  Ok(keys) => keys,
-    //  Err(_) => match TwitchKeys::from_secrets_env(vec![String::from(".example.env")]) {
-    //    Ok(keys) => keys,
-    //    Err(_) => {
-    //      self.create_popup(None, None, None);
-    //      return;
-    //    }
-    //  },
-    //};
+    //self.token = token_builder
+    //  .generate_user_tokens(self.token.clone())
+    //  .unwrap();
 
     let mut twitch = TwitchEventSubApi::builder(self.token.clone()).enable_irc();
-    //let mut twitch = TwitchEventSubApi::builder(keys.clone())
-    //  .set_redirect_url(self.redirect_url.to_string())
-    //  .generate_new_token_if_insufficent_scope(true)
-    //  .generate_new_token_if_none(true)
-    //  .generate_access_token_on_expire(true)
-    //  .auto_save_load_created_tokens(".user_token.env", ".refresh_token.env");
 
     if self.channel_user_update {
       twitch = twitch.add_subscription(Subscription::UserUpdate);
@@ -1026,7 +1036,7 @@ impl TwitchEventNode {
 
     match twitch.build(&self.broadcaster_username.to_string()) {
       Ok(twitch) => {
-        self.token.save(&format!(".{}.env", self.env_file_name));
+        self.token.save();
         self.twitch = Some(twitch);
       }
       Err(EventSubError::TwitchApiError(TwitchApiError::InvalidOauthToken(error)))
