@@ -75,6 +75,7 @@ impl EnvHandler {
   ) {
     if let Ok(mut file) = OpenOptions::new()
       .create(true)
+      .truncate(true)
       .append(false)
       .write(true)
       .open(env_file)
@@ -94,6 +95,7 @@ impl EnvHandler {
   pub fn save_user_token(env_file: &str, user_token: &str) {
     if let Ok(mut file) = OpenOptions::new()
       .create(true)
+      .truncate(true)
       .append(false)
       .write(true)
       .open(env_file)
@@ -110,6 +112,7 @@ impl EnvHandler {
   pub fn save_refresh_token(env_file: &str, refresh_token: &str) {
     if let Ok(mut file) = OpenOptions::new()
       .create(true)
+      .truncate(true)
       .append(false)
       .write(true)
       .open(env_file)

@@ -1,3 +1,5 @@
+use std::fmt::{self, Display};
+
 use curl::easy::{Easy, List};
 #[cfg(feature = "logging")]
 use log::{error, info};
@@ -30,28 +32,24 @@ impl Header {
   pub fn generate(&self) -> String {
     match self {
       Header::Auth((auth_type, token)) => {
-        format!("Authorization: {} {}", auth_type.to_string(), token)
+        format!("Authorization: {} {}", auth_type, token)
       }
       Header::ClientId(id) => {
         format!("Client-Id: {}", id)
       }
-      Header::ContentJson => {
-        format!("Content-Type: application/json")
-      }
-      Header::ContentUrlEncoded => {
-        format!("Content-Type: application/x-www-form-urlencoded")
-      }
+      Header::ContentJson => "Content-Type: application/json".to_string(),
+      Header::ContentUrlEncoded => "Content-Type: application/x-www-form-urlencoded".to_string(),
     }
   }
 }
 
-impl AuthType {
-  pub fn to_string(&self) -> String {
-    match self {
+impl Display for AuthType {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> fmt::Result {
+    let auth_type = match self {
       AuthType::Bearer => "Bearer",
       AuthType::OAuth => "OAuth",
-    }
-    .into()
+    };
+    write!(f, "{auth_type}")
   }
 }
 

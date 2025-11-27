@@ -41,7 +41,7 @@ pub fn get_input() -> String {
     user_input = user_input.trim().to_lowercase();
   }
 
-  return user_input
+  user_input
 }
 
 #[derive(Debug)]
@@ -116,10 +116,10 @@ impl TokenHandlerBuilder {
     TokenHandler {
       user_token: String::new(),
       refresh_token: String::new(),
-      redirect_url: self.override_redirect_url.clone().unwrap_or(String::new()),
+      redirect_url: self.override_redirect_url.clone().unwrap_or_default(),
       client_id: String::new(),
       client_secret: String::new(),
-      client_twitch_id: self.use_specific_account.clone().unwrap_or(String::new()),
+      client_twitch_id: self.use_specific_account.clone().unwrap_or_default(),
       env: self.env_file.clone(),
       user_token_env: self.env_user_token_file.clone(),
       refresh_token_env: self.env_refresh_token_file.clone(),
@@ -215,21 +215,15 @@ impl TokenHandlerBuilder {
     EnvHandler::load_env(&mut token)?;
     EnvHandler::load_user_token_env(&mut token);
     EnvHandler::load_refresh_token_env(&mut token);
-    
+
     if !token.refresh_token.is_empty() {
       match validate_token(&token.user_token) {
         Ok(validation) => {
-          
           if validation.status.is_none() {
-
-    match token.get_users(Vec::new() as Vec<String>, Vec::new() as Vec<String>) {
-      Ok(users) => {  
-        token.client_twitch_id = users.data[0].id.clone()
-      },
-      Err(api_error) => {
-       return Err(TokenBuilderError::TwitchApiError(api_error))
-      }
-    }
+            match token.get_users(Vec::new() as Vec<String>, Vec::new() as Vec<String>) {
+              Ok(users) => token.client_twitch_id = users.data[0].id.clone(),
+              Err(api_error) => return Err(TokenBuilderError::TwitchApiError(api_error)),
+            }
             // is okay
             return Ok(token);
           } else {
@@ -238,22 +232,22 @@ impl TokenHandlerBuilder {
               return Ok(token);
             }
           }
-        },
+        }
         Err(error) => {
           println!("Error {:?}", error)
         }
-      } 
+      }
       // if let Ok(validation) = validate_token(&token.client_id) {
       //   println!("{:?}", validation);
       //   if validation.status.is_none() {
       //     // is okay
       //     return Ok(token);
       //   } else {
-          // if token.generate_user_token_from_refresh_token().is_ok() {
-          //   token.save();
-          //   return Ok(token);
-          // }
-        // }
+      // if token.generate_user_token_from_refresh_token().is_ok() {
+      //   token.save();
+      //   return Ok(token);
+      // }
+      // }
       // }
     }
 
@@ -267,12 +261,8 @@ impl TokenHandlerBuilder {
     }
 
     match token.get_users(Vec::new() as Vec<String>, Vec::new() as Vec<String>) {
-      Ok(users) => {  
-        token.client_twitch_id = users.data[0].id.clone()
-      },
-      Err(api_error) => {
-       return Err(TokenBuilderError::TwitchApiError(api_error))
-      }
+      Ok(users) => token.client_twitch_id = users.data[0].id.clone(),
+      Err(api_error) => return Err(TokenBuilderError::TwitchApiError(api_error)),
     }
 
     Ok(token)

@@ -1,4 +1,5 @@
 //#![doc = include_str!("../../../../README.md")]
+#![allow(clippy::uninlined_format_args)]
 
 use std::iter;
 use std::sync::mpsc::{channel, Receiver as SyncReceiver, Sender};
@@ -38,8 +39,8 @@ impl From<TwitchApiError> for EventSubError {
 
 #[derive(Debug)]
 pub enum ResponseType {
-  Event(TwitchEvent),
-  Error(EventSubError),
+  Event(Box<TwitchEvent>),
+  Error(Box<EventSubError>),
   RawResponse(String),
   Close,
   Ready,

@@ -70,7 +70,7 @@ pub enum Subscription {
   PermissionWriteToChat,
   StreamOnline,
   StreamOffline,
-  Custom((String, String, EventSubscription)),
+  Custom(Box<(String, String, EventSubscription)>),
 }
 
 #[derive(Serialise, Deserialise, Debug, Clone, PartialEq)]
@@ -305,7 +305,10 @@ impl Subscription {
       Subscription::PermissionIRCRead => ("", "chat:read", ""),
       Subscription::PermissionIRCWrite => ("", "chat:edit", ""),
       Subscription::PermissionWriteToChat => ("", "user:write:chat", ""),
-      Subscription::Custom((tag, scope, ..)) => (tag.as_str(), scope.as_str(), ""),
+      Subscription::Custom(ref boxed) => {
+        let (ref tag, ref scope, _) = **boxed;
+        (tag.as_str(), scope.as_str(), "")
+      }
     };
 
     (
@@ -382,7 +385,7 @@ impl Subscription {
       Subscription::StreamOnline |
       Subscription::StreamOffline |
       Subscription::ChannelPointsCustomRewardRedeem => event_subscription.condition(condition),
-      Subscription::Custom((_, _, event)) => event.to_owned().transport(Transport::new(session_id)),
+      Subscription::Custom(boxed) => boxed.2.to_owned().transport(Transport::new(session_id)),
 
       _ => event_subscription,
     })
