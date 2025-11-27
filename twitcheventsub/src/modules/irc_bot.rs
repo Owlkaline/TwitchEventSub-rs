@@ -100,6 +100,7 @@ impl From<&str> for IRCMessage {
 
 impl IRCChat {
   pub fn new(user_login: &str, user_token: &str) -> IRCChat {
+    dbg!(&IRC_URL);
     let (mut irc_client, _) = connect(IRC_URL).unwrap();
 
     let _ = irc_client.send(NetworkMessage::text(

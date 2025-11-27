@@ -9,7 +9,7 @@ use modules::bttv::BTTV;
 pub use modules::errors::LOG_FILE;
 use modules::irc_bot::IRCChat;
 use tungstenite::connect;
-use twitcheventsub_api::TwitchApiError;
+use twitcheventsub_api::{get_user_and_refresh_token_from_authorisation_code, TwitchApiError};
 use twitcheventsub_structs::prelude::{Subscription, TwitchEvent, UserData};
 use twitcheventsub_tokens::TokenHandler;
 
@@ -48,7 +48,6 @@ pub enum ResponseType {
 #[must_use]
 pub struct TwitchEventSubApiBuilder {
   tokens: TokenHandler,
-  subscriptions: Vec<Subscription>,
   enable_irc: bool,
   bot_tokens: Option<TokenHandler>,
 }
@@ -57,7 +56,6 @@ impl TwitchEventSubApiBuilder {
   pub fn new(tokens: TokenHandler) -> TwitchEventSubApiBuilder {
     TwitchEventSubApiBuilder {
       tokens,
-      subscriptions: Vec::new(),
       enable_irc: false,
       bot_tokens: None,
     }
@@ -73,28 +71,10 @@ impl TwitchEventSubApiBuilder {
     self
   }
 
-  pub fn add_subscription(mut self, sub: Subscription) -> TwitchEventSubApiBuilder {
-    self.subscriptions.push(sub);
-    self
-  }
-
-  pub fn add_subscriptions<I: IntoIterator<Item = Subscription>>(
-    mut self,
-    subs: I,
-  ) -> TwitchEventSubApiBuilder {
-    self.subscriptions.extend(subs);
-    self
-  }
-
-  pub fn subscriptions(&self) -> Vec<Subscription> {
-    self.subscriptions.clone()
-  }
-
   pub fn build(self, broadcasters_username: &str) -> Result<TwitchEventSubApi, EventSubError> {
     TwitchEventSubApi::new(
       self.tokens,
       self.bot_tokens,
-      self.subscriptions,
       Vec::new(),
       self.enable_irc,
       broadcasters_username,
@@ -109,7 +89,6 @@ pub struct TwitchEventSubApi {
   send_quit_message: Sender<bool>,
   tokens: TokenHandler,
   bot_tokens: Option<TokenHandler>,
-  subscriptions: Vec<Subscription>,
   subscription_data: Vec<String>,
   pub bttv: BTTV,
   pub broadcaster_user: UserData,
@@ -123,11 +102,11 @@ impl TwitchEventSubApi {
   pub fn new(
     mut tokens: TokenHandler,
     bot_tokens: Option<TokenHandler>,
-    mut subscriptions: Vec<Subscription>,
     custom_subscription_data: Vec<String>,
     use_irc_channel: bool,
     broadcasters_login: &str,
   ) -> Result<TwitchEventSubApi, EventSubError> {
+    let subscriptions = tokens.subscriptions.clone();
     let client_twitch_id = tokens.client_twitch_id.clone();
     dbg!(&client_twitch_id);
     dbg!(&broadcasters_login);
@@ -170,23 +149,23 @@ impl TwitchEventSubApi {
 
     let mut irc = None;
 
-    if use_irc_channel {
-      subscriptions.append(&mut vec![
-        Subscription::PermissionIRCRead,
-        Subscription::PermissionIRCWrite,
-      ]);
-    }
+    //if use_irc_channel {
+    //  subscriptions.append(&mut vec![
+    //    Subscription::PermissionIRCRead,
+    //    Subscription::PermissionIRCWrite,
+    //  ]);
+    //}
 
-    if let Ok(false) = tokens.check_token_has_required_subscriptions(&subscriptions) {
-      tokens.apply_subscriptions_to_tokens(&subscriptions, true);
-    }
+    //if let Ok(false) = tokens.check_token_has_required_subscriptions(&subscriptions) {
+    //  tokens.generate_user_and_refresh_tokens(&subscriptions);
+    //}
 
-    if use_irc_channel {
-      let mut new_irc = IRCChat::new(&token_user.login, &tokens.user_token);
-      new_irc.join_channel(&broadcaster_user.login);
-
-      irc = Some(new_irc);
-    }
+    // if use_irc_channel {
+      // let mut new_irc = IRCChat::new(&token_user.login, &tokens.user_token);
+      // new_irc.join_channel(&broadcaster_user.login);
+      
+      // irc = Some(new_irc);
+    // }
 
     #[cfg(feature = "logging")]
     info!("Starting websocket client.");
@@ -220,7 +199,6 @@ impl TwitchEventSubApi {
       send_quit_message,
       tokens,
       bot_tokens,
-      subscriptions,
       subscription_data: custom_subscription_data,
       bttv: bttv2,
       broadcaster_user,
@@ -244,13 +222,11 @@ impl TwitchEventSubApi {
 
     let tokens = self.tokens.clone();
     let bot_tokens = self.bot_tokens.clone();
-    let subscriptions = self.subscriptions.clone();
     let custom_subscription_data = self.subscription_data.clone();
     let broadcasters_username = &self.broadcaster_user.login;
     let new_webscoket = TwitchEventSubApi::new(
       tokens,
       bot_tokens,
-      subscriptions,
       custom_subscription_data,
       false,
       broadcasters_username,
@@ -273,10 +249,10 @@ impl TwitchEventSubApi {
   /// duration is high enough and at least one message is sent within the
   /// set timeout
   pub fn receive_all_messages(&mut self, override_duration: Option<Duration>) -> Vec<ResponseType> {
-    debug_assert!(
-      override_duration.is_some(),
-      "Warning: This isn't recommended to be setup unless you know what you are doing."
-    );
+    // debug_assert!(
+    //   override_duration.is_some(),
+    //   "Warning: This isn't recommended to be setup unless you know what you are doing."
+    // );
     // check thread for new messages without waiting
     //
     // return new messages if any

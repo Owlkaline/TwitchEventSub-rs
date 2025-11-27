@@ -82,60 +82,61 @@ pub fn get_users<I: Into<String>, S: Into<String>>(
     .run()
 }
 
-pub fn get_implicit_grant_flow_user_token(
-  client_id: &str,
-  redirect_url: &str,
-  scopes: &[Subscription],
-  auto_open_browser: bool,
-  manual_code_input: bool,
-) -> Result<String, TwitchApiError> {
-  let scope = &scopes
-    .iter()
-    .map(|s| s.required_scope())
-    .filter(|s| !s.is_empty())
-    .collect::<Vec<String>>()
-    .join("+");
+//pub fn get_implicit_grant_flow_user_token(
+//  client_id: &str,
+//  redirect_url: &str,
+//  scopes: &[Subscription],
+//  auto_open_browser: bool,
+//  manual_code_input: bool,
+//) -> Result<String, TwitchApiError> {
+//  let scope = &scopes
+//    .iter()
+//    .map(|s| s.required_scope())
+//    .filter(|s| !s.is_empty())
+//    .collect::<Vec<String>>()
+//    .join("+");
+//
+//  let get_authorisation_code_request = format!(
+//    "{}authorize?response_type=token&client_id={}&redirect_uri={}&scope={}&force_verify=true",
+//    TWITCH_AUTHORISE_URL,
+//    client_id,
+//    redirect_url.to_owned(),
+//    scope
+//  );
+//
+//  match open_browser(get_authorisation_code_request, auto_open_browser) {
+//    Ok(http_response) => {
+//      if http_response.contains("error") {
+//        Err(TwitchApiError::HttpError(format!("{}", http_response)))
+//      } else {
+//        let auth_code = if manual_code_input {
+//          http_response.trim()
+//        } else {
+//          http_response.split('&').collect::<Vec<_>>()[0]
+//            .split('=')
+//            .collect::<Vec<_>>()[1]
+//        };
+//
+//        Ok(auth_code.to_owned())
+//      }
+//    }
+//    e => e,
+//  }
+//}
 
-  let get_authorisation_code_request = format!(
-    "{}authorize?response_type=token&client_id={}&redirect_uri={}&scope={}&force_verify=true",
-    TWITCH_AUTHORISE_URL,
-    client_id,
-    redirect_url.to_owned(),
-    scope
-  );
-
-  match open_browser(
-    get_authorisation_code_request,
-    redirect_url,
-    auto_open_browser,
-    manual_code_input,
-  ) {
-    Ok(http_response) => {
-      if http_response.contains("error") {
-        Err(TwitchApiError::HttpError(format!("{}", http_response)))
-      } else {
-        let auth_code = if manual_code_input {
-          http_response.trim()
-        } else {
-          http_response.split('&').collect::<Vec<_>>()[0]
-            .split('=')
-            .collect::<Vec<_>>()[1]
-        };
-
-        Ok(auth_code.to_owned())
-      }
-    }
-    e => e,
-  }
-}
-
+///
+/// Returns Ok(Some(code)) when cpature code via localhost is set
+///   and the redirect url is localhost / same machine
+///
+/// Otherwise, deal with user inputing code manually
+///
 pub fn get_authorisation_code_grant_flow_user_token<S: Into<String>, T: Into<String>>(
   client_id: S,
   redirect_url: T,
   scopes: &[Subscription],
   auto_open_browser: bool,
-  manual_code_input: bool,
-) -> Result<String, TwitchApiError> {
+  capture_code_via_localhost: bool,
+) -> Result<Option<String>, TwitchApiError> {
   let redirect_url = redirect_url.into();
 
   let scope = &scopes
@@ -152,56 +153,60 @@ pub fn get_authorisation_code_grant_flow_user_token<S: Into<String>, T: Into<Str
     redirect_url.to_owned(),
     scope
   );
+  dbg!(&redirect_url);
 
-  match open_browser(
-    get_authorisation_code_request,
-    redirect_url,
-    auto_open_browser,
-    manual_code_input,
-  ) {
-    Ok(http_response) => {
-      if http_response.contains("error") {
-        Err(TwitchApiError::HttpError(http_response))
-      } else {
-        if manual_code_input {
-          Ok(http_response)
-        } else {
-          let auth_code = http_response.split('&').collect::<Vec<_>>()[0]
-            .split('=')
-            .collect::<Vec<_>>()[1];
-          Ok(auth_code.to_string())
+  let browser = open_browser(&get_authorisation_code_request, auto_open_browser);
+
+  if browser.is_ok() {
+    if capture_code_via_localhost {
+      let url = redirect_url
+        .split("http://")
+        .map(|s| String::from(s))
+        .collect::<Vec<String>>()[1]
+        .clone();
+      let listener = TcpListener::bind(&url).expect("Failed to create tcp listener.");
+
+      // accept connections and process them serially
+      return match listener.accept() {
+        Ok((mut stream, _b)) => {
+          let mut http_output = String::new();
+          stream
+            .read_to_string(&mut http_output)
+            .expect("Failed to read tcp stream.");
+          Ok(Some(
+            http_output.split('&').collect::<Vec<_>>()[0]
+              .split('=')
+              .collect::<Vec<_>>()[1]
+              .to_string(),
+          ))
         }
+        Err(e) => Err(TwitchApiError::HttpError(e.to_string())),
       }
+    } else {
+      Ok(None)
     }
-    e => e,
+  } else {
+    Err(browser.err().unwrap())
   }
 }
 
-pub fn get_user_and_refresh_token_from_authorisation_code<
-  S: Into<String>,
-  T: Into<String>,
-  V: Into<String>,
-  W: Into<String>,
->(
-  client_id: S,
-  client_secret: T,
-  authorisation_code: V,
-  redirect_url: W,
+pub fn get_user_and_refresh_token_from_authorisation_code(
+  client_id: &str,
+  client_secret: &str,
+  authorisation_code: &str,
+  redirect_url: &str,
 ) -> Result<(String, String), TwitchApiError> {
   let post_data = format!(
     "client_id={}&client_secret={}&code={}&grant_type=authorization_code&redirect_uri={}",
-    client_id.into(),
-    client_secret.into(),
-    authorisation_code.into(),
-    redirect_url.into()
+    client_id, client_secret, authorisation_code, redirect_url
   );
 
   create_user_and_refresh_token(&post_data)
 }
 
-pub fn validate_token<S: Into<String>>(token: S) -> Result<Validation, TwitchApiError> {
+pub fn validate_token(token: &str) -> Result<Validation, TwitchApiError> {
   TwitchHttpRequest::new(VALIDATION_TOKEN_URL)
-    .header_authorisation(token.into(), AuthType::OAuth)
+    .header_authorisation(token, AuthType::OAuth)
     .run()
     .and_then(|data| {
       serde_json::from_str::<Validation>(&data)
@@ -209,15 +214,8 @@ pub fn validate_token<S: Into<String>>(token: S) -> Result<Validation, TwitchApi
     })
 }
 
-pub fn open_browser<S: Into<String>, T: Into<String>>(
-  browser_url: S,
-  redirect_url: T,
-  auto_open_browser: bool,
-  manual_code_input: bool,
-) -> Result<String, TwitchApiError> {
-  let browser_url = browser_url.into();
-
-  if let Err(response) = TwitchHttpRequest::new(&browser_url).run() {
+pub fn open_browser(browser_url: &str, auto_open_browser: bool) -> Result<(), TwitchApiError> {
+  if let Err(response) = TwitchHttpRequest::new(browser_url).run() {
     return Err(response);
   }
 
@@ -234,49 +232,51 @@ pub fn open_browser<S: Into<String>, T: Into<String>>(
     );
   }
 
-  let mut redirect_url = redirect_url.into().to_ascii_lowercase();
+  Ok(())
 
-  if redirect_url.contains("http") && redirect_url.contains("/") {
-    redirect_url = redirect_url
-      .split('/')
-      .collect::<Vec<_>>()
-      .last()
-      .unwrap()
-      .to_string();
-  }
+  //let mut redirect_url = redirect_url.into().to_ascii_lowercase();
 
-  if manual_code_input {
-    println!("Please input your access token:");
-    let stdin = stdin();
-    for line in stdin.lock().lines() {
-      let code = line.unwrap();
-      return Ok(code);
-    }
+  //if redirect_url.contains("http") && redirect_url.contains("/") {
+  //  redirect_url = redirect_url
+  //    .split('/')
+  //    .collect::<Vec<_>>()
+  //    .last()
+  //    .unwrap()
+  //    .to_string();
+  //}
 
-    Err(TwitchApiError::InputError(
-      "Failed to get user input.".to_string(),
-    ))
-  } else {
-    println!("Starting local tcp listener for token generation");
-    println!("Please click the blue redirect link if browser doesn't redirect.");
-    dbg!(&redirect_url);
-    let listener = TcpListener::bind(&redirect_url).expect("Failed to create tcp listener.");
+  //if manual_code_input {
+  //  println!("Please input your access token:");
+  //  let stdin = stdin();
+  //  for line in stdin.lock().lines() {
+  //    let code = line.unwrap();
+  //    return Ok(code);
+  //  }
 
-    dbg!("After listener");
+  //  Err(TwitchApiError::InputError(
+  //    "Failed to get user input.".to_string(),
+  //  ))
+  //} else {
+  //  println!("Starting local tcp listener for token generation");
+  //  println!("Please click the blue redirect link if browser doesn't redirect.");
+  //  dbg!(&redirect_url);
+  //  let listener = TcpListener::bind(&redirect_url).expect("Failed to create tcp listener.");
 
-    // accept connections and process them serially
-    match listener.accept() {
-      Ok((mut stream, _b)) => {
-        let mut http_output = String::new();
-        stream
-          .read_to_string(&mut http_output)
-          .expect("Failed to read tcp stream.");
-        dbg!(&http_output);
-        Ok(http_output)
-      }
-      Err(e) => Err(TwitchApiError::HttpError(e.to_string())),
-    }
-  }
+  //  dbg!("After listener");
+
+  //  // accept connections and process them serially
+  //  match listener.accept() {
+  //    Ok((mut stream, _b)) => {
+  //      let mut http_output = String::new();
+  //      stream
+  //        .read_to_string(&mut http_output)
+  //        .expect("Failed to read tcp stream.");
+  //      dbg!(&http_output);
+  //      Ok(http_output)
+  //    }
+  //    Err(e) => Err(TwitchApiError::HttpError(e.to_string())),
+  //  }
+  //}
 }
 
 pub fn create_user_and_refresh_token(post_data: &str) -> Result<(String, String), TwitchApiError> {

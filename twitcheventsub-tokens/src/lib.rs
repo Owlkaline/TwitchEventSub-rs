@@ -1,6 +1,8 @@
 use env_handler::EnvHandler;
 use log::warn;
-use twitcheventsub_api::{self, TwitchApiError};
+use twitcheventsub_api::{
+  self, get_user_and_refresh_token_from_authorisation_code, validate_token, TwitchApiError,
+};
 use twitcheventsub_structs::prelude::{
   AdSchedule, ChannelEmotes, ClipDetails, CreateCustomReward, CreatedCustomRewardResponse,
   GetChatters, GetCustomRewards, GlobalEmotes, Moderators, Subscription, UpdateCustomReward,
@@ -11,10 +13,10 @@ mod builder;
 mod custom_redeems;
 mod env_handler;
 
-pub use builder::TokenHandlerBuilder;
+pub use builder::{TokenBuilderError, TokenHandlerBuilder};
 pub use custom_redeems::*;
 
-use crate::builder::get_user_and_refresh_tokens;
+use crate::builder::{generate_authorisation_code, get_input};
 
 #[derive(Default, Clone, Debug)]
 pub struct TokenHandler {
@@ -27,8 +29,11 @@ pub struct TokenHandler {
   pub client_secret: String,
   pub client_twitch_id: String,
 
+  env: String,
   user_token_env: String,
   refresh_token_env: String,
+
+  pub subscriptions: Vec<Subscription>,
 }
 
 impl TokenHandler {
@@ -38,16 +43,6 @@ impl TokenHandler {
 
   pub fn new() -> TokenHandler {
     TokenHandler::default()
-  }
-
-  pub fn save(&self, env_file: &str) {
-    EnvHandler::save_env(
-      env_file,
-      &self.client_id,
-      &self.client_secret,
-      &self.client_twitch_id,
-      &self.redirect_url,
-    );
   }
 
   pub fn check_token_has_required_subscriptions(
@@ -78,24 +73,6 @@ impl TokenHandler {
           }),
       )
     })
-  }
-
-  pub fn apply_subscriptions_to_tokens(&mut self, scopes: &[Subscription], open_browser: bool) {
-    let (user_token, refresh_token) = get_user_and_refresh_tokens(
-      false,
-      &self.client_id,
-      &self.client_secret,
-      &self.redirect_url,
-      scopes,
-      open_browser,
-      false,
-    );
-
-    self.user_token = user_token;
-    self.refresh_token = refresh_token;
-
-    EnvHandler::save_user_token(&self.user_token_env, &self.user_token);
-    EnvHandler::save_refresh_token(&self.refresh_token_env, &self.refresh_token);
   }
 
   pub fn generate_user_token_from_refresh_token(&mut self) -> Result<(), TwitchApiError> {
@@ -408,5 +385,73 @@ impl TokenHandler {
         Ok(data) => Ok(data),
         Err(e) => Err(TwitchApiError::DeserialisationError(e.to_string())),
       })
+  }
+
+  pub fn generate_user_and_refresh_tokens(
+    &mut self,
+    scopes: &[Subscription],
+  ) -> Option<TokenBuilderError> {
+    let open_browser = true;
+
+    let authorisation_code;
+    match generate_authorisation_code(&self.client_id, &self.redirect_url, scopes, open_browser) {
+      Ok(code) => {
+        authorisation_code = code;
+      }
+      Err(TokenBuilderError::ManuallyInputAuthorisationCode) => {
+        // Listen for input
+        // or manually set input
+        println!("Please input generated authorisation code from browser url:");
+        authorisation_code = get_input();
+      }
+      Err(e) => {
+        return Some(e);
+      }
+    }
+
+    let (user_token, refresh_token) = get_user_and_refresh_token_from_authorisation_code(
+      &self.client_id,
+      &self.client_secret,
+      &authorisation_code,
+      &self.redirect_url,
+    )
+    .map_err(|e| TokenBuilderError::TwitchApiError(e))
+    .ok()?;
+
+    self.user_token = user_token;
+    self.refresh_token = refresh_token;
+
+    if let Ok(valid) = validate_token(&self.user_token) {
+      if valid.status.is_some() {
+        // it is not valid
+        return Some(TokenBuilderError::InvalidUserToken)
+      }
+    } else {
+      // not valid
+      return Some(TokenBuilderError::InvalidUserToken)
+    }
+
+    if let Ok(user_id) = self.get_token_user_id() {
+      self.client_twitch_id = user_id;
+    } else {
+      return Some(TokenBuilderError::InvalidClientIdOrSecret);
+    }
+
+    self.subscriptions = scopes.to_vec();
+
+    self.save();
+    None
+  }
+
+  pub fn save(&mut self) {
+    EnvHandler::save_env(
+      &self.env,
+      &self.client_id,
+      &self.client_secret,
+      &self.client_twitch_id,
+      &self.redirect_url,
+    );
+    EnvHandler::save_user_token(&self.user_token_env, &self.user_token);
+    EnvHandler::save_refresh_token(&self.refresh_token_env, &self.refresh_token);
   }
 }

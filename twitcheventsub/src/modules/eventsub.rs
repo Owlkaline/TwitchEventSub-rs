@@ -36,7 +36,7 @@ pub fn events(
   if subscriptions.iter().all(|s| s.is_permission_subscription()) {
     // Don't attempt eventsub things if no event sub events are being subscribed to
     #[cfg(feature = "logging")]
-    info!("EventSub: no eventsub subscriptions chosen, exiting eventsub thread.");
+    error!("EventSub: no eventsub subscriptions chosen, exiting eventsub thread.");
     return;
   }
 
@@ -64,6 +64,7 @@ pub fn events(
   let mut irc_messages: Vec<(Instant, IRCMessage)> = Vec::new();
 
   loop {
+    
     if let Ok(true) = should_quit_receiver.try_recv() {
       return;
     }
@@ -73,7 +74,7 @@ pub fn events(
       Err(Error::Io(e)) if e.kind() == ErrorKind::WouldBlock => {
         // shouldn't happen
         #[cfg(feature = "logging")]
-        info!("EventSub: Would block");
+        error!("EventSub: Would block");
         continue;
       }
       Err(Error::ConnectionClosed) | Err(Error::AlreadyClosed) => {
@@ -110,7 +111,7 @@ pub fn events(
       let _ = twitch_receiver.send(NetworkMessage::Close(None));
       thread::sleep(Duration::from_secs(5));
       #[cfg(feature = "logging")]
-      info!("Messages not sent within the keep alive timeout restarting websocket");
+      error!("Messages not sent within the keep alive timeout restarting websocket");
       let (new_client, _) = connect(CONNECTION_EVENTS)
         .expect("Failed to reconnect to new url after receiving reconnect message from twitch");
       twitch_receiver = new_client;
@@ -147,7 +148,7 @@ pub fn events(
         match message.event_type() {
           EventMessageType::Welcome => {
             #[cfg(feature = "logging")]
-            info!("EventSub: Welcome message!");
+            error!("EventSub: Welcome message!");
             let session_id = message.clone().payload.unwrap().session.unwrap().id;
 
             if !is_reconnecting {
@@ -167,7 +168,7 @@ pub fn events(
               sub_data.append(&mut custom_subscriptions);
 
               #[cfg(feature = "logging")]
-              info!("EventSub: Subscribing to events!");
+              error!("EventSub: Subscribing to events!");
               let failed_to_communicate_with_main_thread = sub_data
                 .iter()
                 .map(|sub_data| {
@@ -195,7 +196,7 @@ pub fn events(
 
               //twitch_keys = clone_twitch_keys;
               #[cfg(feature = "logging")]
-              info!("Twitch Event loop is ready!");
+              error!("Twitch Event loop is ready!");
               message_sender
                 .send(ResponseType::Ready)
                 .expect("Failed to send ready back to main thread.");
@@ -205,12 +206,12 @@ pub fn events(
           }
           EventMessageType::KeepAlive => {
             #[cfg(feature = "logging")]
-            info!("EventSub: Keep alive: {}", last_message.elapsed().as_secs());
+            error!("EventSub: Keep alive: {}", last_message.elapsed().as_secs());
             last_message = Instant::now();
           }
           EventMessageType::Reconnect => {
             #[cfg(feature = "logging")]
-            info!("EventSub: Twitch requested reconnection");
+            error!("EventSub: Twitch requested reconnection");
             let url = message
               .clone()
               .payload
@@ -292,7 +293,7 @@ pub fn events(
           }
           EventMessageType::Unknown => {
             #[cfg(feature = "logging")]
-            warn!("EventSub: Unknown message type: {}", msg);
+            error!("EventSub: Unknown message type: {}", msg);
             last_message = Instant::now();
             //if !custom_subscriptions.is_empty() {
             let _ = message_sender.send(ResponseType::RawResponse(msg.to_string()));
