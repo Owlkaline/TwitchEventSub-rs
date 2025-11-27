@@ -628,7 +628,7 @@ impl TwitchEventNode {
   fn new_subscription(subscription: GdNewSubscriptionContainer);
 
   #[signal]
-  fn subscription_gift(gift_data: GdGiftContainer);
+  fn gift_subscription(gift_data: GdGiftContainer);
 
   #[signal]
   fn resubscription(subscription: GdResubscriptionContainer);
@@ -865,39 +865,6 @@ impl TwitchEventNode {
 
   #[func]
   fn start_twitchevents(&mut self) {
-    let token;
-    match TokenHandlerBuilder::new()
-      .env_file(&format!(".{}.env", self.env_file_name))
-      .override_redirect_url(&self.redirect_url.to_string())
-      .build()
-    {
-      Ok(new_token) => token = new_token,
-      Err(e) => match e {
-        TokenBuilderError::ClientIdNotSet => {
-          self.create_popup(None, Some(self.token.client_secret.clone()));
-          return;
-        }
-        TokenBuilderError::ClientSecretNotSet => {
-          self.create_popup(Some(self.token.client_id.clone()), None);
-          return;
-        }
-        TokenBuilderError::RedirectUrlIncorrect => {
-          panic!("Do something unique");
-        }
-        TokenBuilderError::EnvDoesntExist => {
-          // do nothing?
-        }
-        TokenBuilderError::InvalidClientIdOrSecret => {
-          self.create_popup(None, None);
-          return;
-        }
-        TokenBuilderError::ManuallyInputAuthorisationCode => {
-          panic!("Do something unique now :3");
-        }
-        TokenBuilderError::TwitchApiError(twitch_api_error) => panic!("{:?}", twitch_api_error),
-        TokenBuilderError::InvalidUserToken => panic!("Why did this happen?"),
-      },
-    }
     //let mut token_builder = TokenHandlerBuilder::new()
     //  .env_file(&format!(".{}.env", self.env_file_name))
     //  .override_redirect_url(&self.redirect_url.to_string());
@@ -924,108 +891,143 @@ impl TwitchEventNode {
     //  .generate_user_tokens(self.token.clone())
     //  .unwrap();
 
-    let mut twitch = TwitchEventSubApi::builder(self.token.clone()).enable_irc();
+    // let mut twitch = TwitchEventSubApi::builder(self.token.clone()).enable_irc();
+    let mut token = TokenHandler::builder();
 
     if self.channel_user_update {
-      twitch = twitch.add_subscription(Subscription::UserUpdate);
+      token = token.add_subscription(Subscription::UserUpdate);
     }
     if self.channel_follow {
-      twitch = twitch.add_subscription(Subscription::ChannelFollow);
+      token = token.add_subscription(Subscription::ChannelFollow);
     }
     if self.channel_raid {
-      twitch = twitch.add_subscription(Subscription::ChannelRaid);
+      token = token.add_subscription(Subscription::ChannelRaid);
     }
     if self.channel_update {
-      twitch = twitch.add_subscription(Subscription::ChannelUpdate);
+      token = token.add_subscription(Subscription::ChannelUpdate);
     }
     if self.channel_new_subscription {
-      twitch = twitch.add_subscription(Subscription::ChannelNewSubscription);
+      token = token.add_subscription(Subscription::ChannelNewSubscription);
     }
     if self.channel_subscription_end {
-      twitch = twitch.add_subscription(Subscription::ChannelSubscriptionEnd);
+      token = token.add_subscription(Subscription::ChannelSubscriptionEnd);
     }
     if self.channel_gift_subscription {
-      twitch = twitch.add_subscription(Subscription::ChannelGiftSubscription);
+      token = token.add_subscription(Subscription::ChannelGiftSubscription);
     }
     if self.channel_resubscription {
-      twitch = twitch.add_subscription(Subscription::ChannelResubscription);
+      token = token.add_subscription(Subscription::ChannelResubscription);
     }
     if self.channel_cheer {
-      twitch = twitch.add_subscription(Subscription::ChannelCheer);
+      token = token.add_subscription(Subscription::ChannelCheer);
     }
     if self.channel_points_custom_reward_redeem {
-      twitch = twitch.add_subscription(Subscription::ChannelPointsCustomRewardRedeem);
+      token = token.add_subscription(Subscription::ChannelPointsCustomRewardRedeem);
     }
     if self.channel_points_auto_reward_redeem {
-      twitch = twitch.add_subscription(Subscription::ChannelPointsAutoRewardRedeem);
+      token = token.add_subscription(Subscription::ChannelPointsAutoRewardRedeem);
     }
     if self.channel_poll_begin {
-      twitch = twitch.add_subscription(Subscription::ChannelPollBegin);
+      token = token.add_subscription(Subscription::ChannelPollBegin);
     }
     if self.channel_poll_progress {
-      twitch = twitch.add_subscription(Subscription::ChannelPollProgress);
+      token = token.add_subscription(Subscription::ChannelPollProgress);
     }
     if self.channel_poll_end {
-      twitch = twitch.add_subscription(Subscription::ChannelPollEnd);
+      token = token.add_subscription(Subscription::ChannelPollEnd);
     }
     if self.channel_prediction_begin {
-      twitch = twitch.add_subscription(Subscription::ChannelPredictionBegin);
+      token = token.add_subscription(Subscription::ChannelPredictionBegin);
     }
     if self.channel_prediction_progress {
-      twitch = twitch.add_subscription(Subscription::ChannelPredictionProgress);
+      token = token.add_subscription(Subscription::ChannelPredictionProgress);
     }
     if self.channel_prediction_lock {
-      twitch = twitch.add_subscription(Subscription::ChannelPredictionLock);
+      token = token.add_subscription(Subscription::ChannelPredictionLock);
     }
     if self.channel_prediction_end {
-      twitch = twitch.add_subscription(Subscription::ChannelPredictionEnd);
+      token = token.add_subscription(Subscription::ChannelPredictionEnd);
     }
     if self.channel_goal_begin {
-      twitch = twitch.add_subscription(Subscription::ChannelGoalBegin);
+      token = token.add_subscription(Subscription::ChannelGoalBegin);
     }
     if self.channel_goal_progress {
-      twitch = twitch.add_subscription(Subscription::ChannelGoalProgress);
+      token = token.add_subscription(Subscription::ChannelGoalProgress);
     }
     if self.channel_goal_end {
-      twitch = twitch.add_subscription(Subscription::ChannelGoalEnd);
+      token = token.add_subscription(Subscription::ChannelGoalEnd);
     }
     if self.channel_hype_train_begin {
-      twitch = twitch.add_subscription(Subscription::ChannelHypeTrainBegin);
+      token = token.add_subscription(Subscription::ChannelHypeTrainBegin);
     }
     if self.channel_hype_train_progress {
-      twitch = twitch.add_subscription(Subscription::ChannelHypeTrainProgress);
+      token = token.add_subscription(Subscription::ChannelHypeTrainProgress);
     }
     if self.channel_hype_train_end {
-      twitch = twitch.add_subscription(Subscription::ChannelHypeTrainEnd);
+      token = token.add_subscription(Subscription::ChannelHypeTrainEnd);
     }
     if self.channel_shoutout_created {
-      twitch = twitch.add_subscription(Subscription::ChannelShoutoutCreate);
+      token = token.add_subscription(Subscription::ChannelShoutoutCreate);
     }
     if self.channel_shoutout_received {
-      twitch = twitch.add_subscription(Subscription::ChannelShoutoutReceive);
+      token = token.add_subscription(Subscription::ChannelShoutoutReceive);
     }
     if self.channel_message_deleted {
-      twitch = twitch.add_subscription(Subscription::ChannelMessageDeleted);
+      token = token.add_subscription(Subscription::ChannelMessageDeleted);
     }
     if self.channel_ad_break_begin {
-      twitch = twitch.add_subscription(Subscription::AdBreakBegin);
+      token = token.add_subscription(Subscription::AdBreakBegin);
     }
     if self.channel_chat_message {
-      twitch = twitch.add_subscription(Subscription::ChatMessage);
+      token = token.add_subscription(Subscription::ChatMessage);
     }
     if self.channel_user_banned {
-      twitch = twitch.add_subscription(Subscription::ChannelUserBanned);
+      token = token.add_subscription(Subscription::ChannelUserBanned);
     }
     if self.permission_ban_timeout_user {
-      twitch = twitch.add_subscription(Subscription::PermissionBanTimeoutUser);
+      token = token.add_subscription(Subscription::PermissionBanTimeoutUser);
     }
     if self.permission_delete_message {
-      twitch = twitch.add_subscription(Subscription::PermissionDeleteMessage);
+      token = token.add_subscription(Subscription::PermissionDeleteMessage);
     }
     if self.permission_read_chatters {
-      twitch = twitch.add_subscription(Subscription::PermissionReadChatters);
+      token = token.add_subscription(Subscription::PermissionReadChatters);
     }
 
+    match token
+      .env_file(&format!(".{}.env", self.env_file_name))
+      .override_redirect_url(&self.redirect_url.to_string())
+      .build()
+    {
+      Ok(new_token) => self.token = new_token,
+      Err(e) => match e {
+        TokenBuilderError::ClientIdNotSet => {
+          self.create_popup(None, Some(self.token.client_secret.clone()));
+          return;
+        }
+        TokenBuilderError::ClientSecretNotSet => {
+          self.create_popup(Some(self.token.client_id.clone()), None);
+          return;
+        }
+        TokenBuilderError::RedirectUrlIncorrect => {
+          panic!("Do something unique");
+        }
+        TokenBuilderError::EnvDoesntExist => {
+          // do nothing?
+        }
+        TokenBuilderError::InvalidClientIdOrSecret => {
+          self.create_popup(None, None);
+          return;
+        }
+        TokenBuilderError::ManuallyInputAuthorisationCode => {
+          panic!("Do something unique now :3");
+        }
+        TokenBuilderError::TwitchApiError(twitch_api_error) => panic!("{:?}", twitch_api_error),
+        TokenBuilderError::InvalidUserToken => panic!("Why did this happen?"),
+      },
+    }
+
+    let mut twitch = TwitchEventSubApi::builder(self.token.clone()); //.enable_irc();
     match twitch.build(&self.broadcaster_username.to_string()) {
       Ok(twitch) => {
         self.token.save();

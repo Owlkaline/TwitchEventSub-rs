@@ -104,6 +104,11 @@ impl TokenHandlerBuilder {
     self
   }
 
+  pub fn add_subscription(mut self, subscription: Subscription) -> TokenHandlerBuilder {
+    self.subscriptions.push(subscription);
+    self
+  }
+
   pub fn add_subscriptions<I: IntoIterator<Item = Subscription>>(
     mut self,
     subs: I,
