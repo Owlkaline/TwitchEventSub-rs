@@ -15,7 +15,7 @@ pub mod subscription;
 use godot::prelude::*;
 use twitcheventsub::prelude::*;
 
-#[derive(GodotClass, Debug)]
+#[derive(GodotClass, Debug, Clone)]
 #[class(init)]
 pub struct GUser {
   #[var]
@@ -29,9 +29,9 @@ pub struct GUser {
 impl From<User> for GUser {
   fn from(value: User) -> Self {
     GUser {
-      id: value.id.into(),
-      login: value.login.into(),
-      name: value.name.into(),
+      id: value.id.to_godot(),
+      login: value.login.to_godot(),
+      name: value.name.to_godot(),
     }
   }
 }
@@ -39,14 +39,14 @@ impl From<User> for GUser {
 impl From<OptionalUser> for GUser {
   fn from(value: OptionalUser) -> Self {
     GUser {
-      id: value.id.unwrap_or("anonymous".to_owned()).into(),
-      login: value.login.unwrap_or("anonymous".to_owned()).into(),
-      name: value.name.unwrap_or("anonymous".to_owned()).into(),
+      id: value.id.unwrap_or("anonymous".to_owned()).to_godot(),
+      login: value.login.unwrap_or("anonymous".to_owned()).to_godot(),
+      name: value.name.unwrap_or("anonymous".to_owned()).to_godot(),
     }
   }
 }
 
-#[derive(GodotClass, Debug)]
+#[derive(GodotClass, Debug, Clone)]
 #[class(init)]
 pub struct GUserData {
   #[var]
@@ -78,9 +78,9 @@ pub struct GUserData {
 impl From<UserData> for GUserData {
   fn from(value: UserData) -> Self {
     GUserData {
-      id: value.id.into(),
-      login: value.login.into(),
-      name: value.name.into(),
+      id: value.id.to_godot(),
+      login: value.login.to_godot(),
+      name: value.name.to_godot(),
       user_type: match value.user_type {
         UserType::Admin => "admin",
         UserType::GlobalMod => "global_mod",
@@ -94,12 +94,12 @@ impl From<UserData> for GUserData {
         BroadcasterType::Normal => "",
       }
       .into(),
-      description: value.description.into(),
-      profile_image_url: value.profile_image_url.into(),
-      offline_image_url: value.offline_image_url.into(),
+      description: value.description.to_godot(),
+      profile_image_url: value.profile_image_url.to_godot(),
+      offline_image_url: value.offline_image_url.to_godot(),
       view_count: value.view_count,
-      email: value.email.unwrap_or_default().into(),
-      created_at: value.created_at.into(),
+      email: value.email.unwrap_or_default().to_godot(),
+      created_at: value.created_at.to_godot(),
     }
   }
 }

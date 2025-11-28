@@ -3,7 +3,7 @@ use twitcheventsub::prelude::UserBannedData;
 
 use super::GUser;
 
-#[derive(GodotClass, Debug)]
+#[derive(GodotClass, Debug, Clone)]
 #[class(init)]
 pub struct GUserBanned {
   #[var]

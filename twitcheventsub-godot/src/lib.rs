@@ -15,7 +15,7 @@ use godot::classes::TextureRect;
 use godot::classes::VBoxContainer;
 use godot::classes::{ConfirmationDialog, GridContainer, Label, LineEdit};
 use godot::init::EditorRunBehavior;
-use godot::meta::ParamType;
+//use godot::meta::ParamType;
 use godot::prelude::*;
 use godot::{
   classes::{self, INode, Image, ImageTexture, Node},
@@ -152,133 +152,133 @@ struct TwitchEventNode {
   base: Base<Node>,
 }
 
-#[derive(GodotClass, Debug, GodotConvert)]
+#[derive(GodotClass, Debug, GodotConvert, Clone)]
 #[godot(transparent)]
 #[class(init)]
 pub struct GdCustomRewardRedeemContainer {
   pub data: Gd<GCustomRewardRedeem>,
 }
 
-#[derive(GodotClass, Debug, GodotConvert)]
+#[derive(GodotClass, Debug, GodotConvert, Clone)]
 #[godot(transparent)]
 #[class(init)]
 pub struct GdRaidContainer {
   pub data: Gd<GRaid>,
 }
 
-#[derive(GodotClass, Debug, GodotConvert)]
+#[derive(GodotClass, Debug, GodotConvert, Clone)]
 #[godot(transparent)]
 #[class(init)]
 pub struct GdMessageContainer {
   pub data: Gd<GMessageData>,
 }
 
-#[derive(GodotClass, Debug, GodotConvert)]
+#[derive(GodotClass, Debug, GodotConvert, Clone)]
 #[godot(transparent)]
 #[class(init)]
 pub struct GdAdBreakBeginContainer {
   pub data: Gd<GAdBreakBegin>,
 }
 
-#[derive(GodotClass, Debug, GodotConvert)]
+#[derive(GodotClass, Debug, GodotConvert, Clone)]
 #[godot(transparent)]
 #[class(init)]
 pub struct GdFollowContainer {
   pub data: Gd<GFollowData>,
 }
 
-#[derive(GodotClass, Debug, GodotConvert)]
+#[derive(GodotClass, Debug, GodotConvert, Clone)]
 #[godot(transparent)]
 #[class(init)]
 pub struct GdNewSubscriptionContainer {
   pub data: Gd<GNewSubscription>,
 }
 
-#[derive(GodotClass, Debug, GodotConvert)]
+#[derive(GodotClass, Debug, GodotConvert, Clone)]
 #[godot(transparent)]
 #[class(init)]
 pub struct GdGiftContainer {
   pub data: Gd<GGift>,
 }
 
-#[derive(GodotClass, Debug, GodotConvert)]
+#[derive(GodotClass, Debug, GodotConvert, Clone)]
 #[godot(transparent)]
 #[class(init)]
 pub struct GdResubscriptionContainer {
   pub data: Gd<GResubscription>,
 }
 
-#[derive(GodotClass, Debug, GodotConvert)]
+#[derive(GodotClass, Debug, GodotConvert, Clone)]
 #[godot(transparent)]
 #[class(init)]
 pub struct GdCheerContainer {
   pub data: Gd<GCheerData>,
 }
 
-#[derive(GodotClass, Debug, GodotConvert)]
+#[derive(GodotClass, Debug, GodotConvert, Clone)]
 #[godot(transparent)]
 #[class(init)]
 pub struct GdGetChattersContainer {
   pub data: Gd<GGetChatters>,
 }
 
-#[derive(GodotClass, Debug, GodotConvert)]
+#[derive(GodotClass, Debug, GodotConvert, Clone)]
 #[godot(transparent)]
 #[class(init)]
 pub struct GdPollBeginContainer {
   pub data: Gd<GPollBegin>,
 }
 
-#[derive(GodotClass, Debug, GodotConvert)]
+#[derive(GodotClass, Debug, GodotConvert, Clone)]
 #[godot(transparent)]
 #[class(init)]
 pub struct GdPollProgressContainer {
   pub data: Gd<GPollProgress>,
 }
 
-#[derive(GodotClass, Debug, GodotConvert)]
+#[derive(GodotClass, Debug, GodotConvert, Clone)]
 #[godot(transparent)]
 #[class(init)]
 pub struct GdPollEndContainer {
   pub data: Gd<GPollEnd>,
 }
 
-#[derive(GodotClass, Debug, GodotConvert)]
+#[derive(GodotClass, Debug, GodotConvert, Clone)]
 #[godot(transparent)]
 #[class(init)]
 pub struct GdPredictionBeginContainer {
   pub data: Gd<GPredictionBegin>,
 }
 
-#[derive(GodotClass, Debug, GodotConvert)]
+#[derive(GodotClass, Debug, GodotConvert, Clone)]
 #[godot(transparent)]
 #[class(init)]
 pub struct GdPredictionProgressContainer {
   pub data: Gd<GPredictionProgress>,
 }
 
-#[derive(GodotClass, Debug, GodotConvert)]
+#[derive(GodotClass, Debug, GodotConvert, Clone)]
 #[godot(transparent)]
 #[class(init)]
 pub struct GdPredictionLockContainer {
   pub data: Gd<GPredictionLock>,
 }
 
-#[derive(GodotClass, Debug, GodotConvert)]
+#[derive(GodotClass, Debug, GodotConvert, Clone)]
 #[godot(transparent)]
 #[class(init)]
 pub struct GdPredictionEndContainer {
   pub data: Gd<GPredictionEnd>,
 }
 
-#[derive(GodotClass, Debug, GodotConvert)]
+#[derive(GodotClass, Debug, GodotConvert, Clone)]
 #[godot(transparent)]
 #[class(init)]
 pub struct GdMessageDeletedContainer {
   pub data: Gd<GMessageDeleted>,
 }
 
-#[derive(GodotClass, Debug, GodotConvert)]
+#[derive(GodotClass, Debug, GodotConvert, Clone)]
 #[godot(transparent)]
 #[class(init)]
 pub struct GdUserBannedContainer {
@@ -440,7 +440,7 @@ impl TwitchEventNode {
         &fragment.bind().convert_to_rust(),
         &mut twitch.bttv,
       ) {
-        url.url = emote_url.url.into(); //.url;
+        url.url = emote_url.url.to_godot(); //.url;
         url.animated = emote_url.animated;
       }
     }
@@ -787,7 +787,7 @@ impl TwitchEventNode {
     redirect_url_label2.set_text("Set In Editor");
 
     let mut redirect_url_edit = LineEdit::new_alloc();
-    redirect_url_edit.set_text(self.redirect_url.clone().owned_to_arg());
+    redirect_url_edit.set_text(self.redirect_url.clone().to_godot());
     redirect_url_edit.set_placeholder("http://localhost:3000");
 
     let mut twitch_console_label = Label::new_alloc();
@@ -1003,9 +1003,12 @@ impl TwitchEventNode {
     {
       Ok(new_token) => {
         println!("new token was created succcesfully");
-        println!("Subscriptions of new token: {}", new_token.subscriptions.len());
+        println!(
+          "Subscriptions of new token: {}",
+          new_token.subscriptions.len()
+        );
         self.token = new_token
-      },
+      }
       Err(e) => match e {
         TokenBuilderError::ClientIdNotSet => {
           self.create_popup(None, Some(self.token.client_secret.clone()));

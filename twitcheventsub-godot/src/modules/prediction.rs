@@ -6,7 +6,7 @@ use twitcheventsub::prelude::{
 
 use super::GUser;
 
-#[derive(GodotClass, Debug)]
+#[derive(GodotClass, Debug, Clone)]
 #[class(init)]
 pub struct GTopPredictors {
   #[var]
@@ -17,7 +17,7 @@ pub struct GTopPredictors {
   pub channel_points_used: u32,
 }
 
-#[derive(GodotClass, Debug)]
+#[derive(GodotClass, Debug, Clone)]
 #[class(init)]
 pub struct GBeginOutcome {
   #[var]
@@ -28,7 +28,7 @@ pub struct GBeginOutcome {
   colour: GString,
 }
 
-#[derive(GodotClass, Debug)]
+#[derive(GodotClass, Debug, Clone)]
 #[class(init)]
 pub struct GOutcome {
   #[var]
@@ -45,7 +45,7 @@ pub struct GOutcome {
   pub top_predictors: Array<Gd<GTopPredictors>>,
 }
 
-#[derive(GodotClass, Debug)]
+#[derive(GodotClass, Debug, Clone)]
 #[class(init)]
 pub struct GPredictionBegin {
   #[var]
@@ -62,7 +62,7 @@ pub struct GPredictionBegin {
   pub locks_at: GString,
 }
 
-#[derive(GodotClass, Debug)]
+#[derive(GodotClass, Debug, Clone)]
 #[class(init)]
 pub struct GPredictionProgress {
   #[var]
@@ -79,7 +79,7 @@ pub struct GPredictionProgress {
   pub locks_at: GString,
 }
 
-#[derive(GodotClass, Debug)]
+#[derive(GodotClass, Debug, Clone)]
 #[class(init)]
 pub struct GPredictionLock {
   #[var]
@@ -96,7 +96,7 @@ pub struct GPredictionLock {
   pub locked_at: GString,
 }
 
-#[derive(GodotClass, Debug)]
+#[derive(GodotClass, Debug, Clone)]
 #[class(init)]
 pub struct GPredictionEnd {
   #[var]

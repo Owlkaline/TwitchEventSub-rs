@@ -3,7 +3,7 @@ use twitcheventsub::prelude::*;
 
 use crate::modules::GUser;
 
-#[derive(GodotClass, Debug, Default)]
+#[derive(GodotClass, Debug, Default, Clone)]
 #[class(init)]
 pub struct GRaid {
   #[var]

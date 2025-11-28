@@ -1,7 +1,7 @@
 use godot::prelude::*;
 use twitcheventsub::prelude::*;
 
-#[derive(GodotClass)]
+#[derive(GodotClass, Clone)]
 #[class(init)]
 pub struct GEmote {
   #[var]
@@ -14,7 +14,7 @@ pub struct GEmote {
   pub format: Array<GString>,
 }
 
-#[derive(GodotClass)]
+#[derive(GodotClass, Clone)]
 #[class(init)]
 pub struct GRewardEmote {
   #[var]
@@ -25,7 +25,7 @@ pub struct GRewardEmote {
   end: u32,
 }
 
-#[derive(GodotClass)]
+#[derive(GodotClass, Clone)]
 #[class(init)]
 pub struct GEmoteStaticImages {
   #[var]
@@ -36,7 +36,7 @@ pub struct GEmoteStaticImages {
   url_4x: GString,
 }
 
-#[derive(GodotClass, Debug)]
+#[derive(GodotClass, Debug, Clone)]
 #[class(init)]
 pub struct GEmoteUrl {
   #[var]
@@ -48,7 +48,7 @@ pub struct GEmoteUrl {
 impl From<EmoteUrl> for GEmoteUrl {
   fn from(value: EmoteUrl) -> Self {
     GEmoteUrl {
-      url: value.url.into(),
+      url: value.url.to_godot(),
       animated: value.animated,
     }
   }
@@ -57,7 +57,7 @@ impl From<EmoteUrl> for GEmoteUrl {
 impl From<RewardEmote> for GRewardEmote {
   fn from(value: RewardEmote) -> Self {
     GRewardEmote {
-      id: value.id.into(),
+      id: value.id.to_godot(),
       begin: value.begin,
       end: value.end,
     }
@@ -102,9 +102,9 @@ impl From<Emote> for GEmote {
     }
 
     GEmote {
-      id: value.id.into(),
-      emote_set_id: value.emote_set_id.into(),
-      owner_id: value.owner_id.unwrap_or("".to_string()).into(),
+      id: value.id.to_godot(),
+      emote_set_id: value.emote_set_id.to_godot(),
+      owner_id: value.owner_id.unwrap_or("".to_string()).to_godot(),
       format,
     }
   }
@@ -113,9 +113,9 @@ impl From<Emote> for GEmote {
 impl From<EmoteStaticImages> for GEmoteStaticImages {
   fn from(value: EmoteStaticImages) -> Self {
     GEmoteStaticImages {
-      url_1x: value.url_1x.into(),
-      url_2x: value.url_2x.into(),
-      url_4x: value.url_4x.into(),
+      url_1x: value.url_1x.to_godot(),
+      url_2x: value.url_2x.to_godot(),
+      url_4x: value.url_4x.to_godot(),
     }
   }
 }

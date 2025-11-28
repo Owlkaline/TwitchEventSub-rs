@@ -3,7 +3,7 @@ use twitcheventsub::prelude::*;
 
 use crate::modules::GUser;
 
-#[derive(GodotClass)]
+#[derive(GodotClass, Clone)]
 #[class(init)]
 pub struct GCheerMote {
   #[var]
@@ -14,7 +14,7 @@ pub struct GCheerMote {
   pub tier: u32,
 }
 
-#[derive(GodotClass, Debug)]
+#[derive(GodotClass, Debug, Clone)]
 #[class(init)]
 pub struct GCheerData {
   #[var]
@@ -35,7 +35,7 @@ impl From<CheerData> for GCheerData {
       user: Gd::from_object(GUser::from(cheer_data.user.unwrap_or(User::default()))),
       broadcaster: Gd::from_object(GUser::from(cheer_data.broadcaster)),
       is_anonymous: cheer_data.is_anonymous.into(),
-      message: cheer_data.message.into(),
+      message: cheer_data.message.to_godot(),
       bits: cheer_data.bits,
     }
   }
@@ -43,7 +43,7 @@ impl From<CheerData> for GCheerData {
 impl From<CheerMote> for GCheerMote {
   fn from(value: CheerMote) -> Self {
     GCheerMote {
-      prefix: value.prefix.into(),
+      prefix: value.prefix.to_godot(),
       bits: value.bits.into(),
       tier: value.tier.into(),
     }

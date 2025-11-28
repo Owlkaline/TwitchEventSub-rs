@@ -3,7 +3,7 @@ use twitcheventsub::prelude::*;
 
 use crate::modules::{emote::GRewardEmote, GUser};
 
-#[derive(GodotClass)]
+#[derive(GodotClass, Clone)]
 #[class(init)]
 pub struct GRewardMessage {
   #[var]
@@ -12,7 +12,7 @@ pub struct GRewardMessage {
   emotes: Array<Gd<GRewardEmote>>,
 }
 
-#[derive(GodotClass)]
+#[derive(GodotClass, Clone)]
 #[class(init)]
 pub struct GNewSubscription {
   #[var]
@@ -25,7 +25,7 @@ pub struct GNewSubscription {
   is_gift: bool,
 }
 
-#[derive(GodotClass)]
+#[derive(GodotClass, Clone)]
 #[class(init)]
 pub struct GResubscription {
   #[var]
@@ -44,7 +44,7 @@ pub struct GResubscription {
   duration_months: u32,
 }
 
-#[derive(GodotClass)]
+#[derive(GodotClass, Clone)]
 #[class(init)]
 pub struct GGift {
   #[var]
@@ -67,7 +67,7 @@ impl From<GiftData> for GGift {
       user: Gd::from_object(GUser::from(gift.user)),
       broadcaster: Gd::from_object(GUser::from(gift.broadcaster)),
       total: gift.total,
-      tier: gift.tier.into(),
+      tier: gift.tier.to_godot(),
       cumulative_total: gift.cumulative_total.unwrap_or(0),
       is_anonymous: gift.is_anonymous,
     }
@@ -77,7 +77,7 @@ impl From<GiftData> for GGift {
 impl From<RewardMessageData> for GRewardMessage {
   fn from(reward_message: RewardMessageData) -> GRewardMessage {
     GRewardMessage {
-      text: reward_message.text.into(),
+      text: reward_message.text.to_godot(),
       emotes: reward_message
         .emotes
         .unwrap_or(Vec::new())
@@ -93,7 +93,7 @@ impl From<NewSubscriptionData> for GNewSubscription {
     GNewSubscription {
       user: Gd::from_object(GUser::from(new_sub.user)),
       broadcaster: Gd::from_object(GUser::from(new_sub.broadcaster)),
-      tier: new_sub.tier.into(),
+      tier: new_sub.tier.to_godot(),
       is_gift: new_sub.is_gift,
     }
   }
@@ -104,7 +104,7 @@ impl From<ResubscriptionData> for GResubscription {
     GResubscription {
       user: Gd::from_object(GUser::from(resub.user)),
       broadcaster: Gd::from_object(GUser::from(resub.broadcaster)),
-      tier: resub.tier.into(),
+      tier: resub.tier.to_godot(),
       message: Gd::from_object(GRewardMessage::from(resub.message)),
       cumulative_months: resub.cumulative_months,
       streak_months: resub.streak_months.unwrap_or(0),

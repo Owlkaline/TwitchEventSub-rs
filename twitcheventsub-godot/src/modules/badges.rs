@@ -29,7 +29,7 @@ pub struct GBadgeData {
   pub versions: Array<Gd<GBadgeVersion>>,
 }
 
-#[derive(GodotClass)]
+#[derive(GodotClass, Clone)]
 #[class(init)]
 pub struct GSetOfBadges {
   #[var]
@@ -39,10 +39,10 @@ pub struct GSetOfBadges {
 impl From<BadgeVersion> for GBadgeVersion {
   fn from(value: BadgeVersion) -> Self {
     GBadgeVersion {
-      id: value.id.into(),
+      id: value.id.to_godot(),
       images: Gd::from_object(GEmoteStaticImages::from(value.images)),
-      title: value.title.into(),
-      description: value.description.into(),
+      title: value.title.to_godot(),
+      description: value.description.to_godot(),
       click_action: if let Some(action) = value.click_action {
         Variant::from(action)
       } else {
@@ -85,7 +85,7 @@ impl Into<BadgeVersion> for GBadgeVersion {
 impl From<BadgeData> for GBadgeData {
   fn from(value: BadgeData) -> Self {
     GBadgeData {
-      set_id: value.set_id.into(),
+      set_id: value.set_id.to_godot(),
       versions: value
         .versions
         .into_iter()

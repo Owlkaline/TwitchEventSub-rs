@@ -3,7 +3,7 @@ use twitcheventsub::prelude::*;
 
 use crate::modules::GUser;
 
-#[derive(GodotClass, Debug)]
+#[derive(GodotClass, Debug, Clone)]
 #[class(init)]
 pub struct GAdBreakBegin {
   #[var]
@@ -18,7 +18,7 @@ pub struct GAdBreakBegin {
   is_automatic: bool,
 }
 
-#[derive(GodotClass, Debug)]
+#[derive(GodotClass, Debug, Clone)]
 #[class(init)]
 pub struct GAdDetails {
   #[var]
@@ -41,7 +41,7 @@ impl From<AdBreakBeginData> for GAdBreakBegin {
       broadcaster: Gd::from_object(GUser::from(ad.broadcaster)),
       requester: Gd::from_object(GUser::from(ad.requester)),
       duration_seconds: ad.duration_seconds,
-      started_at: ad.started_at.to_owned().into(),
+      started_at: ad.started_at.to_godot(),
       is_automatic: ad.is_automatic,
     }
   }

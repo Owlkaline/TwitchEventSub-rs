@@ -3,14 +3,14 @@ use twitcheventsub::prelude::*;
 
 use crate::modules::GUser;
 
-#[derive(GodotClass, Debug)]
+#[derive(GodotClass, Debug, Clone)]
 #[class(init)]
 pub struct GPagination {
   #[var]
   cursor: Array<GString>,
 }
 
-#[derive(GodotClass, Debug)]
+#[derive(GodotClass, Debug, Clone)]
 #[class(init)]
 pub struct GGetChatters {
   #[var]

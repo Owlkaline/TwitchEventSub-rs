@@ -3,7 +3,7 @@ use twitcheventsub::prelude::*;
 
 use crate::modules::GUser;
 
-#[derive(GodotClass, Debug)]
+#[derive(GodotClass, Debug, Clone)]
 #[class(init)]
 pub struct GFollowData {
   #[var]
@@ -19,7 +19,7 @@ impl From<FollowData> for GFollowData {
     GFollowData {
       user: Gd::from_object(GUser::from(follow_data.user)),
       broadcaster: Gd::from_object(GUser::from(follow_data.broadcaster)),
-      followed_at: follow_data.followed_at.into(),
+      followed_at: follow_data.followed_at.to_godot(),
     }
   }
 }

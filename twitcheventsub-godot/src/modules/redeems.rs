@@ -3,7 +3,7 @@ use twitcheventsub::prelude::*;
 
 use crate::{modules::GUser, GEmoteStaticImages};
 
-#[derive(GodotClass, Debug, Default)]
+#[derive(GodotClass, Debug, Default, Clone)]
 #[class(init)]
 pub struct GReward {
   #[var]
@@ -16,7 +16,7 @@ pub struct GReward {
   cost: u32,
 }
 
-#[derive(GodotClass, Debug, Default)]
+#[derive(GodotClass, Debug, Default, Clone)]
 #[class(init)]
 pub struct GCustomRewardRedeem {
   #[var]
@@ -35,7 +35,7 @@ pub struct GCustomRewardRedeem {
   redeemed_at: GString,
 }
 
-#[derive(GodotClass, Debug, Default)]
+#[derive(GodotClass, Debug, Default, Clone)]
 #[class(init)]
 pub struct GGetCustomReward {
   #[var]
@@ -80,7 +80,7 @@ pub struct GGetCustomReward {
   cooldown_expires_at: GString,
 }
 
-#[derive(GodotClass, Debug, Default)]
+#[derive(GodotClass, Debug, Default, Clone)]
 #[class(init)]
 pub struct GMaxPerStreamSetting {
   #[var]
@@ -89,7 +89,7 @@ pub struct GMaxPerStreamSetting {
   max_per_stream: i64,
 }
 
-#[derive(GodotClass, Debug, Default)]
+#[derive(GodotClass, Debug, Default, Clone)]
 #[class(init)]
 pub struct GMaxPerUserPerStreamSetting {
   #[var]
@@ -98,7 +98,7 @@ pub struct GMaxPerUserPerStreamSetting {
   max_per_user_per_stream: u32,
 }
 
-#[derive(GodotClass, Debug, Default)]
+#[derive(GodotClass, Debug, Default, Clone)]
 #[class(init)]
 pub struct GGlobalCooldownSetting {
   #[var]
@@ -110,13 +110,13 @@ pub struct GGlobalCooldownSetting {
 impl From<CustomPointsRewardRedeemData> for GCustomRewardRedeem {
   fn from(reward: CustomPointsRewardRedeemData) -> GCustomRewardRedeem {
     GCustomRewardRedeem {
-      id: reward.id.to_owned().into(),
+      id: reward.id.to_owned().to_godot(),
       user: Gd::from_object(GUser::from(reward.user)),
       broadcaster: Gd::from_object(GUser::from(reward.broadcaster)),
-      user_input: reward.user_input.to_owned().into(),
-      status: reward.status.to_owned().into(),
+      user_input: reward.user_input.to_owned().to_godot(),
+      status: reward.status.to_owned().to_godot(),
       reward: Gd::from_object(GReward::from(reward.reward)),
-      redeemed_at: reward.redeemed_at.to_owned().into(),
+      redeemed_at: reward.redeemed_at.to_owned().to_godot(),
     }
   }
 }
@@ -124,9 +124,9 @@ impl From<CustomPointsRewardRedeemData> for GCustomRewardRedeem {
 impl From<Reward> for GReward {
   fn from(reward: Reward) -> GReward {
     GReward {
-      id: reward.id.to_owned().into(),
-      title: reward.title.to_owned().into(),
-      prompt: reward.prompt.to_owned().into(),
+      id: reward.id.to_owned().to_godot(),
+      title: reward.title.to_owned().to_godot(),
+      prompt: reward.prompt.to_owned().to_godot(),
       cost: reward.cost,
     }
   }
@@ -136,20 +136,20 @@ impl From<GetCustomReward> for GGetCustomReward {
   fn from(reward: GetCustomReward) -> Self {
     let default_image = Gd::from_object(GEmoteStaticImages::from(reward.default_image));
     GGetCustomReward {
-      id: reward.id.into(),
-      broadcaster_id: reward.broadcaster_id.into(),
-      broadcaster_login: reward.broadcaster_login.into(),
-      broadcaster_name: reward.broadcaster_name.into(),
-      title: reward.title.into(),
+      id: reward.id.to_godot(),
+      broadcaster_id: reward.broadcaster_id.to_godot(),
+      broadcaster_login: reward.broadcaster_login.to_godot(),
+      broadcaster_name: reward.broadcaster_name.to_godot(),
+      title: reward.title.to_godot(),
       image: reward.image.map_or_else(
         || default_image.clone(),
         |image| Gd::from_object(image.into()),
       ),
       default_image,
-      background_colour: reward.background_colour.into(),
+      background_colour: reward.background_colour.to_godot(),
       is_enabled: reward.is_enabled,
       cost: reward.cost,
-      prompt: reward.prompt.into(),
+      prompt: reward.prompt.to_godot(),
       is_user_input_required: reward.is_user_input_required,
       is_paused: reward.is_paused,
       is_in_stock: reward.is_in_stock,
@@ -162,7 +162,7 @@ impl From<GetCustomReward> for GGetCustomReward {
       redemptions_redeemed_current_stream: reward
         .redemptions_redeemed_current_stream
         .unwrap_or_default(),
-      cooldown_expires_at: reward.cooldown_expires_at.unwrap_or_default().into(),
+      cooldown_expires_at: reward.cooldown_expires_at.unwrap_or_default().to_godot(),
     }
   }
 }

@@ -14,14 +14,14 @@ pub struct GBadge {
   info: GString,
 }
 
-#[derive(GodotClass, Debug)]
+#[derive(GodotClass, Debug, Clone)]
 #[class(init)]
 pub struct GCheer {
   #[var]
   bits: u32,
 }
 
-#[derive(GodotClass, Debug)]
+#[derive(GodotClass, Debug, Clone)]
 #[class(init)]
 pub struct GReply {
   #[var]
@@ -36,7 +36,7 @@ pub struct GReply {
   thread_message_id: GString,
 }
 
-#[derive(GodotClass)]
+#[derive(GodotClass, Clone)]
 #[class(init)]
 pub struct GMention {
   #[var]
@@ -47,7 +47,7 @@ pub struct GMention {
   pub user_name: GString,
 }
 
-#[derive(GodotClass, Debug)]
+#[derive(GodotClass, Debug, Clone)]
 #[class(init)]
 pub struct GFragments {
   #[var]
@@ -62,7 +62,7 @@ pub struct GFragments {
   pub mention: Array<Gd<GMention>>,
 }
 
-#[derive(GodotClass, Debug)]
+#[derive(GodotClass, Debug, Clone)]
 #[class(init)]
 pub struct GMessage {
   #[var]
@@ -71,7 +71,7 @@ pub struct GMessage {
   fragments: Array<Gd<GFragments>>,
 }
 
-#[derive(GodotClass, Debug)]
+#[derive(GodotClass, Debug, Clone)]
 #[class(init)]
 pub struct GMessageData {
   #[var]
@@ -104,7 +104,7 @@ pub struct GMessageData {
   kind: GString,
 }
 
-#[derive(GodotClass, Debug)]
+#[derive(GodotClass, Debug, Clone)]
 #[class(init)]
 pub struct GMessageDeleted {
   #[var]
@@ -118,9 +118,9 @@ pub struct GMessageDeleted {
 impl From<Badge> for GBadge {
   fn from(badge: Badge) -> GBadge {
     GBadge {
-      set_id: badge.set_id.to_owned().into(),
-      id: badge.id.to_owned().into(),
-      info: badge.info.to_owned().into(),
+      set_id: badge.set_id.to_godot(),
+      id: badge.id.to_godot(),
+      info: badge.info.to_godot(),
     }
   }
 }
@@ -148,9 +148,9 @@ impl From<Reply> for GReply {
     GReply {
       thread: Gd::from_object(GUser::from(reply.thread)),
       parent: Gd::from_object(GUser::from(reply.parent)),
-      parent_message_id: reply.parent_message_id.to_owned().into(),
-      parent_message_body: reply.parent_message_body.to_owned().into(),
-      thread_message_id: reply.thread_message_id.to_owned().into(),
+      parent_message_id: reply.parent_message_id.to_godot(),
+      parent_message_body: reply.parent_message_body.to_godot(),
+      thread_message_id: reply.thread_message_id.to_godot(),
     }
   }
 }
@@ -177,26 +177,24 @@ impl From<MessageData> for GMessageData {
     GMessageData {
       broadcaster: Gd::from_object(GUser::from(msg.broadcaster)),
       chatter: Gd::from_object(GUser::from(msg.chatter)),
-      message_id: msg.message_id.to_owned().into(),
+      message_id: msg.message_id.to_godot(),
       message: Gd::from_object(GMessage::from(msg.message)),
-      colour: msg.colour.to_owned().into(),
+      colour: msg.colour.to_godot(),
       channel_points_custom_reward_id: msg
         .channel_points_custom_reward_id
         .unwrap_or("".to_owned())
-        .to_owned()
-        .into(),
+        .to_godot(),
       channel_points_animation_id: msg
         .channel_points_animation_id
         .unwrap_or("".to_owned())
-        .to_owned()
-        .into(),
+        .to_godot(),
       cheer,
       reply,
       badges,
       first_time_chatter: msg.first_time_chatter,
       returning_chater: msg.returning_chatter,
       moderator: msg.moderator,
-      kind: msg.message_type.to_string().into(),
+      kind: msg.message_type.to_string().to_godot(),
     }
   }
 }
@@ -244,8 +242,8 @@ impl From<Fragments> for GFragments {
 
     let value_kind: String = value.kind.into();
     GFragments {
-      kind: value_kind.into(),
-      text: value.text.into(),
+      kind: value_kind.to_godot(),
+      text: value.text.to_godot(),
       cheermote,
       emote,
       mention,
@@ -262,7 +260,7 @@ impl From<Message> for GMessage {
     }
 
     GMessage {
-      text: value.text.into(),
+      text: value.text.to_godot(),
       fragments,
     }
   }
@@ -271,9 +269,9 @@ impl From<Message> for GMessage {
 impl From<Mention> for GMention {
   fn from(value: Mention) -> Self {
     GMention {
-      user_id: value.user_id.into(),
-      user_login: value.user_login.into(),
-      user_name: value.user_name.into(),
+      user_id: value.user_id.to_godot(),
+      user_login: value.user_login.to_godot(),
+      user_name: value.user_name.to_godot(),
     }
   }
 }
@@ -283,7 +281,7 @@ impl From<MessageDeletedData> for GMessageDeleted {
     GMessageDeleted {
       broadcaster: Gd::from_object(data.broadcaster.into()),
       target: Gd::from_object(data.target.into()),
-      message_id: data.message_id.into(),
+      message_id: data.message_id.to_godot(),
     }
   }
 }

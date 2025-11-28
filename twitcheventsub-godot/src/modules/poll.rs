@@ -3,7 +3,7 @@ use twitcheventsub::prelude::*;
 
 use crate::modules::GUser;
 
-#[derive(GodotClass, Debug)]
+#[derive(GodotClass, Debug, Clone)]
 #[class(init)]
 pub struct GChoices {
   #[var]
@@ -18,7 +18,7 @@ pub struct GChoices {
   bits_votes: u32,
 }
 
-#[derive(GodotClass, Debug)]
+#[derive(GodotClass, Debug, Clone)]
 #[class(init)]
 pub struct GBeginChoices {
   #[var]
@@ -27,7 +27,7 @@ pub struct GBeginChoices {
   title: GString,
 }
 
-#[derive(GodotClass, Debug, Default)]
+#[derive(GodotClass, Debug, Default, Clone)]
 #[class(init)]
 pub struct GBitsVotingData {
   #[var]
@@ -36,7 +36,7 @@ pub struct GBitsVotingData {
   amount_per_vote: u32,
 }
 
-#[derive(GodotClass, Debug, Default)]
+#[derive(GodotClass, Debug, Default, Clone)]
 #[class(init)]
 pub struct GChannelPointsVoting {
   #[var]
@@ -45,7 +45,7 @@ pub struct GChannelPointsVoting {
   amount_per_vote: u32,
 }
 
-#[derive(GodotClass, Debug)]
+#[derive(GodotClass, Debug, Clone)]
 #[class(init)]
 pub struct GPollBegin {
   #[var]
@@ -66,7 +66,7 @@ pub struct GPollBegin {
   ends_at: GString,
 }
 
-#[derive(GodotClass, Debug)]
+#[derive(GodotClass, Debug, Clone)]
 #[class(init)]
 pub struct GPollProgress {
   #[var]
@@ -87,7 +87,7 @@ pub struct GPollProgress {
   ends_at: GString,
 }
 
-#[derive(GodotClass, Debug)]
+#[derive(GodotClass, Debug, Clone)]
 #[class(init)]
 pub struct GPollEnd {
   #[var]
@@ -119,16 +119,16 @@ impl From<PollBeginData> for GPollBegin {
     }
 
     GPollBegin {
-      id: poll.id.into(),
+      id: poll.id.to_godot(),
       broadcaster: Gd::from_object(GUser::from(poll.broadcaster)),
-      title: poll.title.into(),
+      title: poll.title.to_godot(),
       choices,
       bits_voting: Gd::from_object(GBitsVotingData::from(poll.bits_voting)),
       channel_points_voting: Gd::from_object(GChannelPointsVoting::from(
         poll.channel_points_voting,
       )),
-      started_at: poll.started_at.into(),
-      ends_at: poll.ends_at.into(),
+      started_at: poll.started_at.to_godot(),
+      ends_at: poll.ends_at.to_godot(),
     }
   }
 }
@@ -142,16 +142,16 @@ impl From<PollProgressData> for GPollProgress {
     }
 
     GPollProgress {
-      id: poll.id.into(),
+      id: poll.id.to_godot(),
       broadcaster: Gd::from_object(GUser::from(poll.broadcaster)),
-      title: poll.title.into(),
+      title: poll.title.to_godot(),
       choices,
       bits_voting: Gd::from_object(GBitsVotingData::from(poll.bits_voting)),
       channel_points_voting: Gd::from_object(GChannelPointsVoting::from(
         poll.channel_points_voting,
       )),
-      started_at: poll.started_at.into(),
-      ends_at: poll.ends_at.into(),
+      started_at: poll.started_at.to_godot(),
+      ends_at: poll.ends_at.to_godot(),
     }
   }
 }
@@ -165,17 +165,17 @@ impl From<PollEndData> for GPollEnd {
     }
 
     GPollEnd {
-      id: poll.id.into(),
+      id: poll.id.to_godot(),
       broadcaster: Gd::from_object(GUser::from(poll.broadcaster)),
-      title: poll.title.into(),
+      title: poll.title.to_godot(),
       choices,
       bits_voting: Gd::from_object(GBitsVotingData::from(poll.bits_voting)),
       channel_points_voting: Gd::from_object(GChannelPointsVoting::from(
         poll.channel_points_voting,
       )),
-      started_at: poll.started_at.into(),
-      ended_at: poll.ended_at.into(),
-      status: poll.status.into(),
+      started_at: poll.started_at.to_godot(),
+      ended_at: poll.ended_at.to_godot(),
+      status: poll.status.to_godot(),
     }
   }
 }
@@ -201,8 +201,8 @@ impl From<ChannelPointsVoting> for GChannelPointsVoting {
 impl From<BeginChoices> for GBeginChoices {
   fn from(begin_choices: BeginChoices) -> GBeginChoices {
     GBeginChoices {
-      id: begin_choices.id.into(),
-      title: begin_choices.title.into(),
+      id: begin_choices.id.to_godot(),
+      title: begin_choices.title.to_godot(),
     }
   }
 }
@@ -210,8 +210,8 @@ impl From<BeginChoices> for GBeginChoices {
 impl From<Choices> for GChoices {
   fn from(choices: Choices) -> GChoices {
     GChoices {
-      id: choices.id.into(),
-      title: choices.title.into(),
+      id: choices.id.to_godot(),
+      title: choices.title.to_godot(),
       votes: choices.votes,
       channel_points_votes: choices.channel_points_votes,
       bits_votes: choices.bits_votes,
