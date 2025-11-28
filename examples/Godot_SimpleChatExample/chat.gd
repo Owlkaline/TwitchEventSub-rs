@@ -1,8 +1,10 @@
 extends Panel
 
+var bot_started = false;
 
 # Called when the node enters the scene tree for the first time.
 func _ready() -> void:
+	
 	pass # Replace with function body.
 
 
@@ -11,6 +13,8 @@ func _process(delta: float) -> void:
 	pass
 
 func _on_twitch_event_node_chat_message(message_data: GMessageData) -> void:
+	print(message_data.message.text);
+	
 	var bottom : bool = $ChatScrollContainer.scroll_vertical == $ChatScrollContainer.get_v_scroll_bar().max_value - $ChatScrollContainer.get_v_scroll_bar().get_rect().size.y
 	var label : RichTextLabel = RichTextLabel.new()
 	var time = Time.get_time_dict_from_system()
@@ -22,10 +26,11 @@ func _on_twitch_event_node_chat_message(message_data: GMessageData) -> void:
 	label.pop()
 	label.push_font_size(14)
 #	
-	var badges: Array[GBadgeVersion] = %TwitchEventNode.get_badges_urls(message_data.badges);
-	for badge in badges:
-		label.add_image(%TwitchEventNode.get_static_texture_from_url(badge.images.url_1x));
-	label.push_bold()
+	
+	#var badges: Array[GBadgeVersion] = %TwitchEventNode.get_badges_urls(message_data.badges);
+	#for badge in badges:
+	#	label.add_image(%TwitchEventNode.get_static_texture_from_url(badge.images.url_1x));
+	#label.push_bold()
 	
 	if (message_data.colour != ""):
 		label.push_color(Color(message_data.colour));
@@ -47,4 +52,9 @@ func _on_twitch_event_node_chat_message(message_data: GMessageData) -> void:
 
 
 func _on_twitch_event_node_custom_point_reward_redeem(reward: GCustomRewardRedeem) -> void:
-	print("A channel point redeem was just redeem: {}", reward.title);
+	print("A channel point redeem was just redeem: {}", reward.reward.title);
+	%TwitchEventNode.send_chat_message("Test not bot message")
+	#if (!bot_started):
+	#	%TwitchBotNode.start_twitchevents()
+	#	bot_started = true
+	#%TwitchBotNode.send_chat_message("Im a bot account kekw")

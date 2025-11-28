@@ -994,12 +994,18 @@ impl TwitchEventNode {
       token = token.add_subscription(Subscription::PermissionReadChatters);
     }
 
+    println!("Subscriptions from builder: {}", token.subscriptions.len());
+
     match token
       .env_file(&format!(".{}.env", self.env_file_name))
       .override_redirect_url(&self.redirect_url.to_string())
       .build()
     {
-      Ok(new_token) => self.token = new_token,
+      Ok(new_token) => {
+        println!("new token was created succcesfully");
+        println!("Subscriptions of new token: {}", new_token.subscriptions.len());
+        self.token = new_token
+      },
       Err(e) => match e {
         TokenBuilderError::ClientIdNotSet => {
           self.create_popup(None, Some(self.token.client_secret.clone()));
@@ -1013,6 +1019,7 @@ impl TwitchEventNode {
           panic!("Do something unique");
         }
         TokenBuilderError::EnvDoesntExist => {
+          panic!("EnvDoesntExist")
           // do nothing?
         }
         TokenBuilderError::InvalidClientIdOrSecret => {
@@ -1026,6 +1033,8 @@ impl TwitchEventNode {
         TokenBuilderError::InvalidUserToken => panic!("Why did this happen?"),
       },
     }
+
+    println!("subscriptions: {}", self.token.subscriptions.len());
 
     let mut twitch = TwitchEventSubApi::builder(self.token.clone()); //.enable_irc();
     match twitch.build(&self.broadcaster_username.to_string()) {

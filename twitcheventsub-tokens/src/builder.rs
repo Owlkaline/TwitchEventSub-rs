@@ -52,7 +52,7 @@ pub struct TokenHandlerBuilder {
   use_specific_account: Option<String>,
   is_bot: bool,
   override_redirect_url: Option<String>,
-  subscriptions: Vec<Subscription>,
+pub  subscriptions: Vec<Subscription>,
 }
 
 impl Default for TokenHandlerBuilder {
@@ -128,7 +128,7 @@ impl TokenHandlerBuilder {
       env: self.env_file.clone(),
       user_token_env: self.env_user_token_file.clone(),
       refresh_token_env: self.env_refresh_token_file.clone(),
-      subscriptions: Vec::new(),
+      subscriptions: self.subscriptions.clone(),
     }
   }
 

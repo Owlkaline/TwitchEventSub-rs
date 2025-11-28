@@ -1,11 +1,13 @@
-[gd_scene load_steps=2 format=3 uid="uid://cyyhwe7qi0ikw"]
+[gd_scene load_steps=3 format=3 uid="uid://cyyhwe7qi0ikw"]
 
 [ext_resource type="Script" path="res://chat.gd" id="1_gu7eb"]
+[ext_resource type="Script" path="res://label_tween.gd" id="2_ac3g1"]
 
 [node name="SimpleChat" type="Node2D"]
 position = Vector2(56, 0)
 
 [node name="ChatContainer" type="AspectRatioContainer" parent="."]
+visible = false
 show_behind_parent = true
 offset_left = -57.0
 offset_top = 4.0
@@ -35,17 +37,32 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 
-[node name="TwitchEventNode" type="TwitchEventNode" parent="."]
+[node name="TwitchEventNode" type="TwitchEventNode" parent="ChatContainer"]
+broadcaster_username = "owlkalinevt"
 channel_follow = false
 channel_raid = false
 channel_new_subscription = false
 channel_gift_subscription = false
 channel_resubscription = false
 channel_cheer = false
-channel_points_custom_reward_redeem = false
-channel_points_auto_reward_redeem = false
-channel_ad_break_begin = false
+permission_read_chatters = true
 unique_name_in_owner = true
 
-[connection signal="chat_message" from="TwitchEventNode" to="ChatContainer/Chat" method="_on_twitch_event_node_chat_message"]
-[connection signal="custom_point_reward_redeem" from="TwitchEventNode" to="ChatContainer/Chat" method="_on_twitch_event_node_custom_point_reward_redeem"]
+[node name="Panel" type="Panel" parent="ChatContainer/TwitchEventNode"]
+visible = false
+offset_left = 6.0
+offset_top = 9.0
+offset_right = 152.0
+offset_bottom = 40.0
+script = ExtResource("2_ac3g1")
+
+[node name="Label" type="Label" parent="ChatContainer/TwitchEventNode/Panel"]
+layout_mode = 0
+offset_left = 1.0
+offset_top = 3.0
+offset_right = 144.0
+offset_bottom = 26.0
+text = "Twitch Connected!"
+
+[connection signal="chat_message" from="ChatContainer/TwitchEventNode" to="ChatContainer/Chat" method="_on_twitch_event_node_chat_message"]
+[connection signal="custom_point_reward_redeem" from="ChatContainer/TwitchEventNode" to="ChatContainer/Chat" method="_on_twitch_event_node_custom_point_reward_redeem"]
