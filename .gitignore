@@ -2,7 +2,6 @@
 *.zip
 **/*.rs.bk
 *~
-Cargo.lock
 resources/imgui.ini
 resources/Controls.ini
 resources/ptah
