@@ -185,19 +185,15 @@ impl TokenHandler {
     message: &str,
     colour: Option<P>,
   ) -> Result<String, TwitchApiError> {
-    self
-      .regen_tokens_on_fail(twitcheventsub_api::send_announcement(
-        &self.user_token,
-        &self.client_id,
-        &self.client_twitch_id,
-        broadcaster_id,
-        message,
-        colour,
-      ))
-      .and_then(|data| match serde_json::from_str(&data) {
-        Ok(data) => Ok(data),
-        Err(e) => Err(TwitchApiError::DeserialisationError(e.to_string())),
-      })
+    let _ = self.regen_tokens_on_fail(twitcheventsub_api::send_announcement(
+      &self.user_token,
+      &self.client_id,
+      &self.client_twitch_id,
+      broadcaster_id,
+      message,
+      colour,
+    ));
+    return Ok("success".to_owned())
   }
 
   pub fn send_shoutout(
