@@ -64,7 +64,6 @@ pub fn events(
   let mut irc_messages: Vec<(Instant, IRCMessage)> = Vec::new();
 
   loop {
-    
     if let Ok(true) = should_quit_receiver.try_recv() {
       return;
     }
@@ -148,7 +147,7 @@ pub fn events(
         match message.event_type() {
           EventMessageType::Welcome => {
             #[cfg(feature = "logging")]
-            error!("EventSub: Welcome message!");
+            info!("EventSub: Welcome message!");
             let session_id = message.clone().payload.unwrap().session.unwrap().id;
 
             if !is_reconnecting {
@@ -168,7 +167,7 @@ pub fn events(
               sub_data.append(&mut custom_subscriptions);
 
               #[cfg(feature = "logging")]
-              error!("EventSub: Subscribing to events!");
+              info!("EventSub: Subscribing to events!");
               let failed_to_communicate_with_main_thread = sub_data
                 .iter()
                 .map(|sub_data| {
@@ -197,7 +196,7 @@ pub fn events(
 
               //twitch_keys = clone_twitch_keys;
               #[cfg(feature = "logging")]
-              error!("Twitch Event loop is ready!");
+              info!("Twitch Event loop is ready!");
               message_sender
                 .send(ResponseType::Ready)
                 .expect("Failed to send ready back to main thread.");
