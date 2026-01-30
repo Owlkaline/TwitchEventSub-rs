@@ -15,7 +15,7 @@ exclude = ["examples/*"]
 default = ["logging"]
 only_raw_responses = []
 #godot = ["dep:godot"]
-bevy = ["twitcheventsub-structs/bevy"]
+bevy = ["twitcheventsub-tokens/bevy", "twitcheventsub-structs/bevy"]
 logging = ["dep:log"]
 
 [dependencies]

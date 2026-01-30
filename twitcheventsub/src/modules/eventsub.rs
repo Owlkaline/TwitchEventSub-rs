@@ -206,12 +206,12 @@ pub fn events(
           }
           EventMessageType::KeepAlive => {
             #[cfg(feature = "logging")]
-            error!("EventSub: Keep alive: {}", last_message.elapsed().as_secs());
+            info!("EventSub: Keep alive: {}", last_message.elapsed().as_secs());
             last_message = Instant::now();
           }
           EventMessageType::Reconnect => {
             #[cfg(feature = "logging")]
-            error!("EventSub: Twitch requested reconnection");
+            warn!("EventSub: Twitch requested reconnection");
             let url = message
               .clone()
               .payload

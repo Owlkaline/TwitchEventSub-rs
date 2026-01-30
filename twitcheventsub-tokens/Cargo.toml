@@ -12,6 +12,7 @@ exclude = ["examples/*"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [features]
+bevy = ["dep:bevy_ecs"]
 
 [dependencies]
 env-file-reader = "0.3.0"
@@ -27,3 +28,4 @@ serde_json.workspace = true
 twitcheventsub-structs.workspace = true
 twitcheventsub-api.workspace = true
 serde_with.workspace = true
+bevy_ecs = { version = "0.18", optional = true }

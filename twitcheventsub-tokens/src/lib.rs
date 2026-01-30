@@ -18,7 +18,11 @@ pub use custom_redeems::*;
 
 use crate::builder::{generate_authorisation_code, get_input};
 
-#[derive(Default, Clone, Debug)]
+#[cfg_attr(
+  feature = "bevy",
+  derive(Default, Clone, Debug, bevy_ecs::prelude::Resource)
+)]
+#[cfg_attr(not(feature = "bevy"), derive(Default, Debug, Clone))]
 pub struct TokenHandler {
   pub user_token: String,
   pub refresh_token: String,

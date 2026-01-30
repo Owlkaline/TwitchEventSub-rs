@@ -1,5 +1,5 @@
 #[cfg(feature = "bevy")]
-use bevy_ecs::prelude::Event as BevyEvent;
+use bevy_ecs::prelude::Message as BevyEvent;
 
 use crate::prelude::*;
 use crate::{Deserialise, Serialise};

@@ -162,10 +162,10 @@ impl TwitchEventSubApi {
     //}
 
     // if use_irc_channel {
-      // let mut new_irc = IRCChat::new(&token_user.login, &tokens.user_token);
-      // new_irc.join_channel(&broadcaster_user.login);
-      
-      // irc = Some(new_irc);
+    // let mut new_irc = IRCChat::new(&token_user.login, &tokens.user_token);
+    // new_irc.join_channel(&broadcaster_user.login);
+
+    // irc = Some(new_irc);
     // }
 
     #[cfg(feature = "logging")]
