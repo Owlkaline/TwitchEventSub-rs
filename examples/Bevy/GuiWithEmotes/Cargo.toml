@@ -1,0 +1,17 @@
+
+[package]
+name = "twitcheventsub-bevy-chat-example"
+version = "0.18.0"
+edition = "2024"
+
+[dependencies]
+attohttpc = "0.30.1"
+bevy = { version = "0.18.0", features = ["2d", "gif"] }
+bevy_asset_loader = { version = "0.25.0", features = ["2d"] }
+bevy_text_animation = "0.6.1"
+image = "0.25.9"
+twitcheventsub = { git = "https://github.com/Owlkaline/TwitchEventSub-rs.git", features = [
+  "bevy",
+] }
+# updated easy gif to bevy 0.18.0, update once pr has finished
+bevy_easy_gif = { git = "https://github.com/Owlkaline/bevy-easy-gif" }

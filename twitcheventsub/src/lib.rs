@@ -23,6 +23,8 @@ pub mod prelude {
   pub use twitcheventsub_structs::prelude::*;
   pub use twitcheventsub_tokens;
 
+  #[cfg(feature = "bevy")]
+  pub use crate::modules::bevy::*;
   pub use crate::modules::{bttv::*, emotebuilder::*};
 }
 

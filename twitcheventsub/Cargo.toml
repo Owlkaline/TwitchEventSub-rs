@@ -15,7 +15,7 @@ exclude = ["examples/*"]
 default = ["logging"]
 only_raw_responses = []
 #godot = ["dep:godot"]
-bevy = ["twitcheventsub-tokens/bevy", "twitcheventsub-structs/bevy"]
+bevy = ["dep:bevy_app", "dep:bevy_time", "dep:bevy_derive", "dep:bevy_state", "dep:bevy_ecs", "twitcheventsub-tokens/bevy", "twitcheventsub-structs/bevy"]
 logging = ["dep:log"]
 
 [dependencies]
@@ -32,6 +32,11 @@ twitcheventsub-structs.workspace = true
 twitcheventsub-tokens.workspace = true
 twitcheventsub-api.workspace = true
 serde_with.workspace = true
+bevy_ecs = { version="0.18.0", optional = true }
+bevy_state = { version="0.18.0", optional = true }
+bevy_derive = { version="0.18.0", optional = true }
+bevy_time = { version="0.18.0", optional = true }
+bevy_app = { version="0.18.0", optional = true }
 
 [[example]]
 name = "chat_messages"

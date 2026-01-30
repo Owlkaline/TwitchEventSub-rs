@@ -1,0 +1,11 @@
+
+[package]
+name = "twitcheventsub-bevy-simple-example"
+version = "0.18.0"
+edition = "2024"
+
+[dependencies]
+bevy = { version = "0.18.0", features = ["2d"] }
+twitcheventsub = { git = "https://github.com/Owlkaline/TwitchEventSub-rs.git", features = [
+  "bevy",
+] }
