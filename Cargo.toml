@@ -11,7 +11,7 @@ default-members = ["twitcheventsub"]
 resolver = "2"
 
 [workspace.package]
-edition = "2021"
+edition = "2024"
 description = "A library that handles everything with Twitch EventSub helix api for you."
 repository = "https://github.com/lilith645/TwitchEventSub-rs.git"
 authors = ["Owlkaline <owlkaline@inet-sys.com>"]

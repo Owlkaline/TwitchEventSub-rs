@@ -10,7 +10,7 @@ use std::{
 use log::warn;
 #[cfg(feature = "logging")]
 use log::{error, info};
-use tungstenite::{connect, stream::MaybeTlsStream, Error, Message as NetworkMessage, WebSocket};
+use tungstenite::{Error, Message as NetworkMessage, WebSocket, connect, stream::MaybeTlsStream};
 use twitcheventsub_api::TwitchHttpRequest;
 use twitcheventsub_structs::prelude::{
   EventMessageType, GenericMessage, Subscription, TwitchEvent,
@@ -19,7 +19,7 @@ use twitcheventsub_tokens::TokenHandler;
 
 use super::irc_bot::IRCChat;
 use super::{bttv::BTTV, irc_bot};
-use crate::{EventSubError, ResponseType, CONNECTION_EVENTS, SUBSCRIBE_URL};
+use crate::{CONNECTION_EVENTS, EventSubError, ResponseType, SUBSCRIBE_URL};
 
 #[allow(clippy::too_many_arguments)]
 pub fn events(
@@ -235,7 +235,7 @@ pub fn events(
             last_message = Instant::now();
             let mut message = message.payload.unwrap().event.unwrap();
 
-            if let TwitchEvent::ChatMessage(ref mut msg) = &mut message {
+            if let TwitchEvent::ChatMessage(msg) = &mut message {
               for (_, irc_message) in irc_messages.iter() {
                 if irc_message.display_name == msg.chatter.name &&
                   irc_message.message.contains(&msg.message.text)

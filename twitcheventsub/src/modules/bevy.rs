@@ -12,11 +12,11 @@ use bevy_time::common_conditions::on_timer;
 use bevy_time::prelude::*;
 
 use crate::{
-  prelude::{
-    twitcheventsub_api::TwitchApiError, twitcheventsub_tokens::TokenHandler, Subscription,
-    TwitchEvent,
-  },
   EventSubError, ResponseType, TwitchEventSubApi,
+  prelude::{
+    Subscription, TwitchEvent, twitcheventsub_api::TwitchApiError,
+    twitcheventsub_tokens::TokenHandler,
+  },
 };
 
 #[derive(Resource)]
@@ -28,30 +28,7 @@ pub struct TwitchInfo {
 impl TwitchInfo {
   pub fn recommended(username: &str) -> TwitchInfo {
     TwitchInfo {
-      subscriptions: vec![
-        Subscription::ChatMessage,
-        Subscription::AdBreakBegin,
-        Subscription::ChannelPointsCustomRewardRedeem,
-        Subscription::ChannelPointsAutoRewardRedeem,
-        Subscription::ChannelFollow,
-        Subscription::ChannelRaid,
-        Subscription::ChannelNewSubscription,
-        Subscription::ChannelGiftSubscription,
-        Subscription::ChannelResubscription,
-        Subscription::ChannelCheer,
-        Subscription::ChannelHypeTrainBegin,
-        Subscription::ChannelHypeTrainProgress,
-        Subscription::ChannelHypeTrainEnd,
-        Subscription::ChannelUserBanned,
-        Subscription::ChannelMessageDeleted,
-        Subscription::PermissionReadModerator,
-        Subscription::PermissionDeleteMessage,
-        Subscription::PermissionReadChatters,
-        Subscription::PermissionSendAnnouncements,
-        Subscription::PermissionManageRewards,
-        Subscription::PermissionIRCRead,
-        Subscription::PermissionIRCWrite,
-      ],
+      subscriptions: Subscription::recommended(),
       username: username.to_string(),
     }
   }

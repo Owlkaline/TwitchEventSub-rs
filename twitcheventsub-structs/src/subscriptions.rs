@@ -83,6 +83,33 @@ pub struct EventSubscription {
 }
 
 impl Subscription {
+  pub fn recommended() -> Vec<Subscription> {
+    vec![
+      Subscription::ChatMessage,
+      Subscription::AdBreakBegin,
+      Subscription::ChannelPointsCustomRewardRedeem,
+      Subscription::ChannelPointsAutoRewardRedeem,
+      Subscription::ChannelFollow,
+      Subscription::ChannelRaid,
+      Subscription::ChannelNewSubscription,
+      Subscription::ChannelGiftSubscription,
+      Subscription::ChannelResubscription,
+      Subscription::ChannelCheer,
+      Subscription::ChannelHypeTrainBegin,
+      Subscription::ChannelHypeTrainProgress,
+      Subscription::ChannelHypeTrainEnd,
+      Subscription::ChannelUserBanned,
+      Subscription::ChannelMessageDeleted,
+      Subscription::PermissionReadModerator,
+      Subscription::PermissionDeleteMessage,
+      Subscription::PermissionReadChatters,
+      Subscription::PermissionSendAnnouncements,
+      Subscription::PermissionManageRewards,
+      Subscription::PermissionIRCRead,
+      Subscription::PermissionIRCWrite,
+    ]
+  }
+
   pub fn get_subscriptions_for_bot() -> Vec<Subscription> {
     vec![
       Subscription::PermissionWriteToChat,
@@ -305,7 +332,7 @@ impl Subscription {
       Subscription::PermissionIRCRead => ("", "chat:read", ""),
       Subscription::PermissionIRCWrite => ("", "chat:edit", ""),
       Subscription::PermissionWriteToChat => ("", "user:write:chat", ""),
-      Subscription::Custom(ref boxed) => {
+      Subscription::Custom(boxed) => {
         let (ref tag, ref scope, _) = **boxed;
         (tag.as_str(), scope.as_str(), "")
       }

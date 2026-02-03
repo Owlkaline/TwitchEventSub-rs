@@ -38,12 +38,22 @@ bevy_derive = { version="0.18.0", optional = true }
 bevy_time = { version="0.18.0", optional = true }
 bevy_app = { version="0.18.0", optional = true }
 
-[[example]]
-name = "chat_messages"
-path = "../examples/chat_messages.rs"
-doc-scrape-examples = true
-
-[package.metadata.example.chat_messages]
-name = "Chat Messages"
-description = "Illustrates recieving and sending chat messages"
-category = "Api"
+#[[example]]
+#name = "bevy_simple"
+#path = "../examples/Bevy/Simple/src/main.rs"
+#doc-scrape-examples = true
+#
+#[package.metadata.example.bevy_simple]
+#name = "bevy_simple"
+#description = "Illustrates recieving and sending chat messages, with bevy"
+#category = "Api"
+#
+#[[example]]
+#name = "bevy_gui_with_emotes"
+#path = "../examples/Bevy/GuiWithEmotes/src/main.rs"
+#doc-scrape-examples = true
+#
+#[package.metadata.example.bevy_gui_with_emotes]
+#name = "bevy_gui_with_emotes"
+#description = "Illustrates recieving and sending chat messages, loading emotes and displaying them on screen with bevy."
+#category = "Api"
