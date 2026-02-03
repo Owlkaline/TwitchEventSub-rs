@@ -1,0 +1,11 @@
+
+[package]
+name = "twitch_auth_only"
+version = "0.18.0"
+edition = "2024"
+
+[dependencies]
+twitcheventsub-tokens = { git = "https://github.com/Owlkaline/TwitchEventSub-rs.git" }
+twitcheventsub-structs = { git = "https://github.com/Owlkaline/TwitchEventSub-rs.git" }
+
+[workspace]

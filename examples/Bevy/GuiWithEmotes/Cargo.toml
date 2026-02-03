@@ -4,6 +4,8 @@ name = "twitcheventsub-bevy-chat-example"
 version = "0.18.0"
 edition = "2024"
 
+[workspace]
+
 [dependencies]
 attohttpc = "0.30.1"
 bevy = { version = "0.18.0", features = ["2d", "gif"] }
