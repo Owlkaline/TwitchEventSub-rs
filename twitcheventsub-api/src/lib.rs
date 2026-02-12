@@ -1,6 +1,6 @@
 #![allow(clippy::uninlined_format_args)]
 use std::{
-  io::{stdin, BufRead, Read},
+  io::{BufRead, Read, stdin},
   net::TcpListener,
 };
 
@@ -508,7 +508,7 @@ pub fn timeout_user(
   moderator_id: &str,
   broadcaster_id: &str,
   user_id: &str,
-  duration_secs: u32,
+  duration_secs: Option<u32>,
   reason: &str,
 ) -> Result<String, TwitchApiError> {
   let url = RequestBuilder::new()

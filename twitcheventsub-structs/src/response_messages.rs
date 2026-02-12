@@ -45,7 +45,7 @@ impl Validation {
 #[derive(Serialise, Deserialise, Debug, Clone)]
 pub struct TimeoutRequestData {
   pub user_id: String,
-  pub duration: u32,
+  pub duration: Option<u32>,
   pub reason: String,
 }
 

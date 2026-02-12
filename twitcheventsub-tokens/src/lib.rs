@@ -2,7 +2,7 @@
 use env_handler::EnvHandler;
 use log::warn;
 use twitcheventsub_api::{
-  self, get_user_and_refresh_token_from_authorisation_code, validate_token, TwitchApiError,
+  self, TwitchApiError, get_user_and_refresh_token_from_authorisation_code, validate_token,
 };
 use twitcheventsub_structs::prelude::{
   AdSchedule, ChannelEmotes, Clips, CreateCustomReward, CreatedCustomRewardResponse, GetChatters,
@@ -241,7 +241,24 @@ impl TokenHandler {
       &self.client_twitch_id,
       broadcaster_id,
       user_id,
-      duration_secs,
+      Some(duration_secs),
+      reason,
+    ))
+  }
+
+  pub fn ban_user(
+    &mut self,
+    broadcaster_id: &str,
+    user_id: &str,
+    reason: &str,
+  ) -> Result<String, TwitchApiError> {
+    self.regen_tokens_on_fail(twitcheventsub_api::timeout_user(
+      &self.user_token,
+      &self.client_id,
+      &self.client_twitch_id,
+      broadcaster_id,
+      user_id,
+      None,
       reason,
     ))
   }
