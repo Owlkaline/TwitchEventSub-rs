@@ -262,6 +262,7 @@ pub enum TwitchEvent {
   MessageDeleted(MessageDeletedData),
   ShoutoutReceive(ShoutoutReceiveData),
   ShoutoutCreate(ShoutoutCreateData),
+  ModeratorEvent(ModeratorEvent),
   UserBanned(UserBannedData),
   StreamOnline(StreamOnlineData),
   StreamOffline(StreamOfflineData),

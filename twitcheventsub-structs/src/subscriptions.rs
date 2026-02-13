@@ -57,12 +57,26 @@ pub enum Subscription {
   ChannelShoutoutReceive,
   ChannelMessageDeleted,
   ChannelUserBanned,
+  ChannelModerate,
   ChatMessage,
   AdBreakBegin,
   PermissionBanTimeoutUser,
   PermissionDeleteMessage,
   PermissionReadChatters,
   PermissionReadModerator,
+  PermissionReadBlockedTerms,
+  PermissionReadChatSettings,
+  PermissionReadUnbanRequests,
+  PermissionReadBannedUsers,
+  PermissionReadChatMessages,
+  PermissionReadWarnings,
+  PermissionReadVip,
+  PermissionManageBlockedTerms,
+  PermissionManageChatSettings,
+  PermissionManageUnbanRequests,
+  PermissionManageBannedUsers,
+  PermissionManageChatMessages,
+  PermissionManageWarnings,
   PermissionManageRewards,
   PermissionSendAnnouncements,
   PermissionIRCRead,
@@ -110,6 +124,33 @@ impl Subscription {
     ]
   }
 
+  pub fn get_permissions_moderator_read() -> Vec<Subscription> {
+    vec![
+      Subscription::PermissionReadChatters,
+      Subscription::PermissionReadModerator,
+      Subscription::PermissionReadBlockedTerms,
+      Subscription::PermissionReadChatSettings,
+      Subscription::PermissionReadUnbanRequests,
+      Subscription::PermissionReadBannedUsers,
+      Subscription::PermissionReadChatMessages,
+      Subscription::PermissionReadWarnings,
+      Subscription::PermissionReadVip,
+    ]
+  }
+
+  pub fn get_permissions_moderator_manage() -> Vec<Subscription> {
+    vec![
+      Subscription::PermissionManageBlockedTerms,
+      Subscription::PermissionManageChatSettings,
+      Subscription::PermissionManageUnbanRequests,
+      Subscription::PermissionManageBannedUsers,
+      Subscription::PermissionManageChatMessages,
+      Subscription::PermissionManageWarnings,
+      Subscription::PermissionReadWarnings,
+      Subscription::PermissionReadVip,
+    ]
+  }
+
   pub fn get_subscriptions_for_bot() -> Vec<Subscription> {
     vec![
       Subscription::PermissionWriteToChat,
@@ -131,7 +172,20 @@ impl Subscription {
         Subscription::PermissionSendAnnouncements |
         Subscription::PermissionIRCRead |
         Subscription::PermissionIRCWrite |
-        Subscription::PermissionWriteToChat
+        Subscription::PermissionWriteToChat |
+        Subscription::PermissionReadBlockedTerms |
+        Subscription::PermissionReadChatSettings |
+        Subscription::PermissionReadUnbanRequests |
+        Subscription::PermissionReadBannedUsers |
+        Subscription::PermissionReadChatMessages |
+        Subscription::PermissionReadWarnings |
+        Subscription::PermissionReadVip |
+        Subscription::PermissionManageBlockedTerms |
+        Subscription::PermissionManageChatSettings |
+        Subscription::PermissionManageUnbanRequests |
+        Subscription::PermissionManageBannedUsers |
+        Subscription::PermissionManageChatMessages |
+        Subscription::PermissionManageWarnings
     )
   }
 
@@ -164,11 +218,25 @@ impl Subscription {
     ChannelShoutoutReceive,
     ChannelMessageDeleted,
     ChannelUserBanned,
+    ChannelModerate,
     ChatMessage,
     PermissionBanTimeoutUser,
     PermissionDeleteMessage,
     PermissionReadChatters,
     PermissionReadModerator,
+    PermissionReadBlockedTerms,
+    PermissionReadChatSettings,
+    PermissionReadUnbanRequests,
+    PermissionReadBannedUsers,
+    PermissionReadChatMessages,
+    PermissionReadWarnings,
+    PermissionReadVip,
+    PermissionManageBlockedTerms,
+    PermissionManageChatSettings,
+    PermissionManageUnbanRequests,
+    PermissionManageBannedUsers,
+    PermissionManageChatMessages,
+    PermissionManageWarnings,
     PermissionManageRewards,
     PermissionSendAnnouncements,
     PermissionWriteToChat,
@@ -206,11 +274,25 @@ impl Subscription {
     ChannelShoutoutReceive,
     ChannelMessageDeleted,
     ChannelUserBanned,
+    ChannelModerate,
     ChatMessage,
     PermissionBanTimeoutUser,
     PermissionDeleteMessage,
     PermissionReadChatters,
     PermissionReadModerator,
+    PermissionReadBlockedTerms,
+    PermissionReadChatSettings,
+    PermissionReadUnbanRequests,
+    PermissionReadBannedUsers,
+    PermissionReadChatMessages,
+    PermissionReadWarnings,
+    PermissionReadVip,
+    PermissionManageBlockedTerms,
+    PermissionManageChatSettings,
+    PermissionManageUnbanRequests,
+    PermissionManageBannedUsers,
+    PermissionManageChatMessages,
+    PermissionManageWarnings,
     PermissionManageRewards,
     PermissionSendAnnouncements,
     PermissionWriteToChat,
@@ -321,14 +403,39 @@ impl Subscription {
         "moderator:read:shoutouts+moderator:manage:shoutouts",
         "1",
       ),
+      // Channelmoderator always need these 2 permissions
+      // Then it additionally needs you to to have read or manage versions of a bunch of
+      // other scopes, including all subscriptions in the
+      // Subscription::get_permissions_moderator_read();
+      // or
+      // Subscription::get_permissions_moderator_manage();
+      // Will allow Channel moderate events to work.
+      Subscription::ChannelModerate => (
+        "channel.moderate",
+        "moderator:read:moderators+moderator:read:vips",
+        "2",
+      ),
       Subscription::ChannelUserBanned => ("channel.ban", "channel:moderate", "1"),
       Subscription::ChannelMessageDeleted => ("channel.chat.message_delete", "user:read:chat", "1"),
       Subscription::PermissionBanTimeoutUser => ("", "moderator:manage:banned_users", ""),
       Subscription::PermissionDeleteMessage => ("", "moderator:manage:chat_messages", ""),
       Subscription::PermissionReadChatters => ("", "moderator:read:chatters", ""),
-      Subscription::PermissionReadModerator => ("", "moderation:read", ""),
+      Subscription::PermissionReadModerator => ("", "moderation:read:moderators", ""),
       Subscription::PermissionManageRewards => ("", "channel:manage:redemptions", ""),
       Subscription::PermissionSendAnnouncements => ("", "moderator:manage:announcements", ""),
+      Subscription::PermissionReadBlockedTerms => ("", "moderator:read:blocked_terms", ""),
+      Subscription::PermissionReadChatSettings => ("", "moderator:read:chat_settings", ""),
+      Subscription::PermissionReadUnbanRequests => ("", "moderator:read:unban_requests", ""),
+      Subscription::PermissionReadBannedUsers => ("", "moderator:read:banned_users", ""),
+      Subscription::PermissionReadChatMessages => ("", "moderator:read:chat_messages", ""),
+      Subscription::PermissionReadWarnings => ("", "moderator:read:warnings", ""),
+      Subscription::PermissionReadVip => ("", "moderator:read:vips", ""),
+      Subscription::PermissionManageBlockedTerms => ("", "moderator:manage:blocked_terms", ""),
+      Subscription::PermissionManageChatSettings => ("", "moderator:manage:chat_settings", ""),
+      Subscription::PermissionManageUnbanRequests => ("", "moderator:manage:unban_requests", ""),
+      Subscription::PermissionManageBannedUsers => ("", "moderator:manage:banned_users", ""),
+      Subscription::PermissionManageChatMessages => ("", "moderator:manage:chat_messages", ""),
+      Subscription::PermissionManageWarnings => ("", "moderator:manage:warnings", ""),
       Subscription::PermissionIRCRead => ("", "chat:read", ""),
       Subscription::PermissionIRCWrite => ("", "chat:edit", ""),
       Subscription::PermissionWriteToChat => ("", "user:write:chat", ""),
@@ -386,10 +493,10 @@ impl Subscription {
       Subscription::UserUpdate => {
         event_subscription.condition(condition.user_id(user_id_in_access_token.to_owned()))
       }
-      Subscription::ChannelShoutoutReceive | Subscription::ChannelShoutoutCreate => {
-        event_subscription
-          .condition(condition.moderator_user_id(user_id_in_access_token.to_owned()))
-      }
+      Subscription::ChannelShoutoutReceive |
+      Subscription::ChannelShoutoutCreate |
+      Subscription::ChannelModerate => event_subscription
+        .condition(condition.moderator_user_id(user_id_in_access_token.to_owned())),
       Subscription::ChannelNewSubscription |
       Subscription::ChannelSubscriptionEnd |
       Subscription::ChannelGiftSubscription |

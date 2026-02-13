@@ -575,6 +575,17 @@ pub struct UserBannedData {
 }
 
 #[derive(Serialise, Deserialise, Clone, Debug)]
+pub struct UserAction {
+  #[serde(flatten)]
+  pub user: User,
+  reason: String,
+  timeout: String,
+  message_id: String,
+  message_body: String,
+  viewer_count: Option<u32>,
+}
+
+#[derive(Serialise, Deserialise, Clone, Debug)]
 pub struct StreamOnlineData {
   pub id: String,
   #[serde(flatten, with = "prefix_broadcaster")]
@@ -588,4 +599,118 @@ pub struct StreamOnlineData {
 pub struct StreamOfflineData {
   #[serde(flatten, with = "prefix_broadcaster")]
   pub broadcaster: User,
+}
+
+#[derive(Serialise, Deserialise, Clone, Debug)]
+pub enum ModeratorAction {
+  #[serde(rename = "ban")]
+  Ban,
+  #[serde(rename = "timeout")]
+  Timeout,
+  #[serde(rename = "unban")]
+  Unban,
+  #[serde(rename = "untimeout")]
+  Untimeout,
+  #[serde(rename = "clear")]
+  Clear,
+  #[serde(rename = "emoteonly")]
+  EmoteOnly,
+  #[serde(rename = "emoteonlyoff")]
+  EmoteOnlyOff,
+  #[serde(rename = "followers")]
+  Followers,
+  #[serde(rename = "followersoff")]
+  FollowersOff,
+  #[serde(rename = "uniquechat")]
+  UniqueChat,
+  #[serde(rename = "uniquechatoff")]
+  UniqueChatOff,
+  #[serde(rename = "slow")]
+  Slow,
+  #[serde(rename = "slowoff")]
+  SlowOff,
+  #[serde(rename = "subscribers")]
+  Subscribers,
+  #[serde(rename = "subscribersoff")]
+  SubscribersOff,
+  #[serde(rename = "unraid")]
+  Unraid,
+  #[serde(rename = "delete")]
+  Delete,
+  #[serde(rename = "unvip")]
+  Unvip,
+  #[serde(rename = "vip")]
+  Vip,
+  #[serde(rename = "raid")]
+  Raid,
+  #[serde(rename = "add_blocked_term")]
+  AddBlockedTerm,
+  #[serde(rename = "add_permitted_term")]
+  AddPermittedTerm,
+  #[serde(rename = "remove_blocked_term")]
+  RemoveBlockedTerm,
+  #[serde(rename = "remove_permitted_term")]
+  RemovePermittedTerm,
+  #[serde(rename = "mod")]
+  Mod,
+  #[serde(rename = "unmod")]
+  Unmod,
+  #[serde(rename = "approve_unban_request")]
+  ApproveUnbanRequest,
+  #[serde(rename = "deny_unban_request")]
+  DenyUnbanRequest,
+  #[serde(rename = "warn")]
+  Warn,
+  #[serde(rename = "shared_chat_ban")]
+  SharedChatBan,
+  #[serde(rename = "shared_chat_timeout")]
+  SharedChatTimeout,
+  #[serde(rename = "shared_chat_unban")]
+  SharedChatUnban,
+  #[serde(rename = "shared_chat_untimeout")]
+  SharedChatUntimeout,
+  #[serde(rename = "shared_chat_delete")]
+  SharedChatDelete,
+}
+
+#[derive(Serialise, Deserialise, Clone, Debug)]
+pub struct Followers {
+  follow_duration_minutes: u32,
+}
+
+#[derive(Serialise, Deserialise, Clone, Debug)]
+pub struct Slow {
+  wait_time_seconds: u32,
+}
+
+#[derive(Serialise, Deserialise, Clone, Debug)]
+pub struct ModeratorEvent {
+  #[serde(flatten, with = "prefix_broadcaster")]
+  pub broadcaster: User,
+  #[serde(flatten, with = "prefix_source_broadcaster")]
+  pub source: User,
+  #[serde(flatten, with = "prefix_moderator")]
+  pub moderator: User,
+  pub action: ModeratorAction,
+  pub followers: Option<Followers>,
+  pub slow: Option<Slow>,
+  pub vip: Option<User>,
+  pub unvip: Option<User>,
+  #[serde(rename = "mod")]
+  pub mod_user: Option<User>,
+  pub unmod: Option<User>,
+  pub ban: Option<UserAction>,
+  pub timeout: Option<UserAction>,
+  pub untimeout: Option<UserAction>,
+  pub raid: Option<UserAction>,
+  pub unraid: Option<UserAction>,
+  pub delete: Option<UserAction>,
+  pub automod_terms: Option<String>,         // TODO:
+  pub unban_request: Option<String>,         // TODO:
+  pub warn: Option<String>,                  // TODO:
+  pub shared_chat_ban: Option<String>,       // TODO:
+  pub shared_chat_unban: Option<String>,     // TODO:
+  pub shared_chat_timeout: Option<String>,   // TODO:
+  pub shared_chat_untimeout: Option<String>, // TODO:
+  pub shared_chat_delete: Option<String>,    // TODO:
 }
