@@ -420,7 +420,7 @@ impl Subscription {
       Subscription::PermissionBanTimeoutUser => ("", "moderator:manage:banned_users", ""),
       Subscription::PermissionDeleteMessage => ("", "moderator:manage:chat_messages", ""),
       Subscription::PermissionReadChatters => ("", "moderator:read:chatters", ""),
-      Subscription::PermissionReadModerator => ("", "moderation:read:moderators", ""),
+      Subscription::PermissionReadModerator => ("", "moderator:read:moderators", ""),
       Subscription::PermissionManageRewards => ("", "channel:manage:redemptions", ""),
       Subscription::PermissionSendAnnouncements => ("", "moderator:manage:announcements", ""),
       Subscription::PermissionReadBlockedTerms => ("", "moderator:read:blocked_terms", ""),
