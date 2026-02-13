@@ -3,7 +3,7 @@ use core::fmt;
 use serde::{Deserialize as Deserialise, Serialize as Serialise};
 use serde_with::with_prefix;
 
-use crate::prelude::{prefix_broadcaster, User};
+use crate::prelude::{HypeTrainProgressData, User, prefix_broadcaster};
 
 #[derive(Serialise, Deserialise, Debug, Default, Clone)]
 pub struct UpdateCustomReward {
@@ -510,4 +510,16 @@ pub struct ClipDetails {
 #[derive(Debug, Clone, Deserialise)]
 pub struct Clips {
   pub data: Vec<ClipDetails>,
+}
+
+#[derive(Debug, Clone, Deserialise)]
+pub struct HypeTrainData {
+  pub current: Option<HypeTrainProgressData>,
+  pub all_time_high: String,
+  pub shared_all_time_high: String,
+}
+
+#[derive(Debug, Clone, Deserialise)]
+pub struct HypeTrainStatus {
+  pub data: Vec<HypeTrainData>,
 }

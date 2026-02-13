@@ -30,6 +30,7 @@ pub const GET_MODERATORS_URL: &str = "https://api.twitch.tv/helix/moderation/mod
 pub const GET_GLOBAL_BADGES_URL: &str = "https://api.twitch.tv/helix/chat/badges/global";
 pub const CUSTOM_REWARDS_URL: &str = "https://api.twitch.tv/helix/channel_points/custom_rewards";
 pub const GET_CLIPS_URL: &str = "https://api.twitch.tv/helix/clips";
+pub const GET_HYPE_TRAIN_URL: &str = "https://api.twitch.tv/helix/hypetrain/status";
 
 mod request;
 pub use request::TwitchHttpRequest;
@@ -82,48 +83,6 @@ pub fn get_users<I: Into<String>, S: Into<String>>(
     .header_client_id(client_id)
     .run()
 }
-
-//pub fn get_implicit_grant_flow_user_token(
-//  client_id: &str,
-//  redirect_url: &str,
-//  scopes: &[Subscription],
-//  auto_open_browser: bool,
-//  manual_code_input: bool,
-//) -> Result<String, TwitchApiError> {
-//  let scope = &scopes
-//    .iter()
-//    .map(|s| s.required_scope())
-//    .filter(|s| !s.is_empty())
-//    .collect::<Vec<String>>()
-//    .join("+");
-//
-//  let get_authorisation_code_request = format!(
-//    "{}authorize?response_type=token&client_id={}&redirect_uri={}&scope={}&force_verify=true",
-//    TWITCH_AUTHORISE_URL,
-//    client_id,
-//    redirect_url.to_owned(),
-//    scope
-//  );
-//
-//  match open_browser(get_authorisation_code_request, auto_open_browser) {
-//    Ok(http_response) => {
-//      if http_response.contains("error") {
-//        Err(TwitchApiError::HttpError(format!("{}", http_response)))
-//      } else {
-//        let auth_code = if manual_code_input {
-//          http_response.trim()
-//        } else {
-//          http_response.split('&').collect::<Vec<_>>()[0]
-//            .split('=')
-//            .collect::<Vec<_>>()[1]
-//        };
-//
-//        Ok(auth_code.to_owned())
-//      }
-//    }
-//    e => e,
-//  }
-//}
 
 ///
 /// Returns Ok(Some(code)) when cpature code via localhost is set
@@ -651,6 +610,21 @@ pub fn get_clips(
   let url = RequestBuilder::new()
     .add_key_value("broadcaster_id", broadcaster_id)
     .build(GET_CLIPS_URL);
+  TwitchHttpRequest::new(url)
+    .header_authorisation(user_token, AuthType::Bearer)
+    .header_client_id(client_id)
+    .run()
+}
+
+pub fn get_hype_train_status(
+  user_token: &str,
+  client_id: &str,
+  broadcaster_id: &str,
+) -> Result<String, TwitchApiError> {
+  let url = RequestBuilder::new()
+    .add_key_value("broadcaster_id", broadcaster_id)
+    .build(GET_HYPE_TRAIN_URL);
+
   TwitchHttpRequest::new(url)
     .header_authorisation(user_token, AuthType::Bearer)
     .header_client_id(client_id)

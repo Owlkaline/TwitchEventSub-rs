@@ -301,15 +301,15 @@ impl Subscription {
       Subscription::ChannelGoalProgress => ("channel.goal.progress", "channel:read:goals", "1"),
       Subscription::ChannelGoalEnd => ("channel.goal.end", "channel:read:goals", "1"),
       Subscription::ChannelHypeTrainBegin => {
-        ("channel.hype_train.begin", "channel:read:hype_train", "1")
+        ("channel.hype_train.begin", "channel:read:hype_train", "2")
       }
       Subscription::ChannelHypeTrainProgress => (
         "channel.hype_train.progress",
         "channel:read:hype_train",
-        "1",
+        "2",
       ),
       Subscription::ChannelHypeTrainEnd => {
-        ("channel.hype_train.end", "channel:read:hype_train", "1")
+        ("channel.hype_train.end", "channel:read:hype_train", "2")
       }
       Subscription::ChannelShoutoutCreate => (
         "channel.shoutout.create",

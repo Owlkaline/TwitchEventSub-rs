@@ -29,15 +29,6 @@ pub struct TopContributions {
 }
 
 #[derive(Serialise, Deserialise, Clone, Debug)]
-pub struct LastContribution {
-  #[serde(flatten)]
-  pub user: User,
-  #[serde(rename = "type")]
-  pub kind: String,
-  pub total: u32,
-}
-
-#[derive(Serialise, Deserialise, Clone, Debug)]
 pub struct HypeTrainEndData {
   pub id: String,
   #[serde(flatten, with = "prefix_broadcaster")]
@@ -45,9 +36,29 @@ pub struct HypeTrainEndData {
   pub level: u32,
   pub total: u32,
   pub top_contributions: Vec<TopContributions>,
+  pub shared_train_participants: Vec<Broadcaster>,
   pub started_at: String,
   pub ended_at: String,
   pub cooldown_ends_at: String,
+  #[serde(rename = "type")]
+  pub kind: HypeTrainType,
+}
+
+#[derive(Serialise, Deserialise, Clone, Debug)]
+pub struct Broadcaster {
+  pub broadcaster_user_id: String,
+  pub broadcaster_user_name: String,
+  pub broadcaster_user_login: String,
+}
+
+#[derive(Serialise, Deserialise, Clone, Debug)]
+pub enum HypeTrainType {
+  #[serde(rename = "treasure")]
+  Treasure,
+  #[serde(rename = "golden_kappa")]
+  GoldenKappa,
+  #[serde(rename = "regular")]
+  Regular,
 }
 
 #[derive(Serialise, Deserialise, Clone, Debug)]
@@ -60,9 +71,12 @@ pub struct HypeTrainProgressData {
   pub progress: u32,
   pub goal: u32,
   pub top_contributions: Vec<TopContributions>,
-  pub last_contribution: LastContribution,
+  pub shared_train_participants: Vec<Broadcaster>,
   pub started_at: String,
   pub expires_at: String,
+  pub is_shared_train: bool,
+  #[serde(rename = "type")]
+  pub kind: HypeTrainType,
 }
 
 #[derive(Serialise, Deserialise, Clone, Debug)]
@@ -73,10 +87,15 @@ pub struct HypeTrainBeginData {
   pub total: u32,
   pub progress: u32,
   pub top_contributions: Vec<TopContributions>,
-  pub last_contribution: LastContribution,
+  pub shared_train_participants: Vec<Broadcaster>,
   pub level: u32,
   pub started_at: String,
   pub exires_at: String,
+  pub is_shared_train: bool,
+  #[serde(rename = "type")]
+  pub kind: HypeTrainType,
+  all_time_high_level: u32,
+  all_time_high_total: u32,
 }
 
 #[derive(Serialise, Deserialise, Clone, Debug)]

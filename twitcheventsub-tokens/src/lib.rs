@@ -6,7 +6,8 @@ use twitcheventsub_api::{
 };
 use twitcheventsub_structs::prelude::{
   AdSchedule, ChannelEmotes, Clips, CreateCustomReward, CreatedCustomRewardResponse, GetChatters,
-  GetCustomRewards, GlobalEmotes, Moderators, Subscription, UpdateCustomReward, UserDataSet,
+  GetCustomRewards, GlobalEmotes, HypeTrainStatus, Moderators, Subscription, UpdateCustomReward,
+  UserDataSet,
 };
 
 mod builder;
@@ -392,6 +393,22 @@ impl TokenHandler {
   pub fn get_ad_schedule(&mut self, broadcaster_id: &str) -> Result<AdSchedule, TwitchApiError> {
     self
       .regen_tokens_on_fail(twitcheventsub_api::get_ad_schedule(
+        &self.user_token,
+        &self.client_id,
+        broadcaster_id,
+      ))
+      .and_then(|data| match serde_json::from_str(&data) {
+        Ok(data) => Ok(data),
+        Err(e) => Err(TwitchApiError::DeserialisationError(e.to_string())),
+      })
+  }
+
+  pub fn get_hype_train_status(
+    &mut self,
+    broadcaster_id: &str,
+  ) -> Result<HypeTrainStatus, TwitchApiError> {
+    self
+      .regen_tokens_on_fail(twitcheventsub_api::get_hype_train_status(
         &self.user_token,
         &self.client_id,
         broadcaster_id,
