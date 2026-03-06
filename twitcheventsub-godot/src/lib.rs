@@ -2,17 +2,17 @@ use std::fs;
 use std::panic;
 use std::time::Duration;
 
-use godot::classes::control::FocusMode;
-use godot::classes::link_button::UnderlineMode;
-use godot::classes::tween::EaseType;
-use godot::classes::tween::TransitionType;
-use godot::classes::window::WindowInitialPosition;
 use godot::classes::AspectRatioContainer;
 use godot::classes::Button;
 use godot::classes::LinkButton;
 use godot::classes::Panel;
 use godot::classes::TextureRect;
 use godot::classes::VBoxContainer;
+use godot::classes::control::FocusMode;
+use godot::classes::link_button::UnderlineMode;
+use godot::classes::tween::EaseType;
+use godot::classes::tween::TransitionType;
+use godot::classes::window::WindowInitialPosition;
 use godot::classes::{ConfirmationDialog, GridContainer, Label, LineEdit};
 use godot::init::EditorRunBehavior;
 //use godot::meta::ParamType;
@@ -24,21 +24,21 @@ use godot::{
 use image::EncodableLayout;
 use log::LevelFilter;
 use modules::banned::GUserBanned;
+use twitcheventsub::EventSubError;
+use twitcheventsub::ResponseType;
+use twitcheventsub::TwitchEventSubApi;
 use twitcheventsub::prelude::twitcheventsub_api::TwitchApiError;
 use twitcheventsub::prelude::twitcheventsub_tokens::TokenBuilderError;
 use twitcheventsub::prelude::twitcheventsub_tokens::TokenHandler;
 use twitcheventsub::prelude::twitcheventsub_tokens::TokenHandlerBuilder;
 use twitcheventsub::prelude::*;
-use twitcheventsub::EventSubError;
-use twitcheventsub::ResponseType;
-use twitcheventsub::TwitchEventSubApi;
 
 mod modules;
 use std::io::Cursor;
 
 use crate::modules::{
-  adbreak::*, cheer::*, emote::*, follow::*, getchatters::*, messages::*, poll::*, prediction::*,
-  raid::*, redeems::*, subscription::*, GUser, GUserData,
+  GUser, GUserData, adbreak::*, cheer::*, emote::*, follow::*, getchatters::*, messages::*,
+  poll::*, prediction::*, raid::*, redeems::*, subscription::*,
 };
 
 const VISUAL_ERROR: &[u8] = include_bytes!("../assets/visual_error.png");
@@ -1133,7 +1133,7 @@ impl INode for TwitchEventNode {
   }
 
   fn process(&mut self, _delta: f64) {
-    if let Some(ref mut api) = &mut self.twitch {
+    if let Some(api) = &mut self.twitch {
       if let Some(message) = api.receive_single_message(Duration::ZERO) {
         println!("Event: {:?}", message);
         match message {
