@@ -16,12 +16,12 @@ Go to your [Twitch Console](https://dev.twitch.tv/console)
 
 ### Setting up authentication keys.
 
-Create a `.secrets.env` file in the working directory with the following filled out:
+Create a `.secrets.env` file in the working directory with the following filled out: (Without quotes or spaces)
 
 ```dotenv
-CLIENT_ID = "CLIENT_ID from twitch console app"
-CLIENT_SECRET = "CLIENT_SECRET from twitch console app"
-CLIENT_TWITCH_ID = "Your broadcaster ID as numbers"
+CLIENT_ID="CLIENT_ID from twitch console app"
+CLIENT_SECRET="CLIENT_SECRET from twitch console app"
+CLIENT_TWITCH_ID="Your broadcaster ID as numbers"
 REDIRECT_URL=http://localhost:3000
 ```
 
