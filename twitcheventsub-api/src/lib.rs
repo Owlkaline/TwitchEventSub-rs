@@ -119,11 +119,14 @@ pub fn get_authorisation_code_grant_flow_user_token<S: Into<String>, T: Into<Str
 
   if browser.is_ok() {
     if capture_code_via_localhost {
-      let url = redirect_url
+      let mut url = redirect_url
         .split("http://")
         .map(|s| String::from(s))
         .collect::<Vec<String>>()[1]
         .clone();
+      if url.ends_with("/") {
+        url.pop();
+      }
       let listener = TcpListener::bind(&url);
 
       if let Err(e) = listener {
