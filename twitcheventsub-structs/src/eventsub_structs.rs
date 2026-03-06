@@ -578,11 +578,11 @@ pub struct UserBannedData {
 pub struct UserAction {
   #[serde(flatten)]
   pub user: User,
-  reason: String,
-  timeout: String,
-  message_id: String,
-  message_body: String,
-  viewer_count: Option<u32>,
+  pub reason: Option<String>,
+  pub timeout: Option<String>,
+  pub message_id: Option<String>,
+  pub message_body: Option<String>,
+  pub viewer_count: Option<u32>,
 }
 
 #[derive(Serialise, Deserialise, Clone, Debug)]
@@ -688,7 +688,7 @@ pub struct ModeratorEvent {
   #[serde(flatten, with = "prefix_broadcaster")]
   pub broadcaster: User,
   #[serde(flatten, with = "prefix_source_broadcaster")]
-  pub source: User,
+  pub source: OptionalUser,
   #[serde(flatten, with = "prefix_moderator")]
   pub moderator: User,
   pub action: ModeratorAction,
@@ -700,6 +700,7 @@ pub struct ModeratorEvent {
   pub mod_user: Option<User>,
   pub unmod: Option<User>,
   pub ban: Option<UserAction>,
+  pub unban: Option<UserAction>,
   pub timeout: Option<UserAction>,
   pub untimeout: Option<UserAction>,
   pub raid: Option<UserAction>,
