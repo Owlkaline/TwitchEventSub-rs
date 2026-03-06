@@ -124,7 +124,16 @@ pub fn get_authorisation_code_grant_flow_user_token<S: Into<String>, T: Into<Str
         .map(|s| String::from(s))
         .collect::<Vec<String>>()[1]
         .clone();
-      let listener = TcpListener::bind(&url).expect("Failed to create tcp listener.");
+      let listener = TcpListener::bind(&url);
+
+      if let Err(e) = listener {
+        return Err(TwitchApiError::InputError(format!(
+          "Failed to create tcp listener from redirect url\n  Attempted: {}\n  Original: {}\n With Error: {}",
+          url, redirect_url, e
+        )));
+      }
+
+      let listener = listener.unwrap();
 
       // accept connections and process them serially
       return match listener.accept() {
