@@ -1,13 +1,11 @@
-[gd_scene load_steps=3 format=3 uid="uid://cyyhwe7qi0ikw"]
+[gd_scene format=3 uid="uid://cyyhwe7qi0ikw"]
 
-[ext_resource type="Script" path="res://chat.gd" id="1_gu7eb"]
-[ext_resource type="Script" path="res://label_tween.gd" id="2_ac3g1"]
+[ext_resource type="Script" uid="uid://dnaypqrp5dnj8" path="res://chat.gd" id="1_gu7eb"]
+[ext_resource type="Script" uid="uid://cawp7d3wdlyew" path="res://label_tween.gd" id="2_ac3g1"]
 
-[node name="SimpleChat" type="Node2D"]
-position = Vector2(56, 0)
+[node name="SimpleChat" type="Node2D" unique_id=1710039175]
 
-[node name="ChatContainer" type="AspectRatioContainer" parent="."]
-visible = false
+[node name="ChatContainer" type="AspectRatioContainer" parent="." unique_id=570451193]
 show_behind_parent = true
 offset_left = -57.0
 offset_top = 4.0
@@ -15,12 +13,12 @@ offset_right = 522.0
 offset_bottom = 580.0
 stretch_mode = 1
 
-[node name="Chat" type="Panel" parent="ChatContainer"]
+[node name="Chat" type="Panel" parent="ChatContainer" unique_id=560942795]
 show_behind_parent = true
 layout_mode = 2
 script = ExtResource("1_gu7eb")
 
-[node name="ChatScrollContainer" type="ScrollContainer" parent="ChatContainer/Chat"]
+[node name="ChatScrollContainer" type="ScrollContainer" parent="ChatContainer/Chat" unique_id=965843405]
 clip_contents = false
 layout_mode = 1
 anchors_preset = 15
@@ -31,13 +29,13 @@ grow_vertical = 2
 follow_focus = true
 horizontal_scroll_mode = 0
 
-[node name="Messages" type="VBoxContainer" parent="ChatContainer/Chat/ChatScrollContainer"]
+[node name="Messages" type="VBoxContainer" parent="ChatContainer/Chat/ChatScrollContainer" unique_id=611902324]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 
-[node name="TwitchEventNode" type="TwitchEventNode" parent="ChatContainer"]
+[node name="TwitchEventNode" type="TwitchEventNode" parent="ChatContainer" unique_id=888910798]
 broadcaster_username = "owlkalinevt"
 channel_follow = false
 channel_raid = false
@@ -48,7 +46,7 @@ channel_cheer = false
 permission_read_chatters = true
 unique_name_in_owner = true
 
-[node name="Panel" type="Panel" parent="ChatContainer/TwitchEventNode"]
+[node name="Panel" type="Panel" parent="ChatContainer/TwitchEventNode" unique_id=1110610910]
 visible = false
 offset_left = 6.0
 offset_top = 9.0
@@ -56,7 +54,7 @@ offset_right = 152.0
 offset_bottom = 40.0
 script = ExtResource("2_ac3g1")
 
-[node name="Label" type="Label" parent="ChatContainer/TwitchEventNode/Panel"]
+[node name="Label" type="Label" parent="ChatContainer/TwitchEventNode/Panel" unique_id=248273664]
 layout_mode = 0
 offset_left = 1.0
 offset_top = 3.0

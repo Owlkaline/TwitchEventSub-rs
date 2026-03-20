@@ -1,7 +1,7 @@
 use godot::prelude::*;
 use twitcheventsub::prelude::*;
 
-use crate::modules::{cheer::GCheerMote, emote::GEmote, GUser};
+use crate::modules::{GUser, cheer::GCheerMote, emote::GEmote};
 
 #[derive(GodotClass, Debug, Clone)]
 #[class(init)]
@@ -217,7 +217,7 @@ impl GFragments {
   }
 
   #[func]
-  fn is_any_emote(&self) -> bool {
+  pub fn is_any_emote(&self) -> bool {
     self.kind.to_string().eq("emote") || self.kind.to_string().eq("bttvemote")
   }
 }

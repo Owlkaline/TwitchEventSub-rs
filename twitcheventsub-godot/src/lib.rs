@@ -1,11 +1,16 @@
 use std::fs;
+use std::fs::File;
 use std::panic;
+use std::thread;
 use std::time::Duration;
 
+use godot::classes::AnimatedTexture;
 use godot::classes::AspectRatioContainer;
 use godot::classes::Button;
 use godot::classes::LinkButton;
 use godot::classes::Panel;
+use godot::classes::RichTextLabel;
+use godot::classes::Texture2D;
 use godot::classes::TextureRect;
 use godot::classes::VBoxContainer;
 use godot::classes::control::FocusMode;
@@ -15,13 +20,20 @@ use godot::classes::tween::TransitionType;
 use godot::classes::window::WindowInitialPosition;
 use godot::classes::{ConfirmationDialog, GridContainer, Label, LineEdit};
 use godot::init::EditorRunBehavior;
+use godot::meta::AsArg;
 //use godot::meta::ParamType;
 use godot::prelude::*;
+use godot::task::TaskHandle;
 use godot::{
   classes::{self, INode, Image, ImageTexture, Node},
   obj::WithBaseField,
 };
+use image::AnimationDecoder;
 use image::EncodableLayout;
+use image::ImageDecoder;
+use image::ImageReader;
+use image::codecs::gif::GifDecoder;
+use image::codecs::gif::GifEncoder;
 use log::LevelFilter;
 use modules::banned::GUserBanned;
 use twitcheventsub::EventSubError;
@@ -30,7 +42,6 @@ use twitcheventsub::TwitchEventSubApi;
 use twitcheventsub::prelude::twitcheventsub_api::TwitchApiError;
 use twitcheventsub::prelude::twitcheventsub_tokens::TokenBuilderError;
 use twitcheventsub::prelude::twitcheventsub_tokens::TokenHandler;
-use twitcheventsub::prelude::twitcheventsub_tokens::TokenHandlerBuilder;
 use twitcheventsub::prelude::*;
 
 mod modules;
@@ -285,117 +296,177 @@ pub struct GdUserBannedContainer {
   pub data: Gd<GUserBanned>,
 }
 
+#[derive(GodotClass)]
+#[class(init)]
+struct AwaitEmote {
+  base: Base<RefCounted>,
+}
+
+#[godot_api]
+impl AwaitEmote {
+  #[signal]
+  fn emote_constructed(emote: Variant, a: i32);
+}
+
 #[godot_api]
 impl TwitchEventNode {
   //#[func]
-  //fn get_generic_emote_texture_from_url(&mut self, url: Gd<GEmoteUrl>) -> Variant {
-  //  if url.bind().animated {
-  //    self
-  //      .get_animated_texture_from_url(url.bind().url.to_owned())
-  //      .to_variant()
-  //  } else {
-  //    self
-  //      .get_static_texture_from_url(url.bind().url.to_owned())
-  //      .to_variant()
+  //fn add_new_chat_line(
+  //  &mut self,
+  //  mut rich_label: Gd<RichTextLabel>,
+  //  fragments: Vec<Gd<GFragments>>,
+  //) {
+  //  let token = self.token.clone();
+  //  // godot::task::spawn(async move {
+  //  for fragment in fragments {
+  //    if fragment.bind().is_any_emote() {
+  //      rich_label.add_image(TwitchEventNode::new_emotes(token.clone(), fragment).to_godot());
+  //    } else {
+  //      rich_label.add_text(fragment.bind().text.to_godot());
+  //    }
   //  }
+  //  // });
   //}
 
-  //#[func]
-  //fn get_animated_texture_from_url(&mut self, url: GString) -> Gd<AnimatedTexture> {
-  //  let mut animated_texture = AnimatedTexture::new_gd();
+  #[func]
+  fn get_emote_texture(&mut self, fragment: Gd<GFragments>) -> Gd<Texture2D> {
+    let texture = Texture2D::new_gd();
 
-  //  let data = TwitchEventSubApi::get_image_data_from_url(url);
+    let fragment = fragment.bind().convert_to_rust();
+    let emote = fragment.emote.as_ref().unwrap();
 
-  //  if let Ok(gif) = GifDecoder::new(Cursor::new(data.unwrap())) {
-  //    let (width, height) = gif.dimensions();
-  //    let frames = gif.into_frames().collect_frames().unwrap();
-  //    let number_of_frames = frames.len();
+    if let Some(url) = EmoteBuilder::builder()
+      .animate_or_fallback_on_static()
+      .scale3()
+      .build(
+        &self.token,
+        &self.token.client_twitch_id,
+        &fragment,
+        &mut BTTV {
+          response: None,
+          emote_names: Vec::new(),
+        },
+      )
+    {
+      if let Ok(new_image_data) = attohttpc::get(url.url).send() {
+        dbg!(new_image_data.headers());
+        let is_gif = new_image_data
+          .headers()
+          .get("content-type")
+          .unwrap()
+          .to_str()
+          .unwrap()
+          .contains("gif");
 
-  //    let mut textures = Vec::new();
-  //    let mut frame_duartion_ms = Vec::new();
-  //    for frame in frames.into_iter() {
-  //      let (n, d) = frame.delay().numer_denom_ms();
+        let data = &new_image_data.bytes().unwrap();
+        if is_gif {
+          let mut animated_texture = AnimatedTexture::new_gd();
 
-  //      let delay = Duration::from_millis(
-  //        if n == 0 || d == 0 {
-  //          100
-  //        } else {
-  //          n as u64 / d as u64
-  //        },
-  //      )
-  //      .as_secs_f32();
+          if let Ok(gif) = GifDecoder::new(Cursor::new(data)) {
+            let (width, height) = gif.dimensions();
 
-  //      let data = frame
-  //        .buffer()
-  //        .bytes()
-  //        .map(|a| a.unwrap())
-  //        .collect::<Vec<_>>();
+            let path = format!("emotes/{}.gif", emote.id);
 
-  //      let image = Image::create_from_data(
-  //        width as i32,
-  //        height as i32,
-  //        false,
-  //        classes::image::Format::RGBA8,
-  //        &PackedByteArray::from(data.as_bytes()),
-  //      )
-  //      .unwrap();
-  //      let texture = ImageTexture::create_from_image(&image).unwrap();
-  //      textures.push(texture);
-  //      frame_duartion_ms.push(delay);
-  //    }
+            let frames = gif.into_frames();
+            let frames = frames.collect_frames().expect("error decoding gif");
+            let number_of_frames = frames.len();
+            let file_out = File::create(format!("./assets/{}", path)).unwrap();
+            let mut encoder = GifEncoder::new(file_out);
+            let _ = encoder.encode_frames(frames.clone().into_iter());
 
-  //    {
-  //      animated_texture.set_frames(number_of_frames as i32);
-  //      for i in 0..number_of_frames {
-  //        animated_texture.set_frame_texture(i as i32, &textures[i]);
-  //        animated_texture.set_frame_duration(i as i32, frame_duartion_ms[i]);
+            let mut textures = Vec::new();
+            let mut frame_duartion_ms = Vec::new();
+            for frame in frames.into_iter() {
+              let (n, d) = frame.delay().numer_denom_ms();
+
+              let delay = Duration::from_millis(
+                if n == 0 || d == 0 {
+                  100
+                } else {
+                  n as u64 / d as u64
+                },
+              )
+              .as_secs_f32();
+
+              let data = frame.buffer().as_bytes();
+
+              let image = Image::create_from_data(
+                width as i32,
+                height as i32,
+                false,
+                classes::image::Format::RGBA8,
+                &PackedByteArray::from(data.as_bytes()),
+              )
+              .unwrap();
+              let texture = ImageTexture::create_from_image(&image).unwrap();
+              textures.push(texture);
+              frame_duartion_ms.push(delay);
+            }
+
+            {
+              animated_texture.set_frames(number_of_frames as i32);
+              for i in 0..number_of_frames {
+                animated_texture.set_frame_texture(i as i32, &textures[i]);
+                animated_texture.set_frame_duration(i as i32, frame_duartion_ms[i]);
+              }
+            }
+
+            return animated_texture.upcast();
+            //let texture = assets.load(path);
+            //new_node = Some(commands.spawn(GifNode { handle: texture }).id());
+          }
+
+          return texture;
+        } else if let Ok(image) = ImageReader::new(Cursor::new(&data))
+          .with_guessed_format()
+          .unwrap()
+          .decode()
+        {
+          let path = format!("emotes/{}.png", emote.id);
+          let e = image.save(format!("./assets/{}", path));
+          if e.is_err() {
+            println!("{:?}", e);
+          }
+
+          let image = image.to_rgba8();
+
+          let image = Image::create_from_data(
+            image.width() as i32,
+            image.height() as i32,
+            false,
+            classes::image::Format::RGBA8,
+            &PackedByteArray::from(image.as_bytes()),
+          )
+          .unwrap();
+
+          let texture = ImageTexture::create_from_image(&image).unwrap();
+
+          return texture.upcast();
+          //let texture = assets.load(path);
+          // new_node = Some(commands.spawn(ImageNode::new(texture)).id());
+        }
+      }
+    }
+
+    return texture;
+  }
+
+  //  #[func]
+  //  fn get_badges_urls(&mut self, badges: Array<Gd<GBadge>>) -> Array<Gd<GBadgeVersion>> {
+  //    let mut requested_badges = Array::new();
+  //
+  //    let badges: Vec<Badge> = badges
+  //      .iter_shared()
+  //      .map(|b| (*b.bind()).clone().into())
+  //      .collect::<Vec<_>>();
+  //    if let Some(twitch) = &mut self.twitch {
+  //      for badge in twitch.get_badge_urls_from_badges(badges) {
+  //        requested_badges.push(&Gd::from_object(GBadgeVersion::from(badge)));
   //      }
   //    }
+  //
+  //    requested_badges
   //  }
-
-  //  animated_texture
-  //}
-
-  //#[func]
-  //fn get_static_texture_from_url(&mut self, url: GString) -> Gd<ImageTexture> {
-  //  let data = TwitchEventSubApi::get_image_data_from_url(url);
-  //  let image = image::ImageReader::new(Cursor::new(data.unwrap()))
-  //    .with_guessed_format()
-  //    .unwrap()
-  //    .decode()
-  //    .unwrap()
-  //    .to_rgba8();
-
-  //  let image = Image::create_from_data(
-  //    image.width() as i32,
-  //    image.height() as i32,
-  //    false,
-  //    classes::image::Format::RGBA8,
-  //    &PackedByteArray::from(image.as_bytes()),
-  //  )
-  //  .unwrap();
-
-  //  let texture = ImageTexture::create_from_image(&image);
-
-  //  return texture.unwrap();
-  //}
-
-  //#[func]
-  //fn get_badges_urls(&mut self, badges: Array<Gd<GBadge>>) -> Array<Gd<GBadgeVersion>> {
-  //  let mut requested_badges = Array::new();
-
-  //  let badges: Vec<Badge> = badges
-  //    .iter_shared()
-  //    .map(|b| (*b.bind()).clone().into())
-  //    .collect::<Vec<_>>();
-  //  if let Some(twitch) = &mut self.twitch {
-  //    for badge in twitch.get_badge_urls_from_badges(badges) {
-  //      requested_badges.push(&Gd::from_object(GBadgeVersion::from(badge)));
-  //    }
-  //  }
-
-  //  requested_badges
-  //}
 
   #[func]
   fn get_emote_url_1x(&mut self, fragment: Gd<GFragments>) -> Gd<GEmoteUrl> {

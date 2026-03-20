@@ -18,3 +18,5 @@ twitcheventsub = { workspace = true }
 godot.workspace = true
 log.workspace = true
 simple-logging = "2.0.2"
+attohttpc = "0.30.1"
+bevy_easy_gif = "*"

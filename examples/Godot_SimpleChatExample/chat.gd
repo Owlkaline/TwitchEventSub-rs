@@ -12,8 +12,13 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	pass
 
+func test_func(texutre: ImageTexture, a: int):
+	print("we go thet ets func apparently :3");
+	pass;
+
 func _on_twitch_event_node_chat_message(message_data: GMessageData) -> void:
 	print(message_data.message.text);
+
 	
 	var bottom : bool = $ChatScrollContainer.scroll_vertical == $ChatScrollContainer.get_v_scroll_bar().max_value - $ChatScrollContainer.get_v_scroll_bar().get_rect().size.y
 	var label : RichTextLabel = RichTextLabel.new()
@@ -38,10 +43,10 @@ func _on_twitch_event_node_chat_message(message_data: GMessageData) -> void:
 	label.push_color(Color.WHITE)
 	label.push_normal()
 	label.add_text(": ")
+	#%TwitchEventNode.add_new_chat_line(label, message_data.message.fragments);
 	for fragment in message_data.message.fragments:
 		if fragment.is_any_emote():
-			var url = %TwitchEventNode.get_emote_url_1x(fragment);
-			label.add_image(%TwitchEventNode.get_generic_emote_texture_from_url(url));
+			label.add_image(%TwitchEventNode.get_emote_texture(fragment));
 		else:
 			label.add_text(fragment.text);
 
