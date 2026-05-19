@@ -1,11 +1,11 @@
-use std::{io::stdin, process::exit};
+use std::{io::stdin, process::exit, sync::mpsc::Receiver};
 
 use twitcheventsub_api::{
-  get_user_and_refresh_token_from_authorisation_code, validate_token, TwitchApiError,
+  TwitchApiError, get_user_and_refresh_token_from_authorisation_code, validate_token,
 };
 use twitcheventsub_structs::prelude::Subscription;
 
-use crate::{env_handler::EnvHandler, TokenHandler};
+use crate::{TokenHandler, env_handler::EnvHandler};
 
 #[derive(Debug)]
 pub enum TokenBuilderError {
@@ -52,7 +52,7 @@ pub struct TokenHandlerBuilder {
   use_specific_account: Option<String>,
   is_bot: bool,
   override_redirect_url: Option<String>,
-pub  subscriptions: Vec<Subscription>,
+  pub subscriptions: Vec<Subscription>,
 }
 
 impl Default for TokenHandlerBuilder {
@@ -129,6 +129,7 @@ impl TokenHandlerBuilder {
       user_token_env: self.env_user_token_file.clone(),
       refresh_token_env: self.env_refresh_token_file.clone(),
       subscriptions: self.subscriptions.clone(),
+      // token_channel_received: RetrievedAuthorisationCode(None),
     }
   }
 
@@ -215,6 +216,80 @@ impl TokenHandlerBuilder {
   //  return Ok(partial_tokens);
   //}
 
+  pub fn build_token_from_authorisation_code(
+    &mut self,
+    authorisation_code: &str,
+  ) -> Result<TokenHandler, TokenBuilderError> {
+    let mut token = self.create_basic_token();
+    EnvHandler::load_env(&mut token)?;
+    EnvHandler::load_user_token_env(&mut token);
+    EnvHandler::load_refresh_token_env(&mut token);
+
+    token.set_and_save_tokens_from_authorisation_code(&authorisation_code, &self.subscriptions);
+
+    match token.get_users(Vec::new() as Vec<String>, Vec::new() as Vec<String>) {
+      Ok(users) => token.client_twitch_id = users.data[0].id.clone(),
+      Err(api_error) => return Err(TokenBuilderError::TwitchApiError(api_error)),
+    }
+
+    Ok(token)
+  }
+
+  pub fn build_nonblocking(
+    &mut self,
+  ) -> Result<(TokenHandler, Option<Receiver<String>>), TokenBuilderError> {
+    let mut token = self.create_basic_token();
+    EnvHandler::load_env(&mut token)?;
+    EnvHandler::load_user_token_env(&mut token);
+    EnvHandler::load_refresh_token_env(&mut token);
+
+    if !token.refresh_token.is_empty() {
+      match validate_token(&token.user_token) {
+        Ok(validation) => {
+          if validation.status.is_none() {
+            match token.get_users(Vec::new() as Vec<String>, Vec::new() as Vec<String>) {
+              Ok(users) => token.client_twitch_id = users.data[0].id.clone(),
+              Err(api_error) => return Err(TokenBuilderError::TwitchApiError(api_error)),
+            }
+            // is okay
+            return Ok((token, None));
+          } else {
+            if token.generate_user_token_from_refresh_token().is_ok() {
+              token.save();
+              return Ok((token, None));
+            }
+          }
+        }
+        Err(error) => {
+          println!("Error {:?}", error)
+        }
+      }
+      // if let Ok(validation) = validate_token(&token.client_id) {
+      //   println!("{:?}", validation);
+      //   if validation.status.is_none() {
+      //     // is okay
+      //     return Ok(token);
+      //   } else {
+      // if token.generate_user_token_from_refresh_token().is_ok() {
+      //   token.save();
+      //   return Ok(token);
+      // }
+      // }
+      // }
+    }
+
+    if self.is_bot {
+      self
+        .subscriptions
+        .extend(Subscription::get_subscriptions_for_bot());
+    }
+
+    Ok((
+      token.clone(),
+      Some(token.get_authorisation_token_threaded(&self.subscriptions)),
+    ))
+  }
+
   pub fn build(&mut self) -> Result<TokenHandler, TokenBuilderError> {
     let mut token = self.create_basic_token();
     EnvHandler::load_env(&mut token)?;
@@ -272,136 +347,6 @@ impl TokenHandlerBuilder {
 
     Ok(token)
   }
-
-  //pub fn build(&mut self) -> TokenHandler {
-  //  let env_file = self.env_file.clone();
-
-  //  let mut partial_tokens = TokenHandler {
-  //    user_token: String::new(),
-  //    refresh_token: String::new(),
-  //    redirect_url: String::new(),
-  //    client_id: String::new(),
-  //    client_secret: String::new(),
-  //    client_twitch_id: self.use_specific_account.clone().unwrap_or(String::new()),
-  //    user_token_env: self.env_user_token_file.clone(),
-  //    refresh_token_env: self.env_refresh_token_file.clone(),
-  //  };
-
-  //  if let Some(token) = self.build_from_env_only() {
-  //    partial_tokens = token;
-  //  } else {
-  //    println!("Would you like to automatically create env file? Y/N");
-
-  //    if !create_yn_prompt() {
-  //      exit(0);
-  //    }
-  //  }
-
-  //  let mut updates = false;
-
-  //  if partial_tokens.client_id.is_empty() {
-  //    println!(
-  //      "You can get your Client id and secret from https://dev.twitch.tv/console/apps/create"
-  //    );
-  //    println!("Input your Client Id:");
-  //    partial_tokens.client_id = get_input();
-  //    updates = true;
-  //  }
-
-  //  if partial_tokens.client_secret.is_empty() {
-  //    println!("Input your Client Secret:");
-  //    partial_tokens.client_secret = get_input();
-
-  //    updates = true;
-  //  }
-
-  //  if updates {
-  //    println!("Would you like to save these into the {} Y/N", env_file);
-  //    let save_details = create_yn_prompt();
-
-  //    if save_details {
-  //      EnvHandler::save_env(
-  //        &env_file,
-  //        &partial_tokens.client_id,
-  //        &partial_tokens.client_secret,
-  //        &partial_tokens.client_twitch_id,
-  //        &partial_tokens.redirect_url,
-  //      );
-  //    }
-  //  }
-
-  //  let mut has_redirect_url = true;
-
-  //  if partial_tokens.redirect_url.is_empty() {
-  //    println!("Please input redirect url:");
-  //    partial_tokens.redirect_url = get_input();
-  //    has_redirect_url = false;
-  //  }
-
-  //  // if no refresh token force recreation of token flows
-  //  if has_redirect_url {
-  //    if let Some(user_token) = EnvHandler::load_user_token_env(&partial_tokens.user_token_env) {
-  //      partial_tokens.user_token = user_token;
-  //      partial_tokens.refresh_token =
-  //        EnvHandler::load_refresh_token_env(&partial_tokens.refresh_token_env)
-  //          .unwrap_or(String::new());
-
-  //      // Check if theres already user and refresh tokens
-  //      if let Ok(user_id) = partial_tokens.get_token_user_id() {
-  //        // This means it is a new client id/secrets so should redo flow
-  //        if partial_tokens.client_twitch_id != user_id {
-  //          println!("client twitch id and user id are different");
-  //        } else {
-  //          return partial_tokens;
-  //        }
-  //      }
-  //    }
-  //  }
-
-  //  println!("Do you want to automatically open the link? Y/N");
-  //  let open_browser = create_yn_prompt();
-
-  //  let (user_token, refresh_token) = get_user_and_refresh_tokens(
-  //    &partial_tokens.client_id,
-  //    &partial_tokens.client_secret,
-  //    &partial_tokens.redirect_url,
-  //    &if self.is_bot {
-  //      Subscription::get_subscriptions_for_bot()
-  //    } else {
-  //      Vec::with_capacity(0)
-  //    },
-  //    open_browser,
-  //    true,
-  //  );
-
-  //  partial_tokens.user_token = user_token;
-  //  partial_tokens.refresh_token = refresh_token;
-
-  //  EnvHandler::save_user_token(&partial_tokens.user_token_env, &partial_tokens.user_token);
-  //  if !partial_tokens.refresh_token.is_empty() {
-  //    EnvHandler::save_refresh_token(
-  //      &partial_tokens.refresh_token_env,
-  //      &partial_tokens.refresh_token,
-  //    );
-  //  }
-
-  //  partial_tokens.client_twitch_id = match partial_tokens.get_token_user_id() {
-  //    Ok(id) => id,
-  //    Err(e) => {
-  //      panic!("{:?}", e);
-  //    }
-  //  };
-
-  //  EnvHandler::save_env(
-  //    &env_file,
-  //    &partial_tokens.client_id,
-  //    &partial_tokens.client_secret,
-  //    &partial_tokens.client_twitch_id,
-  //    &partial_tokens.redirect_url,
-  //  );
-
-  //  partial_tokens
-  //}
 }
 
 pub fn generate_authorisation_code(
@@ -430,16 +375,4 @@ pub fn generate_authorisation_code(
     }
     Err(e) => Err(TokenBuilderError::TwitchApiError(e)),
   }
-
-  //  match twitcheventsub_api::get_user_and_refresh_token_from_authorisation_code(
-  //    client_id,
-  //    client_secret,
-  //    code,
-  //    redirect_url,
-  //  ) {
-  //    Ok(tokens) => tokens,
-  //    Err(e) => {
-  //      panic!("{:?}", e);
-  //    }
-  //  }
 }

@@ -1,6 +1,7 @@
 use std::fs;
 use std::fs::File;
 use std::panic;
+use std::sync::mpsc::Receiver;
 use std::thread;
 use std::time::Duration;
 
@@ -42,6 +43,7 @@ use twitcheventsub::TwitchEventSubApi;
 use twitcheventsub::prelude::twitcheventsub_api::TwitchApiError;
 use twitcheventsub::prelude::twitcheventsub_tokens::TokenBuilderError;
 use twitcheventsub::prelude::twitcheventsub_tokens::TokenHandler;
+use twitcheventsub::prelude::twitcheventsub_tokens::TokenHandlerBuilder;
 use twitcheventsub::prelude::*;
 
 mod modules;
@@ -159,6 +161,8 @@ struct TwitchEventNode {
   redirect_url_field: Option<Gd<LineEdit>>,
   need_help: Option<Gd<AspectRatioContainer>>,
   token: TokenHandler,
+  token_builder: TokenHandlerBuilder,
+  recv_code: Option<Receiver<String>>,
   twitch: Option<TwitchEventSubApi>,
   base: Base<Node>,
 }
@@ -1067,18 +1071,19 @@ impl TwitchEventNode {
 
     println!("Subscriptions from builder: {}", token.subscriptions.len());
 
-    match token
+    self.token_builder = token
       .env_file(&format!(".{}.env", self.env_file_name))
-      .override_redirect_url(&self.redirect_url.to_string())
-      .build()
-    {
-      Ok(new_token) => {
+      .override_redirect_url(&self.redirect_url.to_string());
+
+    match self.token_builder.build_nonblocking() {
+      Ok((new_token, recv_code)) => {
         println!("new token was created succcesfully");
         println!(
           "Subscriptions of new token: {}",
           new_token.subscriptions.len()
         );
-        self.token = new_token
+        self.token = new_token;
+        self.recv_code = recv_code;
       }
       Err(e) => match e {
         TokenBuilderError::ClientIdNotSet => {
@@ -1108,39 +1113,39 @@ impl TwitchEventNode {
       },
     }
 
-    println!("subscriptions: {}", self.token.subscriptions.len());
+    //println!("subscriptions: {}", self.token.subscriptions.len());
 
-    let mut twitch = TwitchEventSubApi::builder(self.token.clone()); //.enable_irc();
-    match twitch.build(&self.broadcaster_username.to_string()) {
-      Ok(twitch) => {
-        self.token.save();
-        self.twitch = Some(twitch);
-      }
-      Err(EventSubError::TwitchApiError(TwitchApiError::InvalidOauthToken(error)))
-        if error.contains("are different") =>
-      {
-        panic!("Twitch Id doesnt match token user id: {:?}", error);
-      }
-      Err(e) => match e {
-        //EventSubError::InvalidOauthToken(exact_error) => {
-        //  let mut client_id = keys.client_id;
-        //  let mut client_secret = keys.client_secret;
-        //  let broadcaster_id = keys.broadcaster_account_id;
+    //let mut twitch = TwitchEventSubApi::builder(self.token.clone()); //.enable_irc();
+    //match twitch.build(&self.broadcaster_username.to_string()) {
+    //  Ok(twitch) => {
+    //    self.token.save();
+    //    self.twitch = Some(twitch);
+    //  }
+    //  Err(EventSubError::TwitchApiError(TwitchApiError::InvalidOauthToken(error)))
+    //    if error.contains("are different") =>
+    //  {
+    //    panic!("Twitch Id doesnt match token user id: {:?}", error);
+    //  }
+    //  Err(e) => match e {
+    //    //EventSubError::InvalidOauthToken(exact_error) => {
+    //    //  let mut client_id = keys.client_id;
+    //    //  let mut client_secret = keys.client_secret;
+    //    //  let broadcaster_id = keys.broadcaster_account_id;
 
-        //  if exact_error.contains("400") {
-        //    client_id = "Invalid ID".to_string();
-        //  }
-        //  if exact_error.contains("403") {
-        //    client_secret = String::new();
-        //  }
+    //    //  if exact_error.contains("400") {
+    //    //    client_id = "Invalid ID".to_string();
+    //    //  }
+    //    //  if exact_error.contains("403") {
+    //    //    client_secret = String::new();
+    //    //  }
 
-        //  self.create_popup(Some(client_id), Some(client_secret), Some(broadcaster_id));
-        //}
-        e => {
-          panic!("Test fail {:?}", e);
-        }
-      },
-    }
+    //    //  self.create_popup(Some(client_id), Some(client_secret), Some(broadcaster_id));
+    //    //}
+    //    e => {
+    //      panic!("Test fail {:?}", e);
+    //    }
+    //  },
+    //}
   }
 }
 
@@ -1149,7 +1154,9 @@ impl INode for TwitchEventNode {
   fn init(base: Base<Node>) -> Self {
     Self {
       twitch: None,
+      recv_code: None,
       token: TokenHandler::new(),
+      token_builder: TokenHandler::builder(),
       start_onready: true,
       broadcaster_username: "".to_godot(),
       show_connected_notification: true,
@@ -1204,6 +1211,50 @@ impl INode for TwitchEventNode {
   }
 
   fn process(&mut self, _delta: f64) {
+    if let Some(recv) = &self.recv_code {
+      if let Ok(code) = recv.try_recv() {
+        //println!("subscriptions: {}", self.token.subscriptions.len());
+
+        self.token = self
+          .token_builder
+          .build_token_from_authorisation_code(&code)
+          .unwrap();
+        self.recv_code = None;
+
+        let mut twitch = TwitchEventSubApi::builder(self.token.clone()); //.enable_irc();
+        match twitch.build(&self.broadcaster_username.to_string()) {
+          Ok(twitch) => {
+            self.token.save();
+            self.twitch = Some(twitch);
+          }
+          Err(EventSubError::TwitchApiError(TwitchApiError::InvalidOauthToken(error)))
+            if error.contains("are different") =>
+          {
+            panic!("Twitch Id doesnt match token user id: {:?}", error);
+          }
+          Err(e) => match e {
+            //EventSubError::InvalidOauthToken(exact_error) => {
+            //  let mut client_id = keys.client_id;
+            //  let mut client_secret = keys.client_secret;
+            //  let broadcaster_id = keys.broadcaster_account_id;
+
+            //  if exact_error.contains("400") {
+            //    client_id = "Invalid ID".to_string();
+            //  }
+            //  if exact_error.contains("403") {
+            //    client_secret = String::new();
+            //  }
+
+            //  self.create_popup(Some(client_id), Some(client_secret), Some(broadcaster_id));
+            //}
+            e => {
+              panic!("Test fail {:?}", e);
+            }
+          },
+        }
+      }
+    }
+
     if let Some(api) = &mut self.twitch {
       if let Some(message) = api.receive_single_message(Duration::ZERO) {
         println!("Event: {:?}", message);

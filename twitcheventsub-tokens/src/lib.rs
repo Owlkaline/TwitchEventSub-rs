@@ -1,6 +1,12 @@
 #![allow(clippy::uninlined_format_args)]
+
+use std::{
+  sync::mpsc::{Receiver, Sender, channel},
+  thread,
+};
+
 use env_handler::EnvHandler;
-use log::warn;
+use log::{debug, warn};
 use twitcheventsub_api::{
   self, TwitchApiError, get_user_and_refresh_token_from_authorisation_code, validate_token,
 };
@@ -39,6 +45,7 @@ pub struct TokenHandler {
   refresh_token_env: String,
 
   pub subscriptions: Vec<Subscription>,
+  //  token_channel_received: RetrievedAuthorisationCode, // Authorisation code
 }
 
 impl TokenHandler {
@@ -419,28 +426,61 @@ impl TokenHandler {
       })
   }
 
+  pub fn wait_for_resposne_from_generate_user_and_refreshed_tokens_threaded() {}
+
+  // After recieving the authorisation code from the Receiver
+  // run set_and_save_tokens_from_authorisation_code function
+  pub fn get_authorisation_token_threaded(&self, scopes: &[Subscription]) -> Receiver<String> {
+    let (send, recv) = channel();
+    //  self.token_channel_received = RetrievedAuthorisationCode(Some(Box::new(recv)));
+
+    let client_id = self.client_id.clone();
+    let redirect_url = self.redirect_url.clone();
+    let scopes = scopes.to_vec();
+
+    thread::spawn(move || {
+      let authorisation_code;
+      match open_browser_to_get_authorisation_code(client_id, redirect_url, &scopes) {
+        Ok(auth_code) => {
+          authorisation_code = auth_code;
+        }
+        Err(e) => {
+          panic!("{:?}", e);
+        }
+      }
+
+      let _ = send.send(authorisation_code);
+    });
+
+    recv
+  }
+
   pub fn generate_user_and_refresh_tokens(
     &mut self,
     scopes: &[Subscription],
   ) -> Option<TokenBuilderError> {
-    let open_browser = true;
-
     let authorisation_code;
-    match generate_authorisation_code(&self.client_id, &self.redirect_url, scopes, open_browser) {
-      Ok(code) => {
-        authorisation_code = code;
-      }
-      Err(TokenBuilderError::ManuallyInputAuthorisationCode) => {
-        // Listen for input
-        // or manually set input
-        println!("Please input generated authorisation code from browser url:");
-        authorisation_code = get_input();
+    match open_browser_to_get_authorisation_code(
+      self.client_id.clone(),
+      self.redirect_url.clone(),
+      scopes,
+    ) {
+      Ok(auth_code) => {
+        authorisation_code = auth_code;
       }
       Err(e) => {
         return Some(e);
       }
     }
 
+    self.set_and_save_tokens_from_authorisation_code(&authorisation_code, &scopes)
+  }
+
+  pub fn set_and_save_tokens_from_authorisation_code(
+    &mut self,
+    authorisation_code: &str,
+    scopes: &[Subscription],
+  ) -> Option<TokenBuilderError> {
     let (user_token, refresh_token) = get_user_and_refresh_token_from_authorisation_code(
       &self.client_id,
       &self.client_secret,
@@ -485,5 +525,29 @@ impl TokenHandler {
     );
     EnvHandler::save_user_token(&self.user_token_env, &self.user_token);
     EnvHandler::save_refresh_token(&self.refresh_token_env, &self.refresh_token);
+  }
+}
+
+fn open_browser_to_get_authorisation_code(
+  client_id: String,
+  redirect_url: String,
+  scopes: &[Subscription],
+) -> Result<String, TokenBuilderError> {
+  let open_browser = true;
+
+  let authorisation_code;
+  match generate_authorisation_code(&client_id, &redirect_url, &scopes, open_browser) {
+    Ok(code) => {
+      authorisation_code = code;
+      Ok(authorisation_code)
+    }
+    Err(TokenBuilderError::ManuallyInputAuthorisationCode) => {
+      // Listen for input
+      // or manually set input
+      println!("Please input generated authorisation code from browser url:");
+      authorisation_code = get_input();
+      Ok(authorisation_code)
+    }
+    Err(e) => Err(e),
   }
 }
