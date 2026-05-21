@@ -145,12 +145,13 @@ pub fn get_authorisation_code_grant_flow_user_token<S: Into<String>, T: Into<Str
           stream
             .read_to_string(&mut http_output)
             .expect("Failed to read tcp stream.");
-          Ok(Some(
+          Ok(
             http_output.split('&').collect::<Vec<_>>()[0]
               .split('=')
-              .collect::<Vec<_>>()[1]
-              .to_string(),
-          ))
+              .collect::<Vec<_>>()
+              .get(1)
+              .map(|s| s.to_string()),
+          )
         }
         Err(e) => Err(TwitchApiError::HttpError(e.to_string())),
       }
