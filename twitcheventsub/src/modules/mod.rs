@@ -5,5 +5,5 @@ pub mod errors;
 pub mod eventsub;
 pub mod irc_bot;
 
-#[cfg(feature = "bevy")]
+//#[cfg(feature = "bevy")]
 pub mod bevy;

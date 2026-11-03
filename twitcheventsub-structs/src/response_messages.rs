@@ -1,5 +1,7 @@
 #[cfg(feature = "bevy")]
-use bevy_ecs::prelude::Message as BevyEvent;
+use bevy_ecs::prelude::Event as BevyEvent;
+#[cfg(feature = "bevy")]
+use bevy_ecs::prelude::Message as BevyMessage;
 
 use crate::prelude::*;
 use crate::{Deserialise, Serialise};
@@ -234,7 +236,7 @@ pub struct Cheer {
 
 #[cfg_attr(
   feature = "bevy",
-  derive(Serialise, Deserialise, Debug, Clone, BevyEvent)
+  derive(Serialise, Deserialise, Debug, Clone, BevyMessage, BevyEvent, Default)
 )]
 #[cfg_attr(not(feature = "bevy"), derive(Serialise, Deserialise, Debug, Clone))]
 #[serde(untagged)]
@@ -270,6 +272,9 @@ pub enum TwitchEvent {
   Ready,
   #[cfg(feature = "bevy")]
   Finished,
+  #[cfg(feature = "bevy")]
+  #[default]
+  Test,
 }
 
 #[derive(Serialise, Deserialise, Debug, Clone)]
