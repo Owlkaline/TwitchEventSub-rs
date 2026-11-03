@@ -27,12 +27,17 @@ REDIRECT_URL=http://localhost:3000
 
 ## Godot Example
 
+### Adding the node to your project
 1. Grab the compiled binaries and .gdextension file from release or compile your own
-2. Paste them into the root directory of your project and click reload project
-3. Add a single TwitchEvent Object to your scene
-4. Select it, and on the right side of the editor, next to the inspector tab click the node tab
-5. In this tab you will see all avaiable twitch event signals
-6. Double click on the one you want and add it to a script!
+2. Paste them into the root directory of your project and click Project -> Reload current Project
+3. Add a single TwitchEventNode Object to your scene (Only ever have one instance of this object
+4. Select the node, on the right side of the editor, within the inspector tab, enable/disable all subscriptions you wish to have
+5. Input your twitch username in the Broadcaster Username section
+
+### Listening to Twitch Events with Signals (GUI)
+1. Select the TwitchEventNode, Look at the right side of the editor, click the signal tab
+2. In this tab you will see all avaiable twitch event signals
+3. Double click on the one you want to listen for and add it to a script!
 
 Don't forget to enable/disable the subscriptions you want to use!
 
@@ -57,6 +62,12 @@ func _on_twitch_event_custom_point_reward_redeem(reward: GReward):
 	print("A channel point redeem was just redeem: {}", reward.title);
 	# Do stuff when a reward is redeemed!
 ```
+
+### Listening to Twitch Events with Signals (GD Script)
+1. Grab a reference to TwitchEventNode, how ever you like
+2. connect your function to the signal in the _ready function of the script
+3. for example twitch_event_node.chat_message.connect(chat_message_recieved);
+4. Create the chat message recieved function with the corresponding type (message_data: GMessageData, in this case)
 
 ### Rust Example Usage
 
