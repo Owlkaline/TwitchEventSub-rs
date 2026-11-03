@@ -1084,6 +1084,9 @@ impl TwitchEventNode {
         );
         self.token = new_token;
         self.recv_code = recv_code;
+        if self.recv_code.is_none() {
+          self.start_with_tokens();
+        }
       }
       Err(e) => match e {
         TokenBuilderError::ClientIdNotSet => {
@@ -1146,6 +1149,40 @@ impl TwitchEventNode {
     //    }
     //  },
     //}
+  }
+
+  fn start_with_tokens(&mut self) {
+    let twitch = TwitchEventSubApi::builder(self.token.clone()); //.enable_irc();
+    match twitch.build(&self.broadcaster_username.to_string()) {
+      Ok(twitch) => {
+        self.token.save();
+        self.twitch = Some(twitch);
+      }
+      Err(EventSubError::TwitchApiError(TwitchApiError::InvalidOauthToken(error)))
+        if error.contains("are different") =>
+      {
+        panic!("Twitch Id doesnt match token user id: {:?}", error);
+      }
+      Err(e) => match e {
+        //EventSubError::InvalidOauthToken(exact_error) => {
+        //  let mut client_id = keys.client_id;
+        //  let mut client_secret = keys.client_secret;
+        //  let broadcaster_id = keys.broadcaster_account_id;
+
+        //  if exact_error.contains("400") {
+        //    client_id = "Invalid ID".to_string();
+        //  }
+        //  if exact_error.contains("403") {
+        //    client_secret = String::new();
+        //  }
+
+        //  self.create_popup(Some(client_id), Some(client_secret), Some(broadcaster_id));
+        //}
+        e => {
+          panic!("Test fail {:?}", e);
+        }
+      },
+    }
   }
 }
 
@@ -1221,37 +1258,7 @@ impl INode for TwitchEventNode {
           .unwrap();
         self.recv_code = None;
 
-        let mut twitch = TwitchEventSubApi::builder(self.token.clone()); //.enable_irc();
-        match twitch.build(&self.broadcaster_username.to_string()) {
-          Ok(twitch) => {
-            self.token.save();
-            self.twitch = Some(twitch);
-          }
-          Err(EventSubError::TwitchApiError(TwitchApiError::InvalidOauthToken(error)))
-            if error.contains("are different") =>
-          {
-            panic!("Twitch Id doesnt match token user id: {:?}", error);
-          }
-          Err(e) => match e {
-            //EventSubError::InvalidOauthToken(exact_error) => {
-            //  let mut client_id = keys.client_id;
-            //  let mut client_secret = keys.client_secret;
-            //  let broadcaster_id = keys.broadcaster_account_id;
-
-            //  if exact_error.contains("400") {
-            //    client_id = "Invalid ID".to_string();
-            //  }
-            //  if exact_error.contains("403") {
-            //    client_secret = String::new();
-            //  }
-
-            //  self.create_popup(Some(client_id), Some(client_secret), Some(broadcaster_id));
-            //}
-            e => {
-              panic!("Test fail {:?}", e);
-            }
-          },
-        }
+        self.start_with_tokens();
       }
     }
 
